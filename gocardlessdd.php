@@ -25,10 +25,56 @@ function gocardlessdd_civicrm_xmlMenu(&$files) {
 /**
  * Implements hook_civicrm_install().
  *
+ * We set up the payment processor type and payment instrument types here.
+ * (I tried to do this with `hook_civicrm_managed()` but failed because I need to relate the entities).
+ *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_install
  */
 function gocardlessdd_civicrm_install() {
   _gocardlessdd_civix_civicrm_install();
+
+  /**
+   * Helper function for creating data structures.
+   *
+   * @param string $entity - name of the API entity.
+   * @param Array $params_min parameters to use for search.
+   * @param Array $params_extra these plus $params_min are used if a create call
+   *              is needed.
+   */
+  $get_or_create = function ($entity, $params_min, $params_extra) {
+    $params_min += ['sequential' => 1];
+    $result = civicrm_api3($entity, 'get', $params_min);
+    if (!$result['count']) {
+      // Couldn't find it, create it now.
+      $result = civicrm_api3($entity, 'create', $params_extra + $params_min);
+    }
+    return $result['values'][0];
+  };
+
+  // We need a payment instrument known as direct_debit_gc.
+  $payment_instrument = $get_or_create('OptionValue',
+    [ 'option_group_id' => "payment_instrument", 'name' => "direct_debit_gc", ],
+    [ 'label' => ts("GoCardless Direct Debit"), ]);
+  $payment_instrument_id = $payment_instrument['value'];
+
+  $get_or_create('PaymentProcessorType',
+    [
+      'name' => 'GoCardless',
+      'title' => 'GoCardless',
+      'class_name' => 'Payment_GoCardless',
+      'billing_mode' => 4,
+      'is_recur' => 1,
+    ],
+    [
+      'is_active' => 1,
+      'is_default' => 0,
+      'user_name_label' => 'API Access Token',
+      'url_api_default' => 'https://api.gocardless.com/',
+      'url_api_test_default' => 'https://api-sandbox.gocardless.com/',
+      'billing_mode' => 4,
+      'is_recur' => 1,
+      'payment_type' => $payment_instrument_id,
+    ]);
 }
 
 /**
@@ -38,6 +84,7 @@ function gocardlessdd_civicrm_install() {
  */
 function gocardlessdd_civicrm_uninstall() {
   _gocardlessdd_civix_civicrm_uninstall();
+  // @todo remove direct_debit_gc payment instrument and GoCardless PaymentProcessorType if not in use.
 }
 
 /**
@@ -122,6 +169,51 @@ _gocardlessdd_civix_civicrm_angularModules($angularModules);
  */
 function gocardlessdd_civicrm_alterSettingsFolders(&$metaDataFolders = NULL) {
   _gocardlessdd_civix_civicrm_alterSettingsFolders($metaDataFolders);
+}
+
+/**
+ * Complete a GoCardless redirect flow before we present the thank you page.
+ *
+ * - call GC API to complete the mandate.
+ * - find details of the contribution: how much, how often, day of month, 'name'
+ * - set up a GC Subscription.
+ * - set trxn_id to the subscription ID in the contribution table.
+ * - if recurring: set trxn_id, "In Progress", start date in contribution_recur table.
+ * - if membership: set membership end date to start date + interval.
+ *
+ */
+function gocardlessdd_civicrm_buildForm( $formName, &$form ) {
+  if ($formName != 'CRM_Contribute_Form_Contribution_ThankYou' || empty($_GET['redirect_flow_id'])) {
+    // This form build has nothing to do with us.
+    return;
+  }
+
+  // We have a redirect_flow_id.
+  $redirect_flow_id = $_GET['redirect_flow_id'];
+  $sesh = CRM_Core_Session::singleton();
+  $sesh_store = $sesh->get('redirect_flows', 'GoCardless');
+  if (empty($sesh_store[$redirect_flow_id])) {
+    // When would this happen?
+    // - Back button.
+    // - Hacks?
+    // - Something else that lost the session.
+    //
+    // Anyway, in all cases let's assume that we are unable to proceed.
+    // @todo should we tell the user about this?
+    return;
+  }
+  //$sesh_store[$redirect_flow_id] =
+
+  // Complete the redirect flow with GC.
+  $params = [
+    'redirect_flow_id' => $redirect_flow_id,
+    'session_token' => $_GET['qfKey'],
+  ] + $sesh_store[$redirect_flow_id];
+  try {
+    $result = GoCardlessUtils::completeRedirectFlow($params);
+  }
+  catch (Exception $e) {
+  }
 }
 
 /**
