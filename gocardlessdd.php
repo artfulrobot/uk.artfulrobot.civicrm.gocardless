@@ -202,7 +202,6 @@ function gocardlessdd_civicrm_buildForm( $formName, &$form ) {
     // @todo should we tell the user about this?
     return;
   }
-  //$sesh_store[$redirect_flow_id] =
 
   // Complete the redirect flow with GC.
   $params = [
@@ -210,7 +209,7 @@ function gocardlessdd_civicrm_buildForm( $formName, &$form ) {
     'session_token' => $_GET['qfKey'],
   ] + $sesh_store[$redirect_flow_id];
   try {
-    $result = GoCardlessUtils::completeRedirectFlow($params);
+    $result = CRM_GoCardlessUtils::completeRedirectFlow($params);
   }
   catch (Exception $e) {
   }

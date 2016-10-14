@@ -77,95 +77,19 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
   /**
    * Sends user off to Gocardless.
    *
-   ⬦ $this->_mode = (string [4]) `test`
-   ▾ $this->_paymentProcessor = (array [16])
-     ⬦ $this->_paymentProcessor['id'] = (string [1]) `7`
-     ⬦ $this->_paymentProcessor['domain_id'] = (string [1]) `1`
-     ⬦ $this->_paymentProcessor['name'] = (string [10]) `GoCardless`
-     ⬦ $this->_paymentProcessor['payment_processor_type_id'] = (string [2]) `22`
-     ⬦ $this->_paymentProcessor['is_active'] = (string [1]) `1`
-     ⬦ $this->_paymentProcessor['is_default'] = (string [1]) `1`
-     ⬦ $this->_paymentProcessor['is_test'] = (string [1]) `1`
-     ⬦ $this->_paymentProcessor['user_name'] = (string [40]) `imJx_OwDhVDA29RyLdhW-RJLI4jXFzTCsFAuLK_B`
-     ⬦ $this->_paymentProcessor['url_api'] = (string [35]) `https://api-sandbox.gocardless.com/`
-     ⬦ $this->_paymentProcessor['class_name'] = (string [18]) `Payment_GoCardless`
-     ⬦ $this->_paymentProcessor['billing_mode'] = (string [1]) `4`
-     ⬦ $this->_paymentProcessor['is_recur'] = (string [1]) `1`
-     ⬦ $this->_paymentProcessor['payment_type'] = (string [1]) `6`
-     ⬦ $this->_paymentProcessor['payment_instrument_id'] = (string [1]) `6`
-     ▾ $this->_paymentProcessor['api.payment_processor_type.getsingle'] = (array [13])
-       ⬦ $this->_paymentProcessor['api.payment_processor_type.getsingle']['id'] = (string [2]) `22`
-       ⬦ $this->_paymentProcessor['api.payment_processor_type.getsingle']['name'] = (string [10]) `GoCardless`
-       ⬦ $this->_paymentProcessor['api.payment_processor_type.getsingle']['title'] = (string [10]) `GoCardless`
-       ⬦ $this->_paymentProcessor['api.payment_processor_type.getsingle']['is_active'] = (string [1]) `1`
-       ⬦ $this->_paymentProcessor['api.payment_processor_type.getsingle']['is_default'] = (string [1]) `0`
-       ⬦ $this->_paymentProcessor['api.payment_processor_type.getsingle']['user_name_label'] = (string [16]) `API Access Token`
-       ⬦ $this->_paymentProcessor['api.payment_processor_type.getsingle']['class_name'] = (string [18]) `Payment_GoCardless`
-       ⬦ $this->_paymentProcessor['api.payment_processor_type.getsingle']['url_api_default'] = (string [27]) `https://api.gocardless.com/`
-       ⬦ $this->_paymentProcessor['api.payment_processor_type.getsingle']['url_api_test_default'] = (string [35]) `https://api-sandbox.gocardless.com/`
-       ⬦ $this->_paymentProcessor['api.payment_processor_type.getsingle']['billing_mode'] = (string [1]) `4`
-       ⬦ $this->_paymentProcessor['api.payment_processor_type.getsingle']['is_recur'] = (string [1]) `1`
-       ⬦ $this->_paymentProcessor['api.payment_processor_type.getsingle']['payment_type'] = (string [1]) `6`
-       ⬦ $this->_paymentProcessor['api.payment_processor_type.getsingle']['payment_instrument_id'] = (string [1]) `1`
-     ⬦ $this->_paymentProcessor['payment_processor_type'] = (string [10]) `GoCardless`
-   ⬦ $this->baseReturnUrl = (null)
- ▾ $params = (array [34])
-   ⬦ $params['qfKey'] = (string [37]) `3da01c04d729872b6807bc64ffbef426_8676`
-   ⬦ $params['entryURL'] = (string [152]) `https://sosdev.artfulrobot.uk/wp-admin/admin.php?page=CiviCRM&amp;q=civicrm/contribute/transact&amp;page=CiviCRM&amp;reset=1&amp;action=preview&amp;id=1`
-   ⬦ $params['hidden_processor'] = (string [1]) `1`
-   ⬦ $params['email-5'] = (string [17]) `rl7@shinyblue.net`
-   ⬦ $params['payment_processor_id'] = (string [1]) `7`
-   ⬦ $params['priceSetId'] = (string [1]) `3`
-   ⬦ $params['price_2'] = (string [1]) `1`
-   ⬦ $params['is_recur'] = (string [1]) `1`
-   ⬦ $params['frequency_interval'] = (string [1]) `1`
-   ⬦ $params['frequency_unit'] = (string [5]) `month`
-   ⬦ $params['selectProduct'] = (string [0]) ``
-   ⬦ $params['MAX_FILE_SIZE'] = (string [7]) `2097152`
-   ⬦ $params['ip_address'] = (string [14]) `81.174.169.217`
-   ⬦ $params['amount'] = (string [4]) `1.00`
-   ⬦ $params['tax_amount'] = (null)
-   ⬦ $params['currencyID'] = (string [3]) `GBP`
-   ⬦ $params['is_pay_later'] = (int) 0
-   ⬦ $params['invoiceID'] = (string [32]) `cc94b09601be6889c3b975a08a12de74`
-   ⬦ $params['is_quick_config'] = (int) 1
-   ⬦ $params['description'] = (string [27]) `Online Contribution: Test 1`
-   ⬦ $params['accountingCode'] = (null)
-   ⬦ $params['address_name-5'] = (string [0]) ``
-   ⬦ $params['email'] = (string [17]) `rl7@shinyblue.net`
-   ⬦ $params['contributionType_name'] = (string [8]) `Donation`
-   ⬦ $params['financialType_name'] = (string [8]) `Donation`
-   ⬦ $params['contributionType_accounting_code'] = (string [4]) `4200`
-   ⬦ $params['financialType_accounting_code'] = (string [4]) `4200`
-   ⬦ $params['contributionPageID'] = (string [1]) `1`
-   ⬦ $params['contactID'] = (string [1]) `2`
-   ⬦ $params['contributionTypeID'] = (string [1]) `1`
-   ⬦ $params['item_name'] = (string [27]) `Online Contribution: Test 1`
-   ⬦ $params['contributionID'] = (int) 11
-   ⬦ $params['financialTypeID'] = (string [1]) `1`
-   ⬦ $params['contributionRecurID'] = (int) 9
-
-
-
-
-   ⬦ $params['email-5'] = (string [17]) `rl7@shinyblue.net`
-   ⬦ $params['payment_processor_id'] = (string [1]) `7`
-   ⬦ $params['amount'] = (int) 1
-   ⬦ $params['selectMembership'] = (string [1]) `1`
-   ⬦ $params['is_recur'] = (int) 1
-   ⬦ $params['frequency_interval'] = (string [1]) `1`
-   ⬦ $params['frequency_unit'] = (string [5]) `month`
-   ⬦ $params['invoiceID'] = (string [32]) `230cff041c47c68adfc8bcef7658021b`
-   ⬦ $params['description'] = (string [32]) `Online Contribution: memberships`
-   ⬦ $params['contributionPageID'] = (string [1]) `2`
-   ⬦ $params['contactID'] = (string [1]) `2`
-   ⬦ $params['contributionRecurID'] = (int) 10
-   ▾ $params['createdMembershipIDs'] = (array [1])
-     ⬦ $params['createdMembershipIDs'][0] = (string [1]) `2`
-   ⬦ $params['membershipID'] = (string [1]) `2`
-   ⬦ $params['contributionID'] = (int) 12
+   * Note: the guts of this function are in doTransferCheckoutWorker() so that
+   * can be tested without issuing a redirect.
    */
   public function doTransferCheckout( &$params, $component ) {
+    $url = $this->doTransferCheckoutWorker($params, $component);
+    CRM_Utils_System::redirect($url);
+  }
+  /**
+   * Processes the contribution page submission for doTransferCheckout.
+   *
+   * @return string URL to redirec to.
+   */
+  public function doTransferCheckoutWorker( &$params, $component ) {
     // Where should the user come back on our site after completing the GoCardless offsite process?
     $url = CRM_Utils_System::url(
       ($component == 'event') ? 'civicrm/event/register' : 'civicrm/contribute/transact',
@@ -174,11 +98,11 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
 
     try {
       // Get a GoCardless redirect flow URL.
-      $redirect_flow = GoCardlessUtils::getRedirectFlow([
-        "test_mode"             => (bool) $this->_paymentProcessor['is_test'],
-        "description"           => $params['description'],
-        "session_token"         => $params['qfKey'],
-        "success_redirect_url"  => $url,
+      $redirect_flow = CRM_GoCardlessUtils::getRedirectFlow([
+        "test_mode"            => (bool) $this->_paymentProcessor['is_test'],
+        "session_token"        => $params['qfKey'],
+        "success_redirect_url" => $url,
+        "description"          => $params['description'],
       ]);
 
       // Store some details on the session that we'll need when the user returns from GoCardless.
@@ -187,20 +111,24 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
       $sesh = CRM_Core_Session::singleton();
       $sesh_store = $sesh->get('redirect_flows', 'GoCardless');
       $sesh_store = $sesh_store ? $sesh_store : [];
-      $sesh_store[$redirect_flow->id] = [];
+      $sesh_store[$redirect_flow->id] = [
+        'test_mode'            => (bool) $this->_paymentProcessor['is_test'],
+        'payment_processor_id' => $this->_paymentProcessor['id'],
+        "description"          => $params['description'],
+      ];
       foreach (['contributionID', 'contributionRecurID', 'contactID'] as $_) {
         if (!empty($params[$_])) {
-          $sesh_store[$redirect_url][$_] = $params[$_];
+          $sesh_store[$redirect_flow->id][$_] = $params[$_];
         }
       }
       $sesh->set('redirect_flows', $sesh_store, 'GoCardless');
 
       // Redirect user.
-      CRM_Utils_System::redirect($redirect_url);
+      return $redirect_flow->redirect_url;
     }
     catch (\Exception $e) {
       CRM_Core_Session::setStatus('Sorry, there was an error contacting the payment processor GoCardless.', ts("Error"), "error");
-      CRM_Utils_System::redirect($params['entryURL']);
+      return $params['entryURL'];
     }
   }
 

@@ -4,11 +4,15 @@
  * @author Rich Lott / Artful Robot.
  */
 
+require_once (dirname(__DIR__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php' );
+
 /**
- * Class GoCardlessUtils
+ * Class CRM_GoCardlessUtils
  */
-class GoCardlessUtils
+class CRM_GoCardlessUtils
 {
+  const GC_TEST_SORT_CODE = '200000';
+  const GC_TEST_ACCOUNT   = '55779911';
   /** @var \GoCardlessPro\Client (or mock) with test credentials. */
   protected static $api_test;
   /** @var \GoCardlessPro\Client (or mock) with live credentials. */
@@ -31,10 +35,8 @@ class GoCardlessUtils
       return static::$api_live;
     }
 
-    // Find the credentials.
-    $result = civicrm_api3('PaymentProcessor', 'getsingle',
-      ['payment_processor_type_id' => "GoCardless", 'is_test' => (int)$test]);
-    $access_token = $result['user_name'];
+    $pp = CRM_GoCardlessUtils::getPaymentProcessor();
+    $access_token = $pp['user_name'];
 
     $client = new \GoCardlessPro\Client(array(
         'access_token' => $access_token,
@@ -50,6 +52,17 @@ class GoCardlessUtils
     return $client;
   }
   /**
+   * Do a PaymentProcessor:getsingle for the GoCardless processor type.
+   *
+   * @param bool $test Whether to find a test processor or a live one.
+   */
+  public static function getPaymentProcessor($test=FALSE) {
+    // Find the credentials.
+    $result = civicrm_api3('PaymentProcessor', 'getsingle',
+      ['payment_processor_type_id' => "GoCardless", 'is_test' => (int)$test]);
+    return $result;
+  }
+  /**
    * Sets the live or test GoCardlessPro API.
    *
    * This is useful so you can mock it for tests.
@@ -61,7 +74,7 @@ class GoCardlessUtils
   public static function setApi($test, \GoCardlessPro\Client $api)
   {
     if (!($api instanceof \GoCardlessPro\Client)) {
-      throw new InvalidArgumentException("Object passed to GoCardlessUtils::setApi does not look like a GoCardlessPro\\Client");
+      throw new InvalidArgumentException("Object passed to CRM_GoCardlessUtils::setApi does not look like a GoCardlessPro\\Client");
     }
     if ($test) {
       static::$api_test = $api;
@@ -83,14 +96,17 @@ class GoCardlessUtils
    */
   public static function getRedirectFlow($deets) {
 
-    foreach (['test_mode', 'session_token', 'success_redirect_url', 'description'] as $_) {
+    foreach (['session_token', 'success_redirect_url', 'description'] as $_) {
       if (empty($deets[$_])) {
-        throw new InvalidArgumentException("Missing $_ passed to GoCardlessUtils::getRedirectFlow.");
+        throw new InvalidArgumentException("Missing $_ passed to CRM_GoCardlessUtils::getRedirectFlow.");
       }
       $params[$_] = $deets[$_];
     }
+    if (!isset($deets['test_mode'])) {
+      throw new InvalidArgumentException("Missing test_mode passed to CRM_GoCardlessUtils::getRedirectFlow.");
+    }
 
-    $gc_api = GoCardlessUtils::getApi($deets['test_mode']);
+    $gc_api = CRM_GoCardlessUtils::getApi($deets['test_mode']);
     /** @var \GoCardlessPro\Resources\RedirectFlow $redirect_flow */
     $redirect_flow = $gc_api->redirectFlows()->create(["params" => $params]);
 
@@ -110,13 +126,13 @@ class GoCardlessUtils
    *
    * - test_mode bool.
    * - session_token string used in creating the flow with getRedirectFlow().
-   * - contribtionID int
+   * - contributionID int
    * - contactID int
    * - description
    *
    * and the following optional ones:
    *
-   * - contribtionRecurID int
+   * - contributionRecurID int
    * - membershipID int
    * - dayOfMonth int (defaults to 1)
    *
@@ -128,14 +144,14 @@ class GoCardlessUtils
       // Validate input.
       foreach (['redirect_flow_id', 'test_mode', 'session_token', 'contributionID', 'contactID'] as $_) {
         if (empty($deets[$_])) {
-          throw new InvalidArgumentException("Missing $_ passed to GoCardlessUtils::getRedirectFlow.");
+          throw new InvalidArgumentException("Missing $_ passed to CRM_GoCardlessUtils::getRedirectFlow.");
         }
         $params[$_] = $deets[$_];
       }
 
       // 1. Complete the flow.
       // This creates a Customer, Customer Bank Account and Mandate at GC.
-      $gc_api = GoCardlessUtils::getApi($deets['test_mode']);
+      $gc_api = CRM_GoCardlessUtils::getApi($deets['test_mode']);
       $redirect_flow = $gc_api->redirectFlows()->complete($deets['redirect_flow_id'], [
           "params" => ["session_token" => $deets['session_token']],
           ]);
@@ -158,7 +174,7 @@ class GoCardlessUtils
       }
       elseif (!empty($deets['contributionRecurID'])) {
         // Load interval details from the recurring contribution record.
-        $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $deets['contribtionRecurID']]);
+        $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $deets['contributionRecurID']]);
         $interval_unit = $result['frequency_unit'];
         $interval_interval = $result['frequency_interval'];
         $amount = $result['amount'];
@@ -168,6 +184,12 @@ class GoCardlessUtils
         throw new Exception("Failed to find interval details");
       }
 
+      // If we don't have the amount yet, load it from the Contribution record.
+      if (!isset($amount)) {
+        $result = civicrm_api3('Contribution', 'getsingle', ['id' => $deets['contributionID']]);
+        $amount = $result['amount'];
+      }
+
       if (!in_array($interval_unit, ['year', 'month', 'week'])) {
         // Throw a spanner in the works if interval not supported by Go Cardless.
         // https://developer.gocardless.com/api-reference/#subscriptions-create-a-subscription
@@ -175,7 +197,7 @@ class GoCardlessUtils
       }
 
       // Now create the subscription.
-      $response = $api->subscriptions()->create(["params" => [
+      $subscription = $gc_api->subscriptions()->create(["params" => [
         'amount' => (int) (100 * $amount), // Convert amount to pennies.
         'currency' => 'GBP',
         'name' => $deets['description'],
@@ -188,13 +210,13 @@ class GoCardlessUtils
       // Something has gone wrong at this point the chance is that the subscription was not set up.
       // Therefore we should cancel things.
       civicrm_api3('Contribution', 'create', [
-        'id' => $deets['contribtionID'],
+        'id' => $deets['contributionID'],
         'contribution_status_id' => 'Failed'
       ]);
 
-      if (!empty($deets['contribtionRecurID'])) {
+      if (!empty($deets['contributionRecurID'])) {
         civicrm_api3('ContributionRecur', 'create', [
-          'id' => $deets['contribtionRecurID'],
+          'id' => $deets['contributionRecurID'],
           'contribution_status_id' => 'Failed'
         ]);
       }
@@ -220,17 +242,17 @@ class GoCardlessUtils
       // Update the date of the contribution to the start date returned by GC.
       // We'll leave the payment as 'Pending' though as we haven't had it yet.
       civicrm_api3('Contribution', 'create', [
-        'id' => $deets['contribtionID'],
-        'receive_date' => $response->subscriptions->start_date,
-        'invoice_id' => $response->subscriptions->id,
+        'id' => $deets['contributionID'],
+        'receive_date' => $subscription->start_date,
+        'invoice_id' => $subscription->id,
       ]);
 
-      if (!empty($deets['contribtionRecurID'])) {
+      if (!empty($deets['contributionRecurID'])) {
         // Update the recurring contribution to In Progress, set the invoice_id and start_date.
         civicrm_api3('ContributionRecur', 'create', [
-          'id' => $deets['contribtionRecurID'],
-          'start_date' => $response->subscriptions->start_date,
-          'invoice_id' => $response->subscriptions->id,
+          'id' => $deets['contributionRecurID'],
+          'start_date' => $subscription->start_date,
+          'invoice_id' => $subscription->id,
           'contribution_status_id' => "In Progress",
         ]);
       }
@@ -243,7 +265,7 @@ class GoCardlessUtils
         // Update membership dates.
         civicrm_api("Membership" ,"create" , [
           'id'         => $deets['membershipID'],
-          'end_date'   => date('Y-m-d', strtotime($response->subscriptions->start_date . " + $interval_interval $interval_unit")),
+          'end_date'   => date('Y-m-d', strtotime($subscription->start_date . " + $interval_interval $interval_unit")),
           'start_date' => date('Y-m-d'),
           'join_date'  => date('Y-m-d'),
           'status_id'  => 1,//New
