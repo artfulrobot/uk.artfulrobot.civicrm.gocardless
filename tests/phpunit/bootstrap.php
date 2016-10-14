@@ -4,6 +4,7 @@ ini_set('memory_limit', '2G');
 ini_set('safe_mode', 0);
 eval(cv('php:boot --level=classloader', 'phpcode'));
 
+require_once(dirname(dirname(__DIR__)) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php');
 /**
  * Call the "cv" command.
  *

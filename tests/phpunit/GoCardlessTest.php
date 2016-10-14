@@ -3,6 +3,7 @@
 use Civi\Test\HeadlessInterface;
 use Civi\Test\HookInterface;
 use Civi\Test\TransactionalInterface;
+use \Prophecy\Argument;
 
 /**
  * Tests the GoCardless direct debit extension.
@@ -30,6 +31,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
   public function setUp() {
     parent::setUp();
+
     // Set up a Payment Processor that uses GC.
 
     $result = civicrm_api3('PaymentProcessor', 'create', array(
@@ -41,6 +43,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       'is_test' => 1,
       'user_name' => "fake_api_key",
       'payment_instrument_id' => "direct_debit_gc",
+      'domain_id' => 1,
     ));
   }
 
@@ -55,11 +58,108 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
    * is in a separate function, so we can test that.
    */
   public function testTransferCheckout() {
-    $pp = CRM_GoCardlessUtils::getPaymentProcessor();
+    // Mock the GC API.
+    $api_prophecy = $this->prophesize('\\GoCardlessPro\\Client');
+    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+    $redirect_flows = $this->prophesize('\\GoCardlessPro\\Services\\RedirectFlowsService');
+    $api_prophecy->redirectFlows()
+      ->will(function() use ($redirect_flows) {
+        return $redirect_flows->reveal();
+      });
+    $redirect_flows->create(Argument::any())
+      ->shouldBeCalled()
+      ->willReturn(json_decode('{"redirect_url":"https://gocardless.com/somewhere","id":"RE1234"}'));
+
+    $pp = CRM_GoCardlessUtils::getPaymentProcessor(TRUE);
+
     $obj = new CRM_Core_Payment_GoCardless('test', $pp);
-    $params = [];
+    $params = [
+      'qfKey' => 'aabbccdd',
+      'contactID' => 111,
+      'description' => 'test contribution',
+      'contributionID' => 222,
+      'contributionRecurID' => 333,
+      'entryURL' => 'http://example.com/somwhere',
+    ];
     $url = $obj->doTransferCheckoutWorker($params, 'contribute');
-    $this->assertType('string', $url);
+    $this->assertInternalType('string', $url);
+    $this->assertNotEmpty('string', $url);
+    $this->assertEquals("https://gocardless.com/somewhere", $url);
+
+    // Check inputs for the next stage are stored on the session.
+    $sesh = CRM_Core_Session::singleton();
+    $sesh_store = $sesh->get('redirect_flows', 'GoCardless');
+    $this->assertArrayHasKey('RE1234', $sesh_store);
+    $this->assertEquals(TRUE, $sesh_store['RE1234']['test_mode']);
+    $this->assertEquals($pp['id'], $sesh_store['RE1234']['payment_processor_id']);
+    $this->assertEquals('test contribution', $sesh_store['RE1234']['description']);
+    $this->assertEquals(222, $sesh_store['RE1234']['contributionID']);
+    $this->assertEquals(333, $sesh_store['RE1234']['contributionRecurID']);
+    $this->assertEquals(111, $sesh_store['RE1234']['contactID']);
+  }
+
+  /**
+   * Check a transfer checkout works.
+   *
+   * This actually results in a redirect, but all the work that goes into that
+   * is in a separate function, so we can test that.
+   */
+  public function xtestTransferCheckoutCompletes() {
+    // Mock the GC API.
+    $api_prophecy = $this->prophesize('\\GoCardlessPro\\Client');
+    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+    $redirect_flows = $this->prophesize('\\GoCardlessPro\\Services\\RedirectFlowsService');
+    $api_prophecy->redirectFlows()
+      ->will(function() use ($redirect_flows) {
+        return $redirect_flows->reveal();
+      });
+    $redirect_flows->create(Argument::any())
+      ->shouldBeCalled()
+      ->willReturn(json_decode('{"redirect_url":"https://gocardless.com/somewhere","id":"RE1234"}'));
+
+    // We need to mimick what the contribution page does, which AFAICS does:
+    // - Creates a Recurring Contribution
+    $contact = civicrm_api3('Contact', 'create', array(
+        'sequential' => 1,
+        'contact_type' => "Individual",
+        'first_name' => "Wilma",
+        'last_name' => "Flintstone",
+    ));
+    $recur = civicrm_api3('ContributionRecur', 'create', array(
+          'sequential' => 1,
+          'contact_id' => $contact['id'],
+          'frequency_interval' => 1,
+          'amount' => 1,
+          'frequency_unit' => "month",
+          'start_date' => "2016-10-01",
+          'is_test' => 1,
+          'contribution_status_id' => "Pending",
+        ));
+    $contrib = civicrm_api3('Contribution', 'create', array(
+        'sequential' => 1,
+        'financial_type_id' => 1, // Donation
+        'total_amount' => 1,
+        'contact_id' => $contact['id'],
+        'contribution_recur_id' => $recur['id'],
+        'contribution_status_id' => "Pending",
+        'is_test' => 1,
+      ));
+
+    $pp = CRM_GoCardlessUtils::getPaymentProcessor(TRUE);
+
+    $obj = new CRM_Core_Payment_GoCardless('test', $pp);
+    $params = [
+      'qfKey' => 'aabbccdd',
+      'contactID' => $contact['id'],
+      'description' => 'test contribution',
+      'contributionID' => $contrib['id'],
+      'contributionRecurID' => $recur['id'],
+      'entryURL' => 'http://example.com/somwhere',
+    ];
+    $url = $obj->doTransferCheckoutWorker($params, 'contribute');
+    $this->assertInternalType('string', $url);
+    $this->assertNotEmpty('string', $url);
+    $this->assertEquals("https://gocardless.com/somewhere", $url);
   }
 
   /**

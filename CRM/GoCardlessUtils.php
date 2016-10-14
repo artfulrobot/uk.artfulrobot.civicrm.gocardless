@@ -35,7 +35,7 @@ class CRM_GoCardlessUtils
       return static::$api_live;
     }
 
-    $pp = CRM_GoCardlessUtils::getPaymentProcessor();
+    $pp = CRM_GoCardlessUtils::getPaymentProcessor($test);
     $access_token = $pp['user_name'];
 
     $client = new \GoCardlessPro\Client(array(

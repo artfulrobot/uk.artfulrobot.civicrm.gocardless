@@ -87,6 +87,14 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
   /**
    * Processes the contribution page submission for doTransferCheckout.
    *
+   * @param array &$params keys:
+   * - qfKey
+   * - contactID
+   * - description
+   * - contributionID
+   * - entryURL
+   * - contributionRecurID (optional)
+   *
    * @return string URL to redirec to.
    */
   public function doTransferCheckoutWorker( &$params, $component ) {
