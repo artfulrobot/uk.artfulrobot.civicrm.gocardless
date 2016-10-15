@@ -69,6 +69,7 @@ function gocardlessdd_civicrm_install() {
       'is_active' => 1,
       'is_default' => 0,
       'user_name_label' => 'API Access Token',
+      'signature_label' => 'Webhook Secret',
       'url_api_default' => 'https://api.gocardless.com/',
       'url_api_test_default' => 'https://api-sandbox.gocardless.com/',
       'billing_mode' => 4,
