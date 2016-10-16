@@ -39,9 +39,23 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       'payment_processor_type_id' => "GoCardless",
       'name' => "GoCardless",
       'description' => "Set up by test script",
+      'signature' => "mock_webhook_key",
       'is_active' => 1,
       'is_test' => 1,
-      'user_name' => "fake_api_key",
+      'user_name' => "fake_test_api_key",
+      'payment_instrument_id' => "direct_debit_gc",
+      'domain_id' => 1,
+    ));
+    // We need a live one, too.
+    $result = civicrm_api3('PaymentProcessor', 'create', array(
+      'sequential' => 1,
+      'payment_processor_type_id' => "GoCardless",
+      'name' => "GoCardless",
+      'signature' => "this is no the webhook key you are looking fo",
+      'description' => "Set up by test script",
+      'is_active' => 1,
+      'is_test' => 0,
+      'user_name' => "fake_live_api_key",
       'payment_instrument_id' => "direct_debit_gc",
       'domain_id' => 1,
     ));
@@ -178,6 +192,73 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
   }
 
+  /**
+   * Check missing signature throws InvalidArgumentException.
+   *
+   * @expectedException InvalidArgumentException
+   * @expectedExceptionMessage Unsigned API request.
+   */
+  public function testWebhookMissingSignature() {
+    $controller = new CRM_Gocardlessdd_Page_Webhook();
+    $controller->parseWebhookRequest([], '');
+  }
+  /**
+   * Check wrong signature throws InvalidArgumentException.
+   *
+   * @expectedException InvalidArgumentException
+   * @expectedExceptionMessage Invalid signature in request.
+   */
+  public function testWebhookWrongSignature() {
+    $controller = new CRM_Gocardlessdd_Page_Webhook();
+    $controller->parseWebhookRequest(["Webhook-Signature" => 'foo'], 'bar');
+  }
+  /**
+   * Check empty body throws InvalidArgumentException.
+   *
+   * @expectedException InvalidArgumentException
+   * @expectedExceptionMessage Invalid or missing data in request.
+   */
+  public function testWebhookMissingBody() {
+    $controller = new CRM_Gocardlessdd_Page_Webhook();
+    $calculated_signature = hash_hmac("sha256", '', 'mock_webhook_key');
+    $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], '');
+  }
+  /**
+   * Check unparseable body throws InvalidArgumentException.
+   *
+   * @expectedException InvalidArgumentException
+   * @expectedExceptionMessage Invalid or missing data in request.
+   */
+  public function testWebhookInvalidBody() {
+    $controller = new CRM_Gocardlessdd_Page_Webhook();
+    $body = 'This is not json.';
+    $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
+    $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
+  }
+  /**
+   * Check events extracted from webhook.
+   *
+   */
+  public function testWebhookParse() {
+    $controller = new CRM_Gocardlessdd_Page_Webhook();
+    $body = '{"events":[
+      {"id":"EV1","resource_type":"payments","action":"confirmed"},
+      {"id":"EV2","resource_type":"payments","action":"failed"},
+      {"id":"EV3","resource_type":"payments","action":"something we do not handle"},
+      {"id":"EV4","resource_type":"mandate","action":"expired"},
+      {"id":"EV5","resource_type":"mandate","action":"disabled"},
+      {"id":"EV6","resource_type":"mandate","action":"something we do not handle"},
+      {"id":"EV7","resource_type":"unhandled_resource","action":"foo"}
+      ]}';
+    $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
+    $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
+
+    $this->assertInternalType('array', $controller->events);
+    foreach (['EV1', 'EV2', 'EV4', 'EV5'] as $event_id) {
+      $this->assertArrayHasKey($event_id, $controller->events);
+    }
+    $this->assertCount(4, $controller->events);
+  }
   /**
    * Return a fake GoCardless payment processor.
    */
