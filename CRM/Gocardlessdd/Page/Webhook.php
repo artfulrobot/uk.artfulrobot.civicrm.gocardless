@@ -10,7 +10,7 @@ class CRM_Gocardlessdd_Page_Webhook extends CRM_Core_Page {
 
   public static $implemented_webhooks = [
     'payments' => ['confirmed', 'failed'],
-    'mandate' => ['expired', 'disabled'],
+    'subscription'  => ['cancelled', 'finished'],
   ];
   /** @var bool */
   protected $test_mode;
@@ -28,14 +28,29 @@ class CRM_Gocardlessdd_Page_Webhook extends CRM_Core_Page {
 
     $headers = getallheaders();
 
-    if (!$this->checkWebhookSource($headers, $raw_payload)) {
+    try {
+      $this->parseWebhookRequest($headers, $raw_payload);
+    }
+    catch (InvalidArgumentException $e) {
       // Invalid webhook call.
       header("HTTP/1.1 498 Invalid Token");
       CRM_Utils_System::civiExit();
     }
 
     // Process the events
-    header("HTTP/1.1 200 OK");
+    header("HTTP/1.1 204 OK");
+    foreach ($this->events as $event) {
+      try {
+        $method = 'do' . ucfirst($event->resource_type) . ucfirst($event->action);
+        $this->$method($event);
+      }
+      catch (GoCardlessWebhookEventIgnored $e) {
+        // @todo log?
+      }
+      catch (Exception $e) {
+        // @todo log this but continue with other events.
+      }
+    }
     CRM_Utils_System::civiExit();
 
     //CRM_Core_Error::Fatal("ERROR: Stripe triggered a Webhook on an invoice not found in civicrm_contribution_recur: " . $stripe_event_data);
@@ -78,12 +93,218 @@ class CRM_Gocardlessdd_Page_Webhook extends CRM_Core_Page {
     }
 
     // Filter for events that we can handle.
+    //
     // Index by event id is safe because it's unique, and it makes testing easier :-)
     $this->events = [];
     foreach ($data->events as $event) {
       if (isset(CRM_Gocardlessdd_Page_Webhook::$implemented_webhooks[$event->resource_type])
         && in_array($event->action, CRM_Gocardlessdd_Page_Webhook::$implemented_webhooks[$event->resource_type])) {
         $this->events[$event->id] = $event;
+      }
+    }
+  }
+  /**
+   * Process webhook for 'payments' resource type, action 'confirmed'.
+   *
+   * A payment has been confirmed as successful.
+   * We can look up the contribution recur record from the subscription id and
+   * from then we can add a contribution.
+   *
+   * When the direct debit is first set up, e.g. by a Contribution page, the
+   * first payment is already created with status incomplete. So for this
+   * reason we look for a contribution like this and update that if we find one
+   * instead of adding another.
+   */
+  public function doPaymentsConfirmed($event) {
+    $payment = $this->getAndCheckPayment($event, 'confirmed');
+    $recur = $this->getContributionRecurFromSubscriptionId($payment->links->subscription);
+    $contribution = $this->updateContributionRecurd('Completed', $payment, $recur);
+
+    // Ensure that the recurring contribution record is set to In Progress.
+    civicrm_api3('ContributionRecur', 'create', [
+      'id' => $recur['id'],
+      'contribution_status_id' => 'In Progress',
+    ]);
+    // There's all sorts of other fields on recur - do we need to set them?
+    // e.g. date of next expected payment, date of last update etc. @todo
+    // check.
+  }
+
+  /**
+   * Process webhook for 'payments' resource type, action 'failed'.
+   */
+  public function doPaymentsFailed($event) {
+    $payment = $this->getAndCheckPayment($event, 'confirmed');
+    $recur = $this->getContributionRecurFromSubscriptionId($payment->links->subscription);
+    $contribution = $this->updateContributionRecurd('Failed', $payment, $recur);
+
+    // Ensure that the recurring contribution record is set to In Progress.
+    civicrm_api3('ContributionRecur', 'create', [
+      'id' => $recur['id'],
+      'contribution_status_id' => 'Overdue', // is this appropriate? @todo
+    ]);
+    // There's all sorts of other fields on recur - do we need to set them?
+    // e.g. date of next expected payment, date of last update etc. @todo
+    // check.
+
+  }
+  /**
+   * Process webhook for 'mandate' resource type, action 'finished'.
+   *
+   * In this case the subscription has come to its natural end.
+   */
+  public function doSubscriptionFinished($event) {
+    $subscription = $this->getAndCheckSubscription($event, 'finished');
+    $recur = $this->getContributionRecurFromSubscriptionId($subscription->id);
+
+    $update = [
+      'id' => $recur['id'],
+      'contribution_status_id' => 'Completed',
+      'end_date' => !empty($subscription->end_date) ? $subscription->end_date :  date('Y-m-d'),
+    ];
+    civicrm_api3('ContributionRecur', 'create', $update);
+    $this->cancelPendingContributions($recur);
+  }
+  /**
+   * Process webhook for 'mandate' resource type, action 'cancelled'.
+   *
+   * This covers a number of reasons. Typically, the supporter cancelled.
+   */
+  public function doSubscriptionCancelled($event) {
+    $subscription = $this->getAndCheckSubscription($event, 'cancelled');
+    $recur = $this->getContributionRecurFromSubscriptionId($subscription->id);
+    $update = [
+      'id' => $recur['id'],
+      'contribution_status_id' => 'Cancelled',
+      'end_date' => !empty($subscription->end_date) ? $subscription->end_date :  date('Y-m-d'),
+    ];
+    civicrm_api3('ContributionRecur', 'create', $update);
+    $this->cancelPendingContributions($recur);
+  }
+  /**
+   * Helper to load and return GC payment object.
+   *
+   * We check that the status is expected and that the payment belongs to
+   * subscription.
+   *
+   * @throws GoCardlessWebhookEventIgnored
+   * @param array $event
+   * @param string $expected_status
+   * @return NULL|\GoCardless\Resources\Payment
+   */
+  public function getAndCheckPayment($event, $expected_status) {
+    $gc_api = CRM_GoCardlessUtils::getApi($this->test_mode);
+    // According to GoCardless we need to check that the status of the object
+    // has not changed since the webhook was fired, so we re-load it and test.
+    $payment = $gc_api->payments()->get($event->links->payment);
+    if ($payment->status != $expected_status) {
+      // Payment status is no longer confirmed, ignore this webhook.
+      throw new GoCardlessWebhookEventIgnored("Webhook out of date, expected status '$expected_status', got '{$payment->status}'");
+    }
+
+    // We expect a subscription link, but not payments have this.
+    if (empty($payment->links->subscription)) {
+      // This payment is not part of a subscription. Assume it's not of interest to us.
+      throw new GoCardlessWebhookEventIgnored("Ingored payment that does not belong to a subscription.");
+    }
+
+    return $payment;
+  }
+  /**
+   * Looks up the ContributionRecur record for the given GC subscription Id.
+   *
+   * @throws GoCardlessWebhookEventIgnored
+   * @param string $subscription_id
+   * @return array
+   */
+  public function getContributionRecurFromSubscriptionId($subscription_id) {
+    if (!$subscription_id) {
+      throw new GoCardlessWebhookEventIgnored("No subscription_id data");
+    }
+
+    // Find the recurring payment by the given subscription which will be
+    // stored in the invoice_id field.
+    try {
+      $recur = civicrm_api3('ContributionRecur', 'getsingle', [
+        'invoice_id' => $subscription_id,
+      ]);
+    }
+    catch (Civi $e) {
+      // @todo need some way to tell the user that we couldn't match this.
+      throw new GoCardlessWebhookEventIgnored("No matching recurring contribution record for invoice {$subscription_id}");
+    }
+    return $recur;
+  }
+  /**
+   * Update the Contribution record.
+   *
+   * Code shared by doPaymentsConfirmed and doPaymentsFailed.
+   *
+   * @param string $status
+   * @param \GoCardless\Resources\Payment $payment
+   * @param array $recur ContributionRecur
+   * @return array
+   */
+  public function updateContributionRecurd($status, $payment, $recur) {
+    $update = [
+      'amount'                 => number_format($payment->amount / 100, 2, ''),
+      'receive_date'           => $payment->charge_date,
+      'trxn_id'                => $payment->id,
+      'invoice_id'             => $payment->links->subscription,
+      'contribution_status_id' => $status,
+    ];
+
+    // See if there's a Pending contribution we can update.
+    $incomplete_contribs = civicrm_api3('Contribution', 'get',[
+      'sequential' => 1,
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Pending",
+    ]);
+    if ($incomplete_contribs['count'] > 0) {
+      // Found one (possibly more than one, edge case - ignore and take first).
+      $update['id'] = $incomplete_contribs['values'][0]['id'];
+    }
+
+    return $update;
+  }
+  /**
+   * Helper to load and return GC subscription object.
+   *
+   * We check that the status is expected.
+   *
+   * @param array $event
+   * @param string $expected_status
+   * @return NULL|\GoCardless\Resources\Subscription
+   */
+  public function getAndCheckSubscription($event, $expected_status) {
+    $gc_api = CRM_GoCardlessUtils::getApi($this->test_mode);
+    // According to GoCardless we need to check that the status of the object
+    // has not changed since the webhook was fired, so we re-load it and test.
+    $subscription = $gc_api->subscriptions()->get($event->links->payment);
+    if ($subscription->status != $expected_status) {
+      // Payment status is no longer confirmed, ignore this webhook.
+      return;
+    }
+
+    return $subscription;
+  }
+  /**
+   * Cancel any Pending Contributions from this recurring contribution.
+   *
+   * @param array $recur
+   */
+  public function cancelPendingContributions($recur) {
+    $incomplete_contribs = civicrm_api3('Contribution', 'get',[
+      'sequential' => 1,
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Pending",
+    ]);
+    if ($incomplete_contribs['count'] > 0) {
+      foreach($incomplete_contribs['values'] as $contribution) {
+        civicrm_api3('Contribution', 'create', [
+          'id' => $contribution['id'],
+          'contribution_status_id' => "Cancelled",
+        ]);
       }
     }
   }
