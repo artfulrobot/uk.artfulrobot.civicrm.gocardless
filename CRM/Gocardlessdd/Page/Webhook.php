@@ -8,6 +8,8 @@ require_once 'CRM/Core/Page.php';
 
 class CRM_Gocardlessdd_Page_Webhook extends CRM_Core_Page {
 
+  /** @var array names (string) to values (int) */
+  public $contribution_status_map;
   public static $implemented_webhooks = [
     'payments' => ['confirmed', 'failed'],
     'subscription'  => ['cancelled', 'finished'],
@@ -39,6 +41,14 @@ class CRM_Gocardlessdd_Page_Webhook extends CRM_Core_Page {
 
     // Process the events
     header("HTTP/1.1 204 OK");
+    $this->processWebhookEvents();
+    CRM_Utils_System::civiExit();
+  }
+
+  /**
+   * Loop the events and process them.
+   */
+  public function processWebhookEvents() {
     foreach ($this->events as $event) {
       try {
         $method = 'do' . ucfirst($event->resource_type) . ucfirst($event->action);
@@ -46,15 +56,13 @@ class CRM_Gocardlessdd_Page_Webhook extends CRM_Core_Page {
       }
       catch (GoCardlessWebhookEventIgnored $e) {
         // @todo log?
+        $x=1;
       }
       catch (Exception $e) {
         // @todo log this but continue with other events.
+        $x=1;
       }
     }
-    CRM_Utils_System::civiExit();
-
-    //CRM_Core_Error::Fatal("ERROR: Stripe triggered a Webhook on an invoice not found in civicrm_contribution_recur: " . $stripe_event_data);
-    parent::run();
   }
 
   /**
@@ -118,7 +126,7 @@ class CRM_Gocardlessdd_Page_Webhook extends CRM_Core_Page {
   public function doPaymentsConfirmed($event) {
     $payment = $this->getAndCheckPayment($event, 'confirmed');
     $recur = $this->getContributionRecurFromSubscriptionId($payment->links->subscription);
-    $contribution = $this->updateContributionRecurd('Completed', $payment, $recur);
+    $contribution = $this->updateContributionRecord('Completed', $payment, $recur);
 
     // Ensure that the recurring contribution record is set to In Progress.
     civicrm_api3('ContributionRecur', 'create', [
@@ -136,7 +144,7 @@ class CRM_Gocardlessdd_Page_Webhook extends CRM_Core_Page {
   public function doPaymentsFailed($event) {
     $payment = $this->getAndCheckPayment($event, 'confirmed');
     $recur = $this->getContributionRecurFromSubscriptionId($payment->links->subscription);
-    $contribution = $this->updateContributionRecurd('Failed', $payment, $recur);
+    $contribution = $this->updateContributionRecord('Failed', $payment, $recur);
 
     // Ensure that the recurring contribution record is set to In Progress.
     civicrm_api3('ContributionRecur', 'create', [
@@ -240,32 +248,39 @@ class CRM_Gocardlessdd_Page_Webhook extends CRM_Core_Page {
    *
    * Code shared by doPaymentsConfirmed and doPaymentsFailed.
    *
+   * @todo how does Stripe duplicate contributions? Does some data come from the recur and some from the payment?
+   *
    * @param string $status
    * @param \GoCardless\Resources\Payment $payment
    * @param array $recur ContributionRecur
    * @return array
    */
-  public function updateContributionRecurd($status, $payment, $recur) {
+  public function updateContributionRecord($status, $payment, $recur) {
     $update = [
-      'amount'                 => number_format($payment->amount / 100, 2, ''),
+      'total_amount'           => number_format($payment->amount / 100, 2, '.', ''),
       'receive_date'           => $payment->charge_date,
       'trxn_id'                => $payment->id,
       'invoice_id'             => $payment->links->subscription,
       'contribution_status_id' => $status,
+      'contribution_recur_id'  => $recur['id'],
+      'financial_type_id'      => $recur['financial_type_id'],
+      'contact_id'             => $recur['contact_id'],
+      'is_test'                => $this->test_mode ? 1 : 0,
     ];
 
-    // See if there's a Pending contribution we can update.
+    // See if there's a Pending contribution we can update. xxx ??? No contribs at all?
     $incomplete_contribs = civicrm_api3('Contribution', 'get',[
       'sequential' => 1,
       'contribution_recur_id' => $recur['id'],
       'contribution_status_id' => "Pending",
+      'is_test' => $this->test_mode ? 1 : 0,
     ]);
     if ($incomplete_contribs['count'] > 0) {
       // Found one (possibly more than one, edge case - ignore and take first).
       $update['id'] = $incomplete_contribs['values'][0]['id'];
     }
 
-    return $update;
+    civicrm_api3('Contribution', 'create', $update);
   }
   /**
    * Helper to load and return GC subscription object.
