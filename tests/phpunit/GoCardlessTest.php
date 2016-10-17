@@ -334,10 +334,10 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
   }
   /**
-   * A payment confirmation should update the initial Pending Contribution.
+   * A payment confirmation should create a new contribution.
    *
    */
-  public function testWebhookPaymentConfirmationNext() {
+  public function testWebhookPaymentConfirmationSubsequent() {
 
     $contact = civicrm_api3('Contact', 'create', array(
         'sequential' => 1,
@@ -358,7 +358,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
           'invoice_id' => 'SUBSCRIPTION_ID'
         ));
 
-    // Mark this contrib as Completed.
+    // Mock that we have had one completed payment.
     $contrib = civicrm_api3('Contribution', 'create', array(
         'sequential' => 1,
         'total_amount' => 1,
@@ -368,6 +368,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
         'contribution_status_id' => "Completed",
         'receive_date' => '2016-10-01',
         'is_test' => 1,
+        'invoice_id' => 'SUBSCRIPTION_ID'
       ));
 
     // Mock webhook input data.
