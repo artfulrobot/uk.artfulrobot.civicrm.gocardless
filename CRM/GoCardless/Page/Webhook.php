@@ -6,7 +6,7 @@
 
 require_once 'CRM/Core/Page.php';
 
-class CRM_Gocardlessdd_Page_Webhook extends CRM_Core_Page {
+class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
 
   /** @var array names (string) to values (int) */
   public $contribution_status_map;
@@ -105,8 +105,8 @@ class CRM_Gocardlessdd_Page_Webhook extends CRM_Core_Page {
     // Index by event id is safe because it's unique, and it makes testing easier :-)
     $this->events = [];
     foreach ($data->events as $event) {
-      if (isset(CRM_Gocardlessdd_Page_Webhook::$implemented_webhooks[$event->resource_type])
-        && in_array($event->action, CRM_Gocardlessdd_Page_Webhook::$implemented_webhooks[$event->resource_type])) {
+      if (isset(CRM_GoCardless_Page_Webhook::$implemented_webhooks[$event->resource_type])
+        && in_array($event->action, CRM_GoCardless_Page_Webhook::$implemented_webhooks[$event->resource_type])) {
         $this->events[$event->id] = $event;
       }
     }

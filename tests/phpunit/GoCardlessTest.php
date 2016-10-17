@@ -202,7 +202,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
    * @expectedExceptionMessage Unsigned API request.
    */
   public function testWebhookMissingSignature() {
-    $controller = new CRM_Gocardlessdd_Page_Webhook();
+    $controller = new CRM_GoCardless_Page_Webhook();
     $controller->parseWebhookRequest([], '');
   }
   /**
@@ -212,7 +212,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
    * @expectedExceptionMessage Invalid signature in request.
    */
   public function testWebhookWrongSignature() {
-    $controller = new CRM_Gocardlessdd_Page_Webhook();
+    $controller = new CRM_GoCardless_Page_Webhook();
     $controller->parseWebhookRequest(["Webhook-Signature" => 'foo'], 'bar');
   }
   /**
@@ -222,7 +222,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
    * @expectedExceptionMessage Invalid or missing data in request.
    */
   public function testWebhookMissingBody() {
-    $controller = new CRM_Gocardlessdd_Page_Webhook();
+    $controller = new CRM_GoCardless_Page_Webhook();
     $calculated_signature = hash_hmac("sha256", '', 'mock_webhook_key');
     $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], '');
   }
@@ -233,7 +233,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
    * @expectedExceptionMessage Invalid or missing data in request.
    */
   public function testWebhookInvalidBody() {
-    $controller = new CRM_Gocardlessdd_Page_Webhook();
+    $controller = new CRM_GoCardless_Page_Webhook();
     $body = 'This is not json.';
     $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
     $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
@@ -243,7 +243,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
    *
    */
   public function testWebhookParse() {
-    $controller = new CRM_Gocardlessdd_Page_Webhook();
+    $controller = new CRM_GoCardless_Page_Webhook();
     $body = '{"events":[
       {"id":"EV1","resource_type":"payments","action":"confirmed"},
       {"id":"EV2","resource_type":"payments","action":"failed"},
@@ -298,7 +298,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       ));
 
     // Mock webhook input data.
-    $controller = new CRM_Gocardlessdd_Page_Webhook();
+    $controller = new CRM_GoCardless_Page_Webhook();
     $body = '{"events":[
       {"id":"EV1","resource_type":"payments","action":"confirmed","links":{"payment":"PAYMENT_ID"}}
       ]}';
@@ -371,7 +371,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       ));
 
     // Mock webhook input data.
-    $controller = new CRM_Gocardlessdd_Page_Webhook();
+    $controller = new CRM_GoCardless_Page_Webhook();
     $body = '{"events":[
       {"id":"EV1","resource_type":"payments","action":"confirmed","links":{"payment":"PAYMENT_ID"}}
       ]}';

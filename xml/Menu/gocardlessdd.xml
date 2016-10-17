@@ -2,7 +2,7 @@
 <menu>
   <item>
     <path>civicrm/gocardless/webhook</path>
-    <page_callback>CRM_Gocardlessdd_Page_Webhook</page_callback>
+    <page_callback>CRM_GoCardless_Page_Webhook</page_callback>
     <title>Webhook</title>
     <access_arguments>access CiviCRM</access_arguments>
   </item>

@@ -3,6 +3,6 @@
  * @file
  * Exception for when an event in a webhook cannot be processed.
  */
-class GoCardlessWebhookEventIgnored extends \Exception {
+class CRM_GoCardless_WebhookEventIgnored extends \Exception {
 
 }

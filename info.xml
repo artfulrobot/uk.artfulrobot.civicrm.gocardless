@@ -1,8 +1,10 @@
 <?xml version="1.0"?>
-<extension key="uk.co.vedaconsulting.payment.gocardlessdd" type="module">
-  <file>gocardlessdd</file>
-  <name>GoCardless Payment Processor</name>
-  <description>Provides integration with GoCardless a service that offers UK Direct Debits with much less administrative overhead than most Direct Debit bureaus.</description>
+<extension key="uk.artfulrobot.civicrm.gocardless" type="module">
+  <file>gocardless</file>
+  <name>GoCardless Direct Debit Payment Processor</name>
+  <description>Provides integration with GoCardless a service that offers UK
+    Direct Debits with much less administrative overhead than most Direct Debit
+    bureaus.</description>
   <license>AGPL-3.0</license>
   <maintainer>
     <author>Rich Lott</author>
@@ -15,13 +17,17 @@
     <url desc="Licensing">http://www.gnu.org/licenses/agpl-3.0.html</url>
   </urls>
   <releaseDate>2016-10-10</releaseDate>
-  <version>2.0</version>
+  <version>1.0</version>
   <develStage>alpha</develStage>
   <compatibility>
     <ver>4.7</ver>
   </compatibility>
-  <comments>This is a stand-alone extension for GoCardless and does not depend on the ukdirectdebit (earlier versions did).</comments>
+  <comments>This is a stand-alone extension. It may conflict with Veda
+    Consulting's UK Direct Debit and GoCardlessDD extensions; uninstall those
+    before installing this. If you need SmartDebit as well as GoCardless then
+    you'll need the UK Direct Debit one, but running these together is
+    untested.</comments>
   <civix>
-    <namespace>CRM/Gocardlessdd</namespace>
+    <namespace>CRM/GoCardless</namespace>
   </civix>
 </extension>

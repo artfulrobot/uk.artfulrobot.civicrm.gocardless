@@ -1,4 +1,4 @@
-Package: uk.co.vedaconsulting.payment.gocardlessdd
+Package: uk.artfulrobot.civicrm.gocardless
 Copyright (C) 2016, Rich Lott <forums@artfulrobot.uk>
 Licensed under the GNU Affero Public License 3.0 (below).
 

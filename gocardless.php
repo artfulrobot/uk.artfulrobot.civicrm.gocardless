@@ -1,14 +1,14 @@
 <?php
 
-require_once 'gocardlessdd.civix.php';
+require_once 'gocardless.civix.php';
 
 /**
  * Implements hook_civicrm_config().
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_config
  */
-function gocardlessdd_civicrm_config(&$config) {
-  _gocardlessdd_civix_civicrm_config($config);
+function gocardless_civicrm_config(&$config) {
+  _gocardless_civix_civicrm_config($config);
 }
 
 /**
@@ -18,8 +18,8 @@ function gocardlessdd_civicrm_config(&$config) {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_xmlMenu
  */
-function gocardlessdd_civicrm_xmlMenu(&$files) {
-  _gocardlessdd_civix_civicrm_xmlMenu($files);
+function gocardless_civicrm_xmlMenu(&$files) {
+  _gocardless_civix_civicrm_xmlMenu($files);
 }
 
 /**
@@ -30,8 +30,8 @@ function gocardlessdd_civicrm_xmlMenu(&$files) {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_install
  */
-function gocardlessdd_civicrm_install() {
-  _gocardlessdd_civix_civicrm_install();
+function gocardless_civicrm_install() {
+  _gocardless_civix_civicrm_install();
 
   /**
    * Helper function for creating data structures.
@@ -83,8 +83,8 @@ function gocardlessdd_civicrm_install() {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_uninstall
  */
-function gocardlessdd_civicrm_uninstall() {
-  _gocardlessdd_civix_civicrm_uninstall();
+function gocardless_civicrm_uninstall() {
+  _gocardless_civix_civicrm_uninstall();
   // @todo remove direct_debit_gc payment instrument and GoCardless PaymentProcessorType if not in use.
 }
 
@@ -93,8 +93,8 @@ function gocardlessdd_civicrm_uninstall() {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_enable
  */
-function gocardlessdd_civicrm_enable() {
-  _gocardlessdd_civix_civicrm_enable();
+function gocardless_civicrm_enable() {
+  _gocardless_civix_civicrm_enable();
 }
 
 /**
@@ -102,8 +102,8 @@ function gocardlessdd_civicrm_enable() {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_disable
  */
-function gocardlessdd_civicrm_disable() {
-  _gocardlessdd_civix_civicrm_disable();
+function gocardless_civicrm_disable() {
+  _gocardless_civix_civicrm_disable();
 }
 
 /**
@@ -118,8 +118,8 @@ function gocardlessdd_civicrm_disable() {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_upgrade
  */
-function gocardlessdd_civicrm_upgrade($op, CRM_Queue_Queue $queue = NULL) {
-  return _gocardlessdd_civix_civicrm_upgrade($op, $queue);
+function gocardless_civicrm_upgrade($op, CRM_Queue_Queue $queue = NULL) {
+  return _gocardless_civix_civicrm_upgrade($op, $queue);
 }
 
 /**
@@ -130,8 +130,8 @@ function gocardlessdd_civicrm_upgrade($op, CRM_Queue_Queue $queue = NULL) {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_managed
  */
-function gocardlessdd_civicrm_managed(&$entities) {
-  _gocardlessdd_civix_civicrm_managed($entities);
+function gocardless_civicrm_managed(&$entities) {
+  _gocardless_civix_civicrm_managed($entities);
 }
 
 /**
@@ -145,8 +145,8 @@ function gocardlessdd_civicrm_managed(&$entities) {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_caseTypes
  */
-function gocardlessdd_civicrm_caseTypes(&$caseTypes) {
-  _gocardlessdd_civix_civicrm_caseTypes($caseTypes);
+function gocardless_civicrm_caseTypes(&$caseTypes) {
+  _gocardless_civix_civicrm_caseTypes($caseTypes);
 }
 
 /**
@@ -159,8 +159,8 @@ function gocardlessdd_civicrm_caseTypes(&$caseTypes) {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_caseTypes
  */
-function gocardlessdd_civicrm_angularModules(&$angularModules) {
-_gocardlessdd_civix_civicrm_angularModules($angularModules);
+function gocardless_civicrm_angularModules(&$angularModules) {
+_gocardless_civix_civicrm_angularModules($angularModules);
 }
 
 /**
@@ -168,8 +168,8 @@ _gocardlessdd_civix_civicrm_angularModules($angularModules);
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_alterSettingsFolders
  */
-function gocardlessdd_civicrm_alterSettingsFolders(&$metaDataFolders = NULL) {
-  _gocardlessdd_civix_civicrm_alterSettingsFolders($metaDataFolders);
+function gocardless_civicrm_alterSettingsFolders(&$metaDataFolders = NULL) {
+  _gocardless_civix_civicrm_alterSettingsFolders($metaDataFolders);
 }
 
 /**
@@ -183,7 +183,7 @@ function gocardlessdd_civicrm_alterSettingsFolders(&$metaDataFolders = NULL) {
  * - if membership: set membership end date to start date + interval.
  *
  */
-function gocardlessdd_civicrm_buildForm( $formName, &$form ) {
+function gocardless_civicrm_buildForm( $formName, &$form ) {
   if ($formName != 'CRM_Contribute_Form_Contribution_ThankYou' || empty($_GET['redirect_flow_id'])) {
     // This form build has nothing to do with us.
     return;
@@ -225,7 +225,7 @@ function gocardlessdd_civicrm_buildForm( $formName, &$form ) {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_preProcess
  *
-function gocardlessdd_civicrm_preProcess($formName, &$form) {
+function gocardless_civicrm_preProcess($formName, &$form) {
 
 } // */
 
@@ -234,14 +234,14 @@ function gocardlessdd_civicrm_preProcess($formName, &$form) {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_navigationMenu
  *
-function gocardlessdd_civicrm_navigationMenu(&$menu) {
-  _gocardlessdd_civix_insert_navigation_menu($menu, NULL, array(
-    'label' => ts('The Page', array('domain' => 'uk.co.vedaconsulting.payment.gocardlessdd')),
+function gocardless_civicrm_navigationMenu(&$menu) {
+  _gocardless_civix_insert_navigation_menu($menu, NULL, array(
+    'label' => ts('The Page', array('domain' => 'uk.artfulrobot.civicrm.gocardless')),
     'name' => 'the_page',
     'url' => 'civicrm/the-page',
     'permission' => 'access CiviReport,access CiviContribute',
     'operator' => 'OR',
     'separator' => 0,
   ));
-  _gocardlessdd_civix_navigationMenu($menu);
+  _gocardless_civix_navigationMenu($menu);
 } // */
