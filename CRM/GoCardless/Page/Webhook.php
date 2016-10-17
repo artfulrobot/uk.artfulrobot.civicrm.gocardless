@@ -55,12 +55,10 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
         $this->$method($event);
       }
       catch (CRM_GoCardless_WebhookEventIgnoredException $e) {
-        // @todo log?
-        $x=1;
+        CRM_Core_Error::debug_log_message("Ignored webhook event. Reason: " . $e->getMessage(), FALSE, 'GoCardless', PEAR_LOG_NOTICE);
       }
       catch (Exception $e) {
-        // @todo log this but continue with other events.
-        $x=1;
+        CRM_Core_Error::debug_log_message("Failed event. Reason: " . $e->getMessage(), FALSE, 'GoCardless', PEAR_LOG_ERR);
       }
     }
   }
@@ -104,10 +102,16 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     //
     // Index by event id is safe because it's unique, and it makes testing easier :-)
     $this->events = [];
+    $ignored = [];
     foreach ($data->events as $event) {
       if (isset(CRM_GoCardless_Page_Webhook::$implemented_webhooks[$event->resource_type])
         && in_array($event->action, CRM_GoCardless_Page_Webhook::$implemented_webhooks[$event->resource_type])) {
         $this->events[$event->id] = $event;
+      }
+      else {
+        CRM_Core_Error::debug_log_message(
+          "Ignored unimplemented webhook event id: '$event->id' resource: '$event->resource_type' action: '$event->action' ",
+          FALSE, 'GoCardless', PEAR_LOG_INFO);
       }
     }
   }
