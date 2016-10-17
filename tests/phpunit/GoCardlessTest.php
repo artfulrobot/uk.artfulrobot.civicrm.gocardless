@@ -419,6 +419,69 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
   }
   /**
+   * A payment confirmation webhook that is out of date.
+   *
+   * @expectedException CRM_GoCardless_WebhookEventIgnoredException
+   * @expectedExceptionMessage Webhook out of date
+   */
+  public function testWebhookOutOfDate() {
+
+    $controller = new CRM_GoCardless_Page_Webhook();
+
+    // Mock GC API.
+    $api_prophecy = $this->prophesize('\\GoCardlessPro\\Client');
+    CRM_GoCardlessUtils::setApi(FALSE, $api_prophecy->reveal());
+    // First the webhook will load the payment, so mock this.
+    $payments_service = $this->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
+    $api_prophecy->payments()->willReturn($payments_service->reveal());
+    $payments_service->get('PAYMENT_ID')
+      ->shouldBeCalled()
+      ->willReturn(json_decode('{
+        "id":"PAYMENT_ID",
+          "status":"cancelled",
+          "charge_date":"2016-10-02",
+          "amount":123,
+          "links":{"subscription":"SUBSCRIPTION_ID"}
+        }'));
+
+    // Now trigger webhook.
+    $event = json_decode(json_encode([ 'links' => [ 'payment' => 'PAYMENT_ID' ]]));
+    $controller->getAndCheckPayment($event, 'confirmed'); // Calling with different status to that which will be fetched from API.
+  }
+
+  /**
+   * A payment confirmation webhook event that does not have a subscription
+   * should be ignored.
+   *
+   * @expectedException CRM_GoCardless_WebhookEventIgnoredException
+   * @expectedExceptionMessage Ignored payment that does not belong to a subscription.
+   */
+  public function testWebhookPaymentWithoutSubscriptionIgnored() {
+
+    $controller = new CRM_GoCardless_Page_Webhook();
+
+    // Mock GC API.
+    $api_prophecy = $this->prophesize('\\GoCardlessPro\\Client');
+    CRM_GoCardlessUtils::setApi(FALSE, $api_prophecy->reveal());
+    // First the webhook will load the payment, so mock this.
+    $payments_service = $this->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
+    $api_prophecy->payments()->willReturn($payments_service->reveal());
+    $payments_service->get('PAYMENT_ID')
+      ->shouldBeCalled()
+      ->willReturn(json_decode('{
+        "id":"PAYMENT_ID",
+          "status":"confirmed",
+          "charge_date":"2016-10-02",
+          "amount":123,
+          "links":{}
+        }'));
+
+    // Now trigger webhook.
+    $event = json_decode('{"links":{"payment":"PAYMENT_ID"}}');
+    $controller->getAndCheckPayment($event, 'confirmed'); // Calling with different status to that which will be fetched from API.
+  }
+
+  /**
    * Return a fake GoCardless payment processor.
    */
   protected function getMockPaymentProcessor() {
