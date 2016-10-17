@@ -450,6 +450,33 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
   }
 
   /**
+   * A subscription cancelled webhook that is out of date.
+   *
+   * @expectedException CRM_GoCardless_WebhookEventIgnoredException
+   * @expectedExceptionMessage Webhook out of date
+   */
+  public function testWebhookOutOfDateSubscription() {
+
+
+    // Mock GC API.
+    $api_prophecy = $this->prophesize('\\GoCardlessPro\\Client');
+    CRM_GoCardlessUtils::setApi(FALSE, $api_prophecy->reveal());
+    // First the webhook will load the subscription, so mock this.
+    $subscription_service = $this->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
+    $api_prophecy->subscriptions()->willReturn($subscription_service->reveal());
+    $subscription_service->get('SUBSCRIPTION_ID')
+      ->shouldBeCalled()
+      ->willReturn(json_decode('{
+        "id":"SUBSCRIPTION_ID",
+        "status":"cancelled"
+        }'));
+
+    $event = json_decode('{"links":{"subscription":"SUBSCRIPTION_ID"}}');
+    $controller = new CRM_GoCardless_Page_Webhook();
+    $controller->getAndCheckSubscription($event, 'complete'); // Calling with different status to that which will be fetched from API.
+  }
+
+  /**
    * A payment confirmation webhook event that does not have a subscription
    * should be ignored.
    *

@@ -299,7 +299,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     $subscription = $gc_api->subscriptions()->get($event->links->subscription);
     if ($subscription->status != $expected_status) {
       // Payment status is no longer confirmed, ignore this webhook.
-      return;
+      throw new CRM_GoCardless_WebhookEventIgnoredException("Webhook out of date, expected status '$expected_status', got '{$subscription->status}'");
     }
 
     return $subscription;
