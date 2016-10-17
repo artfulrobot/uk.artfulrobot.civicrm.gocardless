@@ -244,15 +244,14 @@ class CRM_GoCardlessUtils
       civicrm_api3('Contribution', 'create', [
         'id' => $deets['contributionID'],
         'receive_date' => $subscription->start_date,
-        'invoice_id' => $subscription->id,
       ]);
 
       if (!empty($deets['contributionRecurID'])) {
-        // Update the recurring contribution to In Progress, set the invoice_id and start_date.
+        // Update the recurring contribution to In Progress, set the trxn_id and start_date.
         civicrm_api3('ContributionRecur', 'create', [
           'id' => $deets['contributionRecurID'],
           'start_date' => $subscription->start_date,
-          'invoice_id' => $subscription->id,
+          'trxn_id' => $subscription->id,
           'contribution_status_id' => "In Progress",
         ]);
       }

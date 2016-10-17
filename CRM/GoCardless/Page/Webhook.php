@@ -47,8 +47,11 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
 
   /**
    * Loop the events and process them.
+   *
+   * @param bool $throw whether to silently log exceptions or chuck them up for
+   * someone else to notice. Useful for phpunit tests.
    */
-  public function processWebhookEvents() {
+  public function processWebhookEvents($throw=FALSE) {
     foreach ($this->events as $event) {
       try {
         $method = 'do' . ucfirst($event->resource_type) . ucfirst($event->action);
@@ -56,9 +59,15 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       }
       catch (CRM_GoCardless_WebhookEventIgnoredException $e) {
         CRM_Core_Error::debug_log_message("Ignored webhook event. Reason: " . $e->getMessage(), FALSE, 'GoCardless', PEAR_LOG_NOTICE);
+        if ($throw) {
+          throw $e;
+        }
       }
       catch (Exception $e) {
         CRM_Core_Error::debug_log_message("Failed event. Reason: " . $e->getMessage(), FALSE, 'GoCardless', PEAR_LOG_ERR);
+        if ($throw) {
+          throw $e;
+        }
       }
     }
   }
@@ -236,15 +245,15 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     }
 
     // Find the recurring payment by the given subscription which will be
-    // stored in the invoice_id field.
+    // stored in the trxn_id field.
     try {
       $recur = civicrm_api3('ContributionRecur', 'getsingle', [
-        'invoice_id' => $subscription_id,
+        'trxn_id' => $subscription_id,
       ]);
     }
     catch (Civi $e) {
       // @todo need some way to tell the user that we couldn't match this.
-      throw new GoCardlessWebhookEventIgnored("No matching recurring contribution record for invoice {$subscription_id}");
+      throw new GoCardlessWebhookEventIgnored("No matching recurring contribution record for trxn_id {$subscription_id}");
     }
     return $recur;
   }
@@ -265,7 +274,6 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       'total_amount'           => number_format($payment->amount / 100, 2, '.', ''),
       'receive_date'           => $payment->charge_date,
       'trxn_id'                => $payment->id,
-      'invoice_id'             => $payment->links->subscription,
       'contribution_status_id' => $status,
       'contribution_recur_id'  => $recur['id'],
       'financial_type_id'      => $recur['financial_type_id'],

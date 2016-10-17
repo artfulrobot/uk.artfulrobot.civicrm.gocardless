@@ -169,7 +169,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $subscription_service = $this->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
     $api_prophecy->subscriptions()->willReturn($subscription_service->reveal());
     $subscription_service->create(Argument::any())
-      ->willReturn(json_decode('{"start_date":"2016-10-08","id":"subscriptionid"}'));
+      ->willReturn(json_decode('{"start_date":"2016-10-08","id":"SUBSCRIPTION_ID"}'));
     // Params are usually assembled by the civicrm_buildForm hook.
     $params = [
       'test_mode' => TRUE,
@@ -186,10 +186,9 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     // Now test the contributions were updated.
     $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $recur['id']]);
     $this->assertEquals(5, $result['contribution_status_id']);
-    $this->assertEquals('subscriptionid', $result['invoice_id']);
+    $this->assertEquals('SUBSCRIPTION_ID', $result['trxn_id']);
     $this->assertEquals('2016-10-08 00:00:00', $result['start_date']);
     $result = civicrm_api3('Contribution', 'getsingle', ['id' => $contrib['id']]);
-    $this->assertEquals('subscriptionid', $result['invoice_id']);
     $this->assertEquals('2016-10-08 00:00:00', $result['receive_date']);
     $this->assertEquals(2, $result['contribution_status_id']);
 
@@ -284,7 +283,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
           'start_date' => "2016-10-01",
           'is_test' => 1,
           'contribution_status_id' => "In Progress",
-          'invoice_id' => 'SUBSCRIPTION_ID'
+          'trxn_id' => 'SUBSCRIPTION_ID'
         ));
     $contrib = civicrm_api3('Contribution', 'create', array(
         'sequential' => 1,
@@ -322,12 +321,11 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Now trigger webhook.
     $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
-    $controller->processWebhookEvents();
+    $controller->processWebhookEvents(TRUE);
 
     // Now check the changes have been made.
     $result = civicrm_api3('Contribution', 'getsingle', ['id' => $contrib['id']]);
     $this->assertEquals('2016-10-02 00:00:00', $result['receive_date']);
-    $this->assertEquals('SUBSCRIPTION_ID', $result['invoice_id']);
     $this->assertEquals(1.23, $result['total_amount']);
     $this->assertEquals('PAYMENT_ID', $result['trxn_id']);
     $this->assertEquals($this->contribution_status_map['Completed'], $result['contribution_status_id']);
@@ -355,7 +353,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
           'start_date' => "2016-10-01",
           'is_test' => 1,
           'contribution_status_id' => "In Progress",
-          'invoice_id' => 'SUBSCRIPTION_ID'
+          'trxn_id' => 'SUBSCRIPTION_ID'
         ));
 
     // Mock that we have had one completed payment.
@@ -368,13 +366,13 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
         'contribution_status_id' => "Completed",
         'receive_date' => '2016-10-01',
         'is_test' => 1,
-        'invoice_id' => 'SUBSCRIPTION_ID'
+        'trxn_id' => 'PAYMENT_ID',
       ));
 
     // Mock webhook input data.
     $controller = new CRM_GoCardless_Page_Webhook();
     $body = '{"events":[
-      {"id":"EV1","resource_type":"payments","action":"confirmed","links":{"payment":"PAYMENT_ID"}}
+      {"id":"EV1","resource_type":"payments","action":"confirmed","links":{"payment":"PAYMENT_ID_2"}}
       ]}';
     $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
 
@@ -384,19 +382,19 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     // First the webhook will load the payment, so mock this.
     $payments_service = $this->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
     $api_prophecy->payments()->willReturn($payments_service->reveal());
-    $payments_service->get('PAYMENT_ID')
+    $payments_service->get('PAYMENT_ID_2')
       ->shouldBeCalled()
       ->willReturn(json_decode('{
-        "id":"PAYMENT_ID",
-          "status":"confirmed",
-          "charge_date":"2016-10-02",
-          "amount":123,
-          "links":{"subscription":"SUBSCRIPTION_ID"}
+        "id":"PAYMENT_ID_2",
+        "status":"confirmed",
+        "charge_date":"2016-10-02",
+        "amount":123,
+        "links":{"subscription":"SUBSCRIPTION_ID"}
         }'));
 
     // Now trigger webhook.
     $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
-    $controller->processWebhookEvents();
+    $controller->processWebhookEvents(TRUE);
 
     // Now check the changes have been made.
     $result = civicrm_api3('Contribution', 'get', [
@@ -413,9 +411,8 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $contrib = reset($result['values']);
 
     $this->assertEquals('2016-10-02 00:00:00', $contrib['receive_date']);
-    $this->assertEquals('SUBSCRIPTION_ID', $contrib['invoice_id']);
     $this->assertEquals(1.23, $contrib['total_amount']);
-    $this->assertEquals('PAYMENT_ID', $contrib['trxn_id']);
+    $this->assertEquals('PAYMENT_ID_2', $contrib['trxn_id']);
     $this->assertEquals($this->contribution_status_map['Completed'], $contrib['contribution_status_id']);
 
   }
@@ -532,7 +529,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
           'start_date' => "2016-10-01",
           'is_test' => 1,
           'contribution_status_id' => "In Progress",
-          'invoice_id' => 'SUBSCRIPTION_ID'
+          'trxn_id' => 'SUBSCRIPTION_ID'
         ));
 
     // Mark this contrib as Incomplete - this is the case that the thing's just
@@ -571,7 +568,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Now trigger webhook.
     $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
-    $controller->processWebhookEvents();
+    $controller->processWebhookEvents(TRUE);
 
     // Now check the changes have been made to the original contribution.
     $contrib = civicrm_api3('Contribution', 'getsingle', [
@@ -583,7 +580,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     // Now check the changes have been made to the recurring contribution.
     $contrib = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $recur['id']]);
     $this->assertEquals('2016-10-02 00:00:00', $contrib['end_date']);
-    $this->assertEquals('SUBSCRIPTION_ID', $contrib['invoice_id']);
+    $this->assertEquals('SUBSCRIPTION_ID', $contrib['trxn_id']);
     $this->assertEquals($this->contribution_status_map['Cancelled'], $contrib['contribution_status_id']);
 
   }
@@ -610,7 +607,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
           'start_date' => "2016-10-01",
           'is_test' => 1,
           'contribution_status_id' => "In Progress",
-          'invoice_id' => 'SUBSCRIPTION_ID'
+          'trxn_id' => 'SUBSCRIPTION_ID'
         ));
 
     // Mark this contrib as Incomplete - this is the case that the thing's just
@@ -649,7 +646,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Now trigger webhook.
     $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
-    $controller->processWebhookEvents();
+  $controller->processWebhookEvents(TRUE);
 
     // Now check the changes have been made to the original contribution.
     // This should be Cancelled because the thing finished before it could be taken.
@@ -662,7 +659,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     // Now check the changes have been made to the recurring contribution.
     $contrib = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $recur['id']]);
     $this->assertEquals('2016-10-02 00:00:00', $contrib['end_date']);
-    $this->assertEquals('SUBSCRIPTION_ID', $contrib['invoice_id']);
+    $this->assertEquals('SUBSCRIPTION_ID', $contrib['trxn_id']);
     $this->assertEquals($this->contribution_status_map['Completed'], $contrib['contribution_status_id']);
 
   }
