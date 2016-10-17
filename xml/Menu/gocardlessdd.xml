@@ -4,6 +4,6 @@
     <path>civicrm/gocardless/webhook</path>
     <page_callback>CRM_GoCardless_Page_Webhook</page_callback>
     <title>Webhook</title>
-    <access_arguments>access CiviCRM</access_arguments>
+    <access_arguments>make online contributions</access_arguments>
   </item>
 </menu>
