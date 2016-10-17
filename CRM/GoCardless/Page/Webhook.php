@@ -189,6 +189,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     civicrm_api3('ContributionRecur', 'create', $update);
     $this->cancelPendingContributions($recur);
   }
+
   /**
    * Helper to load and return GC payment object.
    *
@@ -295,7 +296,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     $gc_api = CRM_GoCardlessUtils::getApi($this->test_mode);
     // According to GoCardless we need to check that the status of the object
     // has not changed since the webhook was fired, so we re-load it and test.
-    $subscription = $gc_api->subscriptions()->get($event->links->payment);
+    $subscription = $gc_api->subscriptions()->get($event->links->subscription);
     if ($subscription->status != $expected_status) {
       // Payment status is no longer confirmed, ignore this webhook.
       return;
@@ -313,6 +314,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       'sequential' => 1,
       'contribution_recur_id' => $recur['id'],
       'contribution_status_id' => "Pending",
+      'is_test' => $this->test_mode ? 1 : 0,
     ]);
     if ($incomplete_contribs['count'] > 0) {
       foreach($incomplete_contribs['values'] as $contribution) {

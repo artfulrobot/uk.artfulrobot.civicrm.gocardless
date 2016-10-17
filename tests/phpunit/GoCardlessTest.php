@@ -482,6 +482,163 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
   }
 
   /**
+   * A subscription cancelled should update the recurring contribution record
+   * and a Pending Contribution.
+   *
+   */
+  public function testWebhookSubscriptionCancelled() {
+
+    $contact = civicrm_api3('Contact', 'create', array(
+        'sequential' => 1,
+        'contact_type' => "Individual",
+        'first_name' => "Wilma",
+        'last_name' => "Flintstone",
+    ));
+    $recur = civicrm_api3('ContributionRecur', 'create', array(
+          'sequential' => 1,
+          'contact_id' => $contact['id'],
+          'frequency_interval' => 1,
+          'financial_type_id' => 1, // Donation
+          'amount' => 1,
+          'frequency_unit' => "month",
+          'start_date' => "2016-10-01",
+          'is_test' => 1,
+          'contribution_status_id' => "In Progress",
+          'invoice_id' => 'SUBSCRIPTION_ID'
+        ));
+
+    // Mark this contrib as Incomplete - this is the case that the thing's just
+    // been set up by a Contribution Page.
+    $contrib = civicrm_api3('Contribution', 'create', array(
+        'sequential' => 1,
+        'total_amount' => 1,
+        'financial_type_id' => 1, // Donation
+        'contact_id' => $contact['id'],
+        'contribution_recur_id' => $recur['id'],
+        'contribution_status_id' => "Pending",
+        'receive_date' => '2016-10-01',
+        'is_test' => 1,
+      ));
+
+    // Mock webhook input data.
+    $controller = new CRM_GoCardless_Page_Webhook();
+    $body = '{"events":[
+      {"id":"EV1","resource_type":"subscription","action":"cancelled","links":{"subscription":"SUBSCRIPTION_ID"}}
+      ]}';
+    $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
+
+    // Mock GC API.
+    $api_prophecy = $this->prophesize('\\GoCardlessPro\\Client');
+    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+    // First the webhook will load the subscription, so mock this.
+    $subscription_service = $this->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
+    $api_prophecy->subscriptions()->willReturn($subscription_service->reveal());
+    $subscription_service->get('SUBSCRIPTION_ID')
+      ->shouldBeCalled()
+      ->willReturn(json_decode('{
+          "id":"SUBSCRIPTION_ID",
+          "status":"cancelled",
+          "end_date":"2016-10-02"
+        }'));
+
+    // Now trigger webhook.
+    $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
+    $controller->processWebhookEvents();
+
+    // Now check the changes have been made to the original contribution.
+    $contrib = civicrm_api3('Contribution', 'getsingle', [
+      'contribution_recur_id' => $recur['id'],
+      'is_test' => 1,
+      ]);
+    $this->assertEquals($this->contribution_status_map['Cancelled'], $contrib['contribution_status_id']);
+
+    // Now check the changes have been made to the recurring contribution.
+    $contrib = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $recur['id']]);
+    $this->assertEquals('2016-10-02 00:00:00', $contrib['end_date']);
+    $this->assertEquals('SUBSCRIPTION_ID', $contrib['invoice_id']);
+    $this->assertEquals($this->contribution_status_map['Cancelled'], $contrib['contribution_status_id']);
+
+  }
+  /**
+   * A subscription cancelled should update the recurring contribution record
+   * and a Pending Contribution.
+   *
+   */
+  public function testWebhookSubscriptionFinished() {
+
+    $contact = civicrm_api3('Contact', 'create', array(
+        'sequential' => 1,
+        'contact_type' => "Individual",
+        'first_name' => "Wilma",
+        'last_name' => "Flintstone",
+    ));
+    $recur = civicrm_api3('ContributionRecur', 'create', array(
+          'sequential' => 1,
+          'contact_id' => $contact['id'],
+          'frequency_interval' => 1,
+          'financial_type_id' => 1, // Donation
+          'amount' => 1,
+          'frequency_unit' => "month",
+          'start_date' => "2016-10-01",
+          'is_test' => 1,
+          'contribution_status_id' => "In Progress",
+          'invoice_id' => 'SUBSCRIPTION_ID'
+        ));
+
+    // Mark this contrib as Incomplete - this is the case that the thing's just
+    // been set up by a Contribution Page.
+    $contrib = civicrm_api3('Contribution', 'create', array(
+        'sequential' => 1,
+        'total_amount' => 1,
+        'financial_type_id' => 1, // Donation
+        'contact_id' => $contact['id'],
+        'contribution_recur_id' => $recur['id'],
+        'contribution_status_id' => "Pending",
+        'receive_date' => '2016-10-01',
+        'is_test' => 1,
+      ));
+
+    // Mock webhook input data.
+    $controller = new CRM_GoCardless_Page_Webhook();
+    $body = '{"events":[
+      {"id":"EV1","resource_type":"subscription","action":"finished","links":{"subscription":"SUBSCRIPTION_ID"}}
+      ]}';
+    $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
+
+    // Mock GC API.
+    $api_prophecy = $this->prophesize('\\GoCardlessPro\\Client');
+    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+    // First the webhook will load the subscription, so mock this.
+    $subscription_service = $this->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
+    $api_prophecy->subscriptions()->willReturn($subscription_service->reveal());
+    $subscription_service->get('SUBSCRIPTION_ID')
+      ->shouldBeCalled()
+      ->willReturn(json_decode('{
+          "id":"SUBSCRIPTION_ID",
+          "status":"finished",
+          "end_date":"2016-10-02"
+        }'));
+
+    // Now trigger webhook.
+    $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
+    $controller->processWebhookEvents();
+
+    // Now check the changes have been made to the original contribution.
+    // This should be Cancelled because the thing finished before it could be taken.
+    $contrib = civicrm_api3('Contribution', 'getsingle', [
+      'contribution_recur_id' => $recur['id'],
+      'is_test' => 1,
+      ]);
+    $this->assertEquals($this->contribution_status_map['Cancelled'], $contrib['contribution_status_id']);
+
+    // Now check the changes have been made to the recurring contribution.
+    $contrib = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $recur['id']]);
+    $this->assertEquals('2016-10-02 00:00:00', $contrib['end_date']);
+    $this->assertEquals('SUBSCRIPTION_ID', $contrib['invoice_id']);
+    $this->assertEquals($this->contribution_status_map['Completed'], $contrib['contribution_status_id']);
+
+  }
+  /**
    * Return a fake GoCardless payment processor.
    */
   protected function getMockPaymentProcessor() {
