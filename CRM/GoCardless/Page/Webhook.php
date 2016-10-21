@@ -235,13 +235,13 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
   /**
    * Looks up the ContributionRecur record for the given GC subscription Id.
    *
-   * @throws GoCardlessWebhookEventIgnored
+   * @throws CRM_GoCardless_WebhookEventIgnoredException
    * @param string $subscription_id
    * @return array
    */
   public function getContributionRecurFromSubscriptionId($subscription_id) {
     if (!$subscription_id) {
-      throw new GoCardlessWebhookEventIgnored("No subscription_id data");
+      throw new CRM_GoCardless_WebhookEventIgnoredException("No subscription_id data");
     }
 
     // Find the recurring payment by the given subscription which will be
