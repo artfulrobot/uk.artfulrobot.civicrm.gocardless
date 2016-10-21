@@ -247,9 +247,9 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       {"id":"EV1","resource_type":"payments","action":"confirmed"},
       {"id":"EV2","resource_type":"payments","action":"failed"},
       {"id":"EV3","resource_type":"payments","action":"something we do not handle"},
-      {"id":"EV4","resource_type":"subscription","action":"cancelled"},
-      {"id":"EV5","resource_type":"subscription","action":"finished"},
-      {"id":"EV6","resource_type":"subscription","action":"something we do not handle"},
+      {"id":"EV4","resource_type":"subscriptions","action":"cancelled"},
+      {"id":"EV5","resource_type":"subscriptions","action":"finished"},
+      {"id":"EV6","resource_type":"subscriptions","action":"something we do not handle"},
       {"id":"EV7","resource_type":"unhandled_resource","action":"foo"}
       ]}';
     $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
@@ -548,7 +548,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     // Mock webhook input data.
     $controller = new CRM_GoCardless_Page_Webhook();
     $body = '{"events":[
-      {"id":"EV1","resource_type":"subscription","action":"cancelled","links":{"subscription":"SUBSCRIPTION_ID"}}
+      {"id":"EV1","resource_type":"subscriptions","action":"cancelled","links":{"subscription":"SUBSCRIPTION_ID"}}
       ]}';
     $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
 
@@ -626,7 +626,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     // Mock webhook input data.
     $controller = new CRM_GoCardless_Page_Webhook();
     $body = '{"events":[
-      {"id":"EV1","resource_type":"subscription","action":"finished","links":{"subscription":"SUBSCRIPTION_ID"}}
+      {"id":"EV1","resource_type":"subscriptions","action":"finished","links":{"subscription":"SUBSCRIPTION_ID"}}
       ]}';
     $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
 

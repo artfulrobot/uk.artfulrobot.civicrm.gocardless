@@ -12,7 +12,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
   public $contribution_status_map;
   public static $implemented_webhooks = [
     'payments' => ['confirmed', 'failed'],
-    'subscription'  => ['cancelled', 'finished'],
+    'subscriptions'  => ['cancelled', 'finished'],
   ];
   /** @var bool */
   protected $test_mode;
@@ -174,7 +174,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    *
    * In this case the subscription has come to its natural end.
    */
-  public function doSubscriptionFinished($event) {
+  public function doSubscriptionsFinished($event) {
     $subscription = $this->getAndCheckSubscription($event, 'finished');
     $recur = $this->getContributionRecurFromSubscriptionId($subscription->id);
 
@@ -191,7 +191,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    *
    * This covers a number of reasons. Typically, the supporter cancelled.
    */
-  public function doSubscriptionCancelled($event) {
+  public function doSubscriptionsCancelled($event) {
     $subscription = $this->getAndCheckSubscription($event, 'cancelled');
     $recur = $this->getContributionRecurFromSubscriptionId($subscription->id);
     $update = [
@@ -251,9 +251,8 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
         'trxn_id' => $subscription_id,
       ]);
     }
-    catch (Civi $e) {
-      // @todo need some way to tell the user that we couldn't match this.
-      throw new GoCardlessWebhookEventIgnored("No matching recurring contribution record for trxn_id {$subscription_id}");
+    catch (CiviCRM_API3_Exception $e) {
+      throw new CRM_GoCardless_WebhookEventIgnoredException("No matching recurring contribution record for trxn_id {$subscription_id}");
     }
     return $recur;
   }
