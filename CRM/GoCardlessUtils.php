@@ -187,7 +187,7 @@ class CRM_GoCardlessUtils
       // If we don't have the amount yet, load it from the Contribution record.
       if (!isset($amount)) {
         $result = civicrm_api3('Contribution', 'getsingle', ['id' => $deets['contributionID']]);
-        $amount = $result['amount'];
+        $amount = $result['total_amount'];
       }
 
       if (!in_array($interval_unit, ['year', 'month', 'week'])) {
