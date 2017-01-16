@@ -164,20 +164,20 @@ class CRM_GoCardlessUtils
 
       // We need to know the interval.
       // This comes from the membership record or the recurring contribution record.
-      if (!empty($deets['membershipID'])) {
+      if (!empty($deets['contributionRecurID'])) {
+        // Load interval details from the recurring contribution record.
+        $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $deets['contributionRecurID']]);
+        $interval_unit = $result['frequency_unit'];
+        $interval_interval = $result['frequency_interval'];
+        $amount = $result['amount'];
+      }
+      else if (!empty($deets['membershipID'])) {
         // This is a membership. Load the interval from the type.
         $result = civicrm_api3('Membership', 'getsingle',
           ['id' => $deets['membershipID'], 'api.MembershipType.getsingle' => []]
         );
         $interval_unit = $result['api.MembershipType.getsingle']['duration_unit'];
         $interval_interval = $result['api.MembershipType.getsingle']['duration_interval'];
-      }
-      elseif (!empty($deets['contributionRecurID'])) {
-        // Load interval details from the recurring contribution record.
-        $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $deets['contributionRecurID']]);
-        $interval_unit = $result['frequency_unit'];
-        $interval_interval = $result['frequency_interval'];
-        $amount = $result['amount'];
       }
       else {
         // Something is wrong.
