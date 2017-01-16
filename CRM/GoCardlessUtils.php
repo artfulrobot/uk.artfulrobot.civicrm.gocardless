@@ -113,57 +113,81 @@ class CRM_GoCardlessUtils
     return $redirect_flow;
   }
   /**
-   * Complete a GoCardless redirect flow and update CiviCRM.
-   *
-   * 1. Basic input Validation.
-   * 2. 'complete the flow' with GoCardless.
-   * 3. Create a subscription.
-   * 4. Update contribution, contribution_recur, membership tables.
-   *
-   * If anything goes wrong cancel things.
+   * Complete a GoCardless redirect flow, set up subscription from details given.
    *
    * @var array $deets with the following mandatory keys:
    *
    * - test_mode bool.
    * - session_token string used in creating the flow with getRedirectFlow().
-   * - contributionID int
-   * - contactID int
+   * - redirect_flow_id
    * - description
-   *
-   * and the following optional ones:
-   *
-   * - contributionRecurID int
-   * - membershipID int
-   * - dayOfMonth int (defaults to 1)
+   * - interval_unit yearly/monthly/weekly
+   * - amount (in GBP, e.g. 10.50)
    *
    * @return void
    */
-  public static function completeRedirectFlow($deets)
+  public static function completeRedirectFlowWithGoCardless($deets)
+  {
+    // Validate input.
+    foreach (['redirect_flow_id', 'test_mode', 'session_token', 'description',
+      'amount', 'interval_unit',
+    ] as $_) {
+      if (!isset($deets[$_])) {
+        throw new InvalidArgumentException("Missing $_ passed to CRM_GoCardlessUtils::getRedirectFlow.");
+      }
+    }
+
+    if (!in_array($deets['interval_unit'], ['yearly', 'monthly', 'weekly'])) {
+      // Throw a spanner in the works if interval not supported by Go Cardless.
+      // https://developer.gocardless.com/api-reference/#subscriptions-create-a-subscription
+      throw new Exception("Invalid interval '$deets[interval_unit]', must be yearly/monthly/weekly.");
+    }
+
+    // 1. Complete the flow.
+    // This creates a Customer, Customer Bank Account and Mandate at GC.
+    $gc_api = CRM_GoCardlessUtils::getApi($deets['test_mode']);
+    $redirect_flow = $gc_api->redirectFlows()->complete($deets['redirect_flow_id'], [
+      "params" => ["session_token" => $deets['session_token']],
+    ]);
+
+    // 2. Set up subscription at GC.
+    // "creditor": "CR123",
+    // "mandate": "MD123",
+    // "customer": "CU123",
+    // "customer_bank_account": "BA123"
+    $subscription = $gc_api->subscriptions()->create(["params" => [
+      'amount'        => (int) (100 * $deets['amount']), // Convert amount to pennies.
+      'currency'      => 'GBP',
+      'name'          => $deets['description'],
+      'interval_unit' => $deets['interval_unit'], // yearly etc.
+      'links'         => ['mandate' => $redirect_flow->links->mandate],
+      //'metadata' => ['order_no' => 'ABCD1234'],
+    ]]);
+
+    // Return our objects in case that's helpful.
+    return [
+        'gc_api' => $gc_api,
+        'redirect_flow' => $redirect_flow,
+        'subscription' => $subscription,
+      ];
+  }
+  /**
+   * Complete the redirect flow as used by the contribution pages.
+   *
+   * This starts off with the person in the database and we use this data to
+   * complete the flow. It's called from gocardless.php buildForm hook when
+   * the thank you page would be displayed.
+   *
+   */
+  public static function completeRedirectFlowCiviCore($deets)
   {
     try {
-      // Validate input.
-      foreach (['redirect_flow_id', 'test_mode', 'session_token', 'contributionID', 'contactID'] as $_) {
-        if (empty($deets[$_])) {
-          throw new InvalidArgumentException("Missing $_ passed to CRM_GoCardlessUtils::getRedirectFlow.");
-        }
-        $params[$_] = $deets[$_];
+      if (empty($deets['contactID'])) {
+        throw new InvalidArgumentException("Missing contactID");
       }
-
-      // 1. Complete the flow.
-      // This creates a Customer, Customer Bank Account and Mandate at GC.
-      $gc_api = CRM_GoCardlessUtils::getApi($deets['test_mode']);
-      $redirect_flow = $gc_api->redirectFlows()->complete($deets['redirect_flow_id'], [
-          "params" => ["session_token" => $deets['session_token']],
-          ]);
-
-      // 2. Set up subscription at GC.
-      // "creditor": "CR123",
-      // "mandate": "MD123",
-      // "customer": "CU123",
-      // "customer_bank_account": "BA123"
-
-      // We need to know the interval.
-      // This comes from the membership record or the recurring contribution record.
+      if (empty($deets['contributionID'])) {
+        throw new InvalidArgumentException("Missing contributionID");
+      }
       if (!empty($deets['membershipID'])) {
         // This is a membership. Load the interval from the type.
         $result = civicrm_api3('Membership', 'getsingle',
@@ -190,21 +214,12 @@ class CRM_GoCardlessUtils
         $amount = $result['amount'];
       }
 
-      if (!in_array($interval_unit, ['year', 'month', 'week'])) {
-        // Throw a spanner in the works if interval not supported by Go Cardless.
-        // https://developer.gocardless.com/api-reference/#subscriptions-create-a-subscription
-        throw new Exception("Invalid interval '$interval_unit', must be year/month/week.");
-      }
-
-      // Now create the subscription.
-      $subscription = $gc_api->subscriptions()->create(["params" => [
-        'amount' => (int) (100 * $amount), // Convert amount to pennies.
-        'currency' => 'GBP',
-        'name' => $deets['description'],
-        'interval_unit' => $interval_unit . 'ly', // year -> yearly etc.
-        'links' => ['mandate' => $redirect_flow->links->mandate],
-        //'metadata' => ['order_no' => 'ABCD1234'],
-      ]]);
+      // Now actually do this at GC.
+      $result = static::completeRedirectFlowWithGoCardless( $deets +
+        [
+          'interval_unit' => $interval_unit . 'ly', // year->yearly
+          'amount' => $amount,
+      ]);
     }
     catch (Exception $e) {
       // Something has gone wrong at this point the chance is that the subscription was not set up.
@@ -235,6 +250,9 @@ class CRM_GoCardlessUtils
                                             "_qf_Main_display=1&cancel=1&qfKey={$_GET['qfKey']}",
                                             true, null, false );
        */
+
+      // Stop processing at this point.
+      return;
     }
 
     // Subscription successfully set up, update CiviCRM.

@@ -47,7 +47,7 @@ Go to Administer » CiviContribute » Payment Processors then click **Add New**
 
 GoCardless has full separation of its test (sandbox) and live account management pages, so you'll do this twice. Be sure to supply the webhook secret appropriate to the test/live environments :-)
 
-The webhook URL is at `/civicrm/gocardless/webhook`
-    
-Note: the webhook will check the key twice; once against the test and once against the live payment processors' webhook secrets. From that information it determines whether it's a test or not.
+The webhook URL is at `/civicrm/gocardless/webhook` for Wordpress this would be
+`?page=CiviCRM&q=civicrm/gocardless/webhook`
 
+Note: the webhook will check the key twice; once against the test and once against the live payment processors' webhook secrets. From that information it determines whether it's a test or not.

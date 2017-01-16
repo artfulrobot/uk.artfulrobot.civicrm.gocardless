@@ -21,14 +21,19 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
   public $events;
   /** @var array payment processor loaded from CiviCRM API paymentProcessor entity */
   protected $payment_processor;
+  /** Timestamp for logs. */
+  public $now;
+
   public function run() {
 
     // We need to check the input against the test and live payment processors.
     $raw_payload = file_get_contents('php://input');
-    // debugging:
-    file_put_contents('/tmp/gcwebhook-' . date('Y-m-d-His'), $raw_payload);
-
     $headers = getallheaders();
+
+    // debugging:
+    $this->now = date('Y-m-d:H:i:s');
+    CRM_Core_Error::debug_log_message("Webhook $this->now body:\n".  $raw_payload, FALSE, 'GoCardless', PEAR_LOG_INFO);
+    CRM_Core_Error::debug_log_message("Webhook $this->now headers:\n". json_encode($headers), FALSE, 'GoCardless', PEAR_LOG_INFO);
 
     try {
       $this->parseWebhookRequest($headers, $raw_payload);
@@ -58,13 +63,13 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
         $this->$method($event);
       }
       catch (CRM_GoCardless_WebhookEventIgnoredException $e) {
-        CRM_Core_Error::debug_log_message("Ignored webhook event. Reason: " . $e->getMessage(), FALSE, 'GoCardless', PEAR_LOG_NOTICE);
+        CRM_Core_Error::debug_log_message("Webhook $this->now Ignored webhook event. Reason: " . $e->getMessage(), FALSE, 'GoCardless', PEAR_LOG_NOTICE);
         if ($throw) {
           throw $e;
         }
       }
       catch (Exception $e) {
-        CRM_Core_Error::debug_log_message("Failed event. Reason: " . $e->getMessage(), FALSE, 'GoCardless', PEAR_LOG_ERR);
+        CRM_Core_Error::debug_log_message("Webhook $this->now Failed event. Reason: " . $e->getMessage(), FALSE, 'GoCardless', PEAR_LOG_ERR);
         if ($throw) {
           throw $e;
         }

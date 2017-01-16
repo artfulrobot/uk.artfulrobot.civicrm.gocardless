@@ -31,7 +31,8 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
    *
    * artfulrobot: I'm not clear how this is used. It's called when saving a
    * PaymentProcessor from the UI but its output is never shown to the user,
-   * so presumably it's used elsewhere.
+   * so presumably it's used elsewhere. YES: it's used when you visit the
+   * Contributions Tab of a contact, for example.
    *
    * @return string the error message if any
    */
@@ -49,11 +50,17 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
     }
 
     if ( !empty( $errors ) ) {
-      return "<ul><li>" . implode( '</li><li>', $errors ) . "</li></ul>";
+      $errors = "<ul><li>" . implode( '</li><li>', $errors ) . "</li></ul>";
+      CRM_Core_Session::setStatus($errors, 'Error', 'error');
+      return $errors;
     }
-    else {
-      return NULL;
-    }
+
+    /* This isn't appropriate as this is called in various places, not just on saving the payment processor config.
+
+    $webhook_url = CRM_Utils_System::url('civicrm/gocardless/webhook', $query=NULL, $absolute=TRUE, $fragment=NULL,  $htmlize=TRUE, $frontend=TRUE);
+    CRM_Core_Session::setStatus("Ensure your webhooks are set up at GoCardless. URL is <a href='$webhook_url' >$webhook_url</a>"
+      , 'Set up your webhook');
+    */
   }
 
   /**
@@ -79,6 +86,8 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
    *
    * Note: the guts of this function are in doTransferCheckoutWorker() so that
    * can be tested without issuing a redirect.
+   *
+   * This is called by civicrm_api3_contribution_transact calling doPayment on the payment processor.
    */
   public function doTransferCheckout( &$params, $component ) {
     $url = $this->doTransferCheckoutWorker($params, $component);

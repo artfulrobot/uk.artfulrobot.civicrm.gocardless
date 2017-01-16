@@ -200,19 +200,26 @@ function gocardless_civicrm_buildForm( $formName, &$form ) {
     // - Something else that lost the session.
     //
     // Anyway, in all cases let's assume that we are unable to proceed.
-    // @todo should we tell the user about this?
+    CRM_Core_Error::fatal('Sorry there was an error setting up your Direct Debit. This could be caused by your browser not allowing cookies.');
+    return;
+  }
+
+  // Validate the session_token.
+  if (empty($_GET['qfKey']) || empty($sesh_store[$redirect_flow_id]['session_token'])
+    || $_GET['qfKey'] != $sesh_store[$redirect_flow_id]['session_token']) {
+
+    // @todo throw something that generates a server error 500 page.
+    CRM_Core_Error::fatal('Sorry, the session tokens did not match. This should not happen.');
     return;
   }
 
   // Complete the redirect flow with GC.
-  $params = [
-    'redirect_flow_id' => $redirect_flow_id,
-    'session_token' => $_GET['qfKey'],
-  ] + $sesh_store[$redirect_flow_id];
   try {
-    $result = CRM_GoCardlessUtils::completeRedirectFlow($params);
+    $params = [ 'redirect_flow_id' => $redirect_flow_id ] + $sesh_store[$redirect_flow_id];
+    $result = CRM_GoCardlessUtils::completeRedirectFlowCiviCore($params);
   }
   catch (Exception $e) {
+    CRM_Core_Error::fatal('Sorry there was an error setting up your Direct Debit. Please contact us so we can look into what went wrong.');
   }
 }
 
