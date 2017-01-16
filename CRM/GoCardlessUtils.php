@@ -188,20 +188,20 @@ class CRM_GoCardlessUtils
       if (empty($deets['contributionID'])) {
         throw new InvalidArgumentException("Missing contributionID");
       }
-      if (!empty($deets['membershipID'])) {
+      if (!empty($deets['contributionRecurID'])) {
+        // Load interval details from the recurring contribution record.
+        $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $deets['contributionRecurID']]);
+        $interval_unit = $result['frequency_unit'];
+        $interval_interval = $result['frequency_interval'];
+        $amount = $result['amount'];
+
+      } elseif (!empty($deets['membershipID'])) {
         // This is a membership. Load the interval from the type.
         $result = civicrm_api3('Membership', 'getsingle',
           ['id' => $deets['membershipID'], 'api.MembershipType.getsingle' => []]
         );
         $interval_unit = $result['api.MembershipType.getsingle']['duration_unit'];
         $interval_interval = $result['api.MembershipType.getsingle']['duration_interval'];
-      }
-      elseif (!empty($deets['contributionRecurID'])) {
-        // Load interval details from the recurring contribution record.
-        $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $deets['contributionRecurID']]);
-        $interval_unit = $result['frequency_unit'];
-        $interval_interval = $result['frequency_interval'];
-        $amount = $result['amount'];
       }
       else {
         // Something is wrong.
@@ -211,7 +211,7 @@ class CRM_GoCardlessUtils
       // If we don't have the amount yet, load it from the Contribution record.
       if (!isset($amount)) {
         $result = civicrm_api3('Contribution', 'getsingle', ['id' => $deets['contributionID']]);
-        $amount = $result['amount'];
+        $amount = $result['total_amount'];
       }
 
       // Now actually do this at GC.
@@ -278,9 +278,8 @@ class CRM_GoCardlessUtils
         // Calculate the end date for the membership, although hopefully this will be renewed automatically.
         // People expect their membership to start immediately, although the payment might not come through for a couple of days.
         // Use today's date as the start date, and contribution date + N * interval for end date.
-        $membershipEndDateString = date("Y-m-d",strtotime(date("Y-m-d", strtotime($start_date)) . " +$interval_duration $interval_unit_civi_format"));
         // Update membership dates.
-        civicrm_api("Membership" ,"create" , [
+        civicrm_api3("Membership" ,"create" , [
           'id'         => $deets['membershipID'],
           'end_date'   => date('Y-m-d', strtotime($subscription->start_date . " + $interval_interval $interval_unit")),
           'start_date' => date('Y-m-d'),
