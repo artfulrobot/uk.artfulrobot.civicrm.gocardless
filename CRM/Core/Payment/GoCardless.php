@@ -124,7 +124,7 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
         'payment_processor_id' => $this->_paymentProcessor['id'],
         "description"          => $params['description'],
       ];
-      foreach (['contributionID', 'contributionRecurID', 'contactID'] as $_) {
+      foreach (['contributionID', 'contributionRecurID', 'contactID', 'membershipID'] as $_) {
         if (!empty($params[$_])) {
           $sesh_store[$redirect_flow->id][$_] = $params[$_];
         }
