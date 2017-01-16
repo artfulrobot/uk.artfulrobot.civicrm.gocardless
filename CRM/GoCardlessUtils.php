@@ -260,9 +260,8 @@ class CRM_GoCardlessUtils
         // Calculate the end date for the membership, although hopefully this will be renewed automatically.
         // People expect their membership to start immediately, although the payment might not come through for a couple of days.
         // Use today's date as the start date, and contribution date + N * interval for end date.
-        $membershipEndDateString = date("Y-m-d",strtotime(date("Y-m-d", strtotime($start_date)) . " +$interval_duration $interval_unit_civi_format"));
         // Update membership dates.
-        civicrm_api("Membership" ,"create" , [
+        civicrm_api3("Membership" ,"create" , [
           'id'         => $deets['membershipID'],
           'end_date'   => date('Y-m-d', strtotime($subscription->start_date . " + $interval_interval $interval_unit")),
           'start_date' => date('Y-m-d'),
