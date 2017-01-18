@@ -137,10 +137,21 @@ class CRM_GoCardlessUtils
       }
     }
 
-    if (!in_array($deets['interval_unit'], ['yearly', 'monthly', 'weekly'])) {
-      // Throw a spanner in the works if interval not supported by Go Cardless.
-      // https://developer.gocardless.com/api-reference/#subscriptions-create-a-subscription
-      throw new Exception("Invalid interval '$deets[interval_unit]', must be yearly/monthly/weekly.");
+    $interval_unit = $deets['interval_unit'];
+    $interval = isset($deets['interval']) ? $deets['interval'] : 1;
+
+    // Throw a spanner in the works if interval not supported by Go Cardless.
+    // https://developer.gocardless.com/api-reference/#subscriptions-create-a-subscription
+
+    if (!in_array($interval_unit, ['yearly', 'monthly', 'weekly'])) {
+      throw new Exception("Invalid interval '$interval_unit', must be yearly/monthly/weekly.");
+    }
+
+    // Direct Debits must be at most yearly
+    if ($interval_unit == 'yearly' && $interval > 1 ||
+        $interval_unit == 'monthly' && $interval > 12 ||
+        $interval_unit == 'weekly' && $interval > 52) {
+      throw new Exception("Interval must be at most yearly, not $interval $interval_unit");
     }
 
     // 1. Complete the flow.
@@ -159,7 +170,8 @@ class CRM_GoCardlessUtils
       'amount'        => (int) (100 * $deets['amount']), // Convert amount to pennies.
       'currency'      => 'GBP',
       'name'          => $deets['description'],
-      'interval_unit' => $deets['interval_unit'], // yearly etc.
+      'interval'      => $interval,
+      'interval_unit' => $interval_unit, // yearly etc.
       'links'         => ['mandate' => $redirect_flow->links->mandate],
       //'metadata' => ['order_no' => 'ABCD1234'],
     ]]);
@@ -192,7 +204,7 @@ class CRM_GoCardlessUtils
         // Load interval details from the recurring contribution record.
         $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $deets['contributionRecurID']]);
         $interval_unit = $result['frequency_unit'];
-        $interval_interval = $result['frequency_interval'];
+        $interval = $result['frequency_interval'];
         $amount = $result['amount'];
 
       } elseif (!empty($deets['membershipID'])) {
@@ -201,7 +213,7 @@ class CRM_GoCardlessUtils
           ['id' => $deets['membershipID'], 'api.MembershipType.getsingle' => []]
         );
         $interval_unit = $result['api.MembershipType.getsingle']['duration_unit'];
-        $interval_interval = $result['api.MembershipType.getsingle']['duration_interval'];
+        $interval = $result['api.MembershipType.getsingle']['duration_interval'];
       }
       else {
         // Something is wrong.
@@ -217,6 +229,7 @@ class CRM_GoCardlessUtils
       // Now actually do this at GC.
       $result = static::completeRedirectFlowWithGoCardless( $deets +
         [
+          'interval' => $interval,
           'interval_unit' => $interval_unit . 'ly', // year->yearly
           'amount' => $amount,
       ]);
@@ -281,7 +294,7 @@ class CRM_GoCardlessUtils
         // Update membership dates.
         civicrm_api3("Membership" ,"create" , [
           'id'         => $deets['membershipID'],
-          'end_date'   => date('Y-m-d', strtotime($subscription->start_date . " + $interval_interval $interval_unit")),
+          'end_date'   => date('Y-m-d', strtotime($subscription->start_date . " + $interval $interval_unit")),
           'start_date' => date('Y-m-d'),
           'join_date'  => date('Y-m-d'),
           'status_id'  => 1,//New
