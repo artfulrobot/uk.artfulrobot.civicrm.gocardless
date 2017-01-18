@@ -130,6 +130,7 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
       $sesh_store = $sesh_store ? $sesh_store : [];
       $sesh_store[$redirect_flow->id] = [
         'test_mode'            => (bool) $this->_paymentProcessor['is_test'],
+        'session_token'        => $params['qfKey'],
         'payment_processor_id' => $this->_paymentProcessor['id'],
         "description"          => $params['description'],
       ];
