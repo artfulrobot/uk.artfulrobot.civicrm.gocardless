@@ -29,7 +29,7 @@ This extension requires the GoCardlessPro PHP library. I have not packaged this 
     $ cd /path/to/your/extensions/dir
     $ git clone https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless.git
     $ cd uk.artfulrobot.civicrm.gocardless
-    $ which composer >/dev/null && composer install || echo You need composer, pls see https://getcomposer.org/download/
+    $ which composer >/dev/null && composer install || echo You need composer, pls see https://getcomposer.org/download/ Then repeat this command. (i.e. composer install)
 
 ### Install the extension and create a payment processor
 
