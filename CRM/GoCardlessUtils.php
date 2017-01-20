@@ -164,6 +164,10 @@ class CRM_GoCardlessUtils
       //'metadata' => ['order_no' => 'ABCD1234'],
     ]]);
 
+    CRM_Core_Error::debug_log_message(__FUNCTION__ . ": successfully completed redirect flow "
+      . $deets['redirect_flow_id']
+      . " mandate: {$redirect_flow->links->mandate} subscription: {$subscription->id}", FALSE, 'GoCardless', PEAR_LOG_INFO);
+
     // Return our objects in case that's helpful.
     return [
         'gc_api' => $gc_api,
@@ -181,6 +185,7 @@ class CRM_GoCardlessUtils
    */
   public static function completeRedirectFlowCiviCore($deets)
   {
+    CRM_Core_Error::debug_log_message(__FUNCTION__ . ": called with details: " . json_encode($deets), FALSE, 'GoCardless', PEAR_LOG_INFO);
     try {
       if (empty($deets['contactID'])) {
         throw new InvalidArgumentException("Missing contactID");
@@ -220,8 +225,11 @@ class CRM_GoCardlessUtils
           'interval_unit' => $interval_unit . 'ly', // year->yearly
           'amount' => $amount,
       ]);
+      // It's the subscription we're interested in.
+      $subscription = $result['subscription'];
     }
     catch (Exception $e) {
+      CRM_Core_Error::debug_log_message(__FUNCTION__ . ": EXCEPTION before successfully setting up subscription at GoCardless: " . $e->getMessage() . "\n" . $e->getTraceAsString(), FALSE, 'GoCardless', PEAR_LOG_INFO);
       // Something has gone wrong at this point the chance is that the subscription was not set up.
       // Therefore we should cancel things.
       civicrm_api3('Contribution', 'create', [
@@ -287,10 +295,12 @@ class CRM_GoCardlessUtils
           'status_id'  => 1,//New
         ]);
       }
+      CRM_Core_Error::debug_log_message(__FUNCTION__ . ": CiviCRM updated successfully (Contribution ID $deets[contributionID]).", FALSE, 'GoCardless', PEAR_LOG_INFO);
     }
     catch (Exception $e) {
       // The Subscription *was* set up but we died updating CiviCRM about it. Disaster, darling.
       // This is not going to be nice.
+      CRM_Core_Error::debug_log_message(__FUNCTION__ . ": EXCEPTION *after* successfully setting up subscription at GoCardless: " . $e->getMessage() . "\n" . $e->getTraceAsString(), FALSE, 'GoCardless', PEAR_LOG_INFO);
       CRM_Core_Session::setStatus("Sorry, there was a problem recording the details of your Direct Debit. Please call us.", 'Error', 'error');
     }
   }
