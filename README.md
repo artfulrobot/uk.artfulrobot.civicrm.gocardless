@@ -3,35 +3,49 @@
 **A CiviCRM extension to GoCardless integration to handle UK 
 Direct Debits.**
 
-A better readme is to come :-)
+This extension is working well for collecting regular donations from UK supporters. Using it you can enable supporters to set up direct debits and every month when GoCardless takes payment this updates your CiviCRM contributions automatically. If someone cancels their Direct Debit this also updates your CiviCRM records. It also sends them a bunch of flowers thanking them for their support and asking them to reconsider their cancellation. Ok, it doesn't do that last bit.
 
-Meanwhile pre-launch, please see and use the issue queue, especially 
-see [#1](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/1) which sets out the urgent project goals. I will be launching 
-with basic functionality by mid November.
+[Artful Robot](https://artfulrobot.uk) stitches together open source websites and databases to help campaigns, charities, NGOs and other beautifully-minded people change the world. We specialise in CiviCRM and Drupal.
 
+Other things to note
 
-## How you can help
+- Although "Beta", this has been in production use since November 2016. The usual disclaimers apply :-)
 
-I'd welcome your input. Please note that this extension is **NOT 
-production-ready yet**.
+- Taking one offs is [not supported/implemented yet](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/12).
 
-Let me know - see [#7](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/7)
+- Memberships may or may not be properly updated. See Issue #3 
 
-Note: if you're running a "test-drive" contribution page you can use GoCardless's test bank account: 20-00-00 55779911
+- Generally worth scanning the titles of the [Issue Queue](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/)
+
+- Developers can drive it from a non-CiviCRM form, e.g. if you have a highly custom donate form that does not use CiviCRM's payment pages.
+
+- There are some phpunit tests. You only get these by cloning the repo, not by downloading a release .tgz or .zip. Do not run these on a live database!
+
+- Pull Requests (PR) welcome. Please ensure all existing tests run OK before making a PR :-)
+
+- You can pay me to fix/implement a feature you need [contact me](https://artfulrobot.uk/contact)
+
+- If you use this, it may help us all if you drop a comment on https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/20
 
 
 ## How to install
 
-### Install the code
+### 1a. Install it the Simple way
 
-This extension requires the GoCardlessPro PHP library. I have not packaged this up in this repo (need to find out best way to do this in CiviCRM) so here's how to install from the \*nix command line. You need [composer](https://getcomposer.org/download/)
+Visit the [Releases page](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/releases) and download the code from there. Unzip it in your extensions directory, then follow instructions for [step 2 below](#createpp).
+
+### 1b. Install it the Difficult way (developers)
+
+This extension requires the GoCardlessPro PHP library. Here's how to install from the \*nix command line. You need [composer](https://getcomposer.org/download/)
 
     $ cd /path/to/your/extensions/dir
     $ git clone https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless.git
     $ cd uk.artfulrobot.civicrm.gocardless
     $ which composer >/dev/null && composer install || echo You need composer, pls see https://getcomposer.org/download/ Then repeat this command. (i.e. composer install)
 
-### Install the extension and create a payment processor
+That should then bring in the GoCardlessPro dependency.
+
+### <a name="createpp" id="createpp"></a> 2. Install the extension and create a payment processor
 
 Install it through the CiviCRM Extensions screen as usual (you may need to click Refresh).
 
@@ -43,14 +57,23 @@ Go to Administer » CiviContribute » Payment Processors then click **Add New**
 - Add your access tokens (you obvs need a GoCardless account to do this) and make up a secure webhook secret.
 - click *Save*.
 
-### Install your webhook at GoCardless
+### 3. Install your webhook at GoCardless
 
-GoCardless has full separation of its test (sandbox) and live account management pages, so you'll do this twice. Be sure to supply the webhook secret appropriate to the test/live environments :-)
+GoCardless has full separation of its test (sandbox) and live account management pages, so **you'll do this twice**. Be sure to supply the webhook secret appropriate to the test/live environments - you **must** choose a different secret for live/test.
 
 The webhook URL is at `/civicrm/gocardless/webhook` for Wordpress this would be
 `?page=CiviCRM&q=civicrm/gocardless/webhook`
 
-Note: the webhook will check the key twice; once against the test and once against the live payment processors' webhook secrets. From that information it determines whether it's a test or not.
+Note: the webhook will check the key twice; once against the test and once against the live payment processors' webhook secrets. From that information it determines whether it's a test or not. That's one reason you need different secrets.
+
+### 4. Use it and test it!
+
+Create a contribution page and set up a regular donation using the "test-drive" page. Check things at CiviCRM's end and at GoCardless' end. Note that GoCardless keeps a log of whether webhooks were succesful and gives you the chance to resubmit them, too, if I remember correctly.
+
+Note: if you're running a "test-drive" contribution page you can use GoCardless's test bank account: `20-00-00` `55779911`
+
+Having set up a Direct Debit you should see that in the Contributions tab for your contact's record on CiviCRM, showing as a recurring payment, and also a pending contribution record. The date will be about a week in the future. Check your database several days after that date (GoCardless only knows something's been successful after the time for problems to be raised has expired, which is several working days) and the contribution should have been completed. Check your record next month and there should be another contribution automatically created.
+
 
 ## Technical notes                                                                                                                                                                                                                             
                                                                                                                                                                                                                                                
