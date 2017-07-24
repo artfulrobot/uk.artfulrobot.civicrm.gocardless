@@ -13,7 +13,7 @@ Other things to note
 
 - Taking one offs is [not supported/implemented yet](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/12).
 
-- Memberships may or may not be properly updated. See Issue #3 
+- Memberships may or may not be properly updated. See [Issue 3](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/3)
 
 - Generally worth scanning the titles of the [Issue Queue](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/)
 
@@ -25,7 +25,7 @@ Other things to note
 
 - You can pay me to fix/implement a feature you need [contact me](https://artfulrobot.uk/contact)
 
-- If you use this, it may help us all if you drop a comment on https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/20
+- If you use this, it may help us all if you drop a comment on [Issue 20](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/20)
 
 
 ## How to install
