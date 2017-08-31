@@ -28,7 +28,18 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
 
     // We need to check the input against the test and live payment processors.
     $raw_payload = file_get_contents('php://input');
-    $headers = getallheaders();
+    if (!function_exists('getallheaders')) {
+      // https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/23
+      // Some server configs do not provide getallheaders().
+      // We only care about the Webhook-Signature header so try to extract that from $_SERVER.
+      $headers = [];
+      if (isset($_SERVER['HTTP_WEBHOOK_SIGNATURE'])) {
+        $headers['Webhook-Signature'] = $_SERVER['HTTP_WEBHOOK_SIGNATURE'];
+      }
+    }
+    else {
+      $headers = getallheaders();
+    }
 
     // debugging:
     $this->now = date('Y-m-d:H:i:s');
