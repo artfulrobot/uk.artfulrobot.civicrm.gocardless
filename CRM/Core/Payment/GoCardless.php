@@ -146,6 +146,7 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
     }
     catch (\Exception $e) {
       CRM_Core_Session::setStatus('Sorry, there was an error contacting the payment processor GoCardless.', ts("Error"), "error");
+      CRM_Core_Error::debug_log_message('CRM_Core_Payment_GoCardless::doTransferCheckoutWorker exception: ' . $e->getMessage() . "\n\n" . $e->getTraceAsString(), FALSE, 'GoCardless', PEAR_LOG_ERR);
       return $params['entryURL'];
     }
   }
