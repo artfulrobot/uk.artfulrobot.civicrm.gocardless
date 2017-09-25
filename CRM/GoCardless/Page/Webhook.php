@@ -153,9 +153,8 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    * instead of adding another.
    */
   public function doPaymentsConfirmed($event) {
-    $payment = $this->getAndCheckPayment($event, 'confirmed');
+    $payment = $this->getAndCheckGoCardlessPayment($event, 'confirmed');
     $recur = $this->getContributionRecurFromSubscriptionId($payment->links->subscription);
-    $contribution = $this->updateContributionRecord('Completed', $payment, $recur);
 
     // Ensure that the recurring contribution record is set to In Progress.
     civicrm_api3('ContributionRecur', 'create', [
@@ -164,26 +163,72 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     ]);
     // There's all sorts of other fields on recur - do we need to set them?
     // e.g. date of next expected payment, date of last update etc. @todo
-    // check.
+
+    // Prepare to update the contribution records.
+    $contribution = [
+      'total_amount'           => number_format($payment->amount / 100, 2, '.', ''),
+      'receive_date'           => $payment->charge_date,
+      'trxn_id'                => $payment->id,
+      'contribution_status_id' => 'Completed',
+      'contribution_recur_id'  => $recur['id'],
+      'financial_type_id'      => $recur['financial_type_id'],
+      'contact_id'             => $recur['contact_id'],
+      'is_test'                => $this->test_mode ? 1 : 0,
+    ];
+
+    $pending_contribution_id = $this->getPendingContributionId($recur);
+    if ($pending_contribution_id) {
+      // There's an existing pending contribution. Use completetransaction API.
+      $contribution['id'] = $pending_contribution_id;
+      $result = civicrm_api3('Contribution', 'completetransaction', $contribution);
+      // We're done here.
+      return;
+    }
+
+    // There is no pending contribution, find the original one.
+    $contribution['original_contribution_id'] = $this->getOriginalContributionId($recur);
+
+    // Create a copy record of the original contribution and send out email receipt
+    $result = civicrm_api3('Contribution', 'repeattransaction', $contribution);
   }
 
   /**
    * Process webhook for 'payments' resource type, action 'failed'.
    */
   public function doPaymentsFailed($event) {
-    $payment = $this->getAndCheckPayment($event, 'confirmed');
+    $payment = $this->getAndCheckGoCardlessPayment($event, 'confirmed');
     $recur = $this->getContributionRecurFromSubscriptionId($payment->links->subscription);
-    $contribution = $this->updateContributionRecord('Failed', $payment, $recur);
 
     // Ensure that the recurring contribution record is set to In Progress.
     civicrm_api3('ContributionRecur', 'create', [
       'id' => $recur['id'],
       'contribution_status_id' => 'Overdue', // is this appropriate? @todo
     ]);
-    // There's all sorts of other fields on recur - do we need to set them?
-    // e.g. date of next expected payment, date of last update etc. @todo
-    // check.
 
+    // Prepare to update the contribution records.
+    $contribution = [
+      'total_amount'           => number_format($payment->amount / 100, 2, '.', ''),
+      'receive_date'           => $payment->charge_date,
+      'trxn_id'                => $payment->id,
+      'contribution_status_id' => 'Failed',
+      'contribution_recur_id'  => $recur['id'],
+      'financial_type_id'      => $recur['financial_type_id'],
+      'contact_id'             => $recur['contact_id'],
+      'is_test'                => $this->test_mode ? 1 : 0,
+    ];
+
+    $pending_contribution_id = $this->getPendingContributionId($recur);
+    if ($pending_contribution_id) {
+      // There's an existing pending contribution.
+      $contribution['id'] = $pending_contribution_id;
+    }
+    else {
+      // There is no pending contribution, find the original one.
+      $contribution['original_contribution_id'] = $this->getOriginalContributionId($recur);
+    }
+
+    // Make the changes.
+    civicrm_api3('Contribution', 'create', $update);
   }
   /**
    * Process webhook for 'mandate' resource type, action 'finished'.
@@ -230,7 +275,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    * @param string $expected_status
    * @return NULL|\GoCardless\Resources\Payment
    */
-  public function getAndCheckPayment($event, $expected_status) {
+  public function getAndCheckGoCardlessPayment($event, $expected_status) {
     $gc_api = CRM_GoCardlessUtils::getApi($this->test_mode);
     // According to GoCardless we need to check that the status of the object
     // has not changed since the webhook was fired, so we re-load it and test.
@@ -273,29 +318,12 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     return $recur;
   }
   /**
-   * Update the Contribution record.
+   * See if we have a pending contribution for the given contribution_record record.
    *
-   * Code shared by doPaymentsConfirmed and doPaymentsFailed.
-   *
-   * @todo how does Stripe duplicate contributions? Does some data come from the recur and some from the payment?
-   *
-   * @param string $status
-   * @param \GoCardless\Resources\Payment $payment
-   * @param array $recur ContributionRecur
-   * @return array
+   * @param array $recur (only the 'id' key is used)
+   * @return null|int Either the contribution id of the pending contribution, or NULL
    */
-  public function updateContributionRecord($status, $payment, $recur) {
-    $update = [
-      'total_amount'           => number_format($payment->amount / 100, 2, '.', ''),
-      'receive_date'           => $payment->charge_date,
-      'trxn_id'                => $payment->id,
-      'contribution_status_id' => $status,
-      'contribution_recur_id'  => $recur['id'],
-      'financial_type_id'      => $recur['financial_type_id'],
-      'contact_id'             => $recur['contact_id'],
-      'is_test'                => $this->test_mode ? 1 : 0,
-    ];
-
+  public function getPendingContributionId($recur) {
     // See if there's a Pending contribution we can update. xxx ??? No contribs at all?
     $incomplete_contribs = civicrm_api3('Contribution', 'get',[
       'sequential' => 1,
@@ -305,10 +333,28 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     ]);
     if ($incomplete_contribs['count'] > 0) {
       // Found one (possibly more than one, edge case - ignore and take first).
-      $update['id'] = $incomplete_contribs['values'][0]['id'];
+      return $incomplete_contribs['values'][0]['id'];
     }
-
-    civicrm_api3('Contribution', 'create', $update);
+  }
+  /**
+   * Get the first payment for this recurring contribution.
+   *
+   * @param array $recur (only the 'id' key is used)
+   * @return null|int Either the contribution id of the original contribution, or NULL
+   */
+  public function getOriginalContributionId($recur) {
+    // See if there's a Pending contribution we can update. xxx ??? No contribs at all?
+    $incomplete_contribs = civicrm_api3('Contribution', 'get',[
+      'sequential' => 1,
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Pending",
+      'is_test' => $this->test_mode ? 1 : 0,
+      'options' => ['sort' => 'receive_date', 'limit' => 1],
+    ]);
+    if ($incomplete_contribs['count'] > 0) {
+      // Found one (possibly more than one, edge case - ignore and take first).
+      return $incomplete_contribs['values'][0]['id'];
+    }
   }
   /**
    * Helper to load and return GC subscription object.
@@ -337,19 +383,12 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    * @param array $recur
    */
   public function cancelPendingContributions($recur) {
-    $incomplete_contribs = civicrm_api3('Contribution', 'get',[
-      'sequential' => 1,
-      'contribution_recur_id' => $recur['id'],
-      'contribution_status_id' => "Pending",
-      'is_test' => $this->test_mode ? 1 : 0,
-    ]);
-    if ($incomplete_contribs['count'] > 0) {
-      foreach($incomplete_contribs['values'] as $contribution) {
+    // There should only be one, but just in case...
+    while ($pending_contribution_id = $this->getPendingContributionId()) {
         civicrm_api3('Contribution', 'create', [
-          'id' => $contribution['id'],
+          'id' => $pending_contribution_id,
           'contribution_status_id' => "Cancelled",
         ]);
-      }
     }
   }
 }
