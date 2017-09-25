@@ -21,6 +21,9 @@ use \Prophecy\Argument;
  */
 class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInterface, HookInterface, TransactionalInterface {
 
+  /** Holds test mode payment processor.
+   */
+  public $test_mode_payment_processor;
   public function setUpHeadless() {
     // Civi\Test has many helpers, like install(), uninstall(), sql(), and sqlFile().
     // See: https://github.com/civicrm/org.civicrm.testapalooza/blob/master/civi-test.md
@@ -42,10 +45,13 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       'signature' => "mock_webhook_key",
       'is_active' => 1,
       'is_test' => 1,
+      'url_api' => 'https://api-sandbox.gocardless.com/',
       'user_name' => "fake_test_api_key",
       'payment_instrument_id' => "direct_debit_gc",
       'domain_id' => 1,
     ));
+    $this->test_mode_payment_processor = $result['values'][0];
+
     // We need a live one, too.
     $result = civicrm_api3('PaymentProcessor', 'create', array(
       'sequential' => 1,
@@ -54,6 +60,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       'signature' => "this is no the webhook key you are looking fo",
       'description' => "Set up by test script",
       'is_active' => 1,
+      'url_api' => 'https://api.gocardless.com/',
       'is_test' => 0,
       'user_name' => "fake_live_api_key",
       'payment_instrument_id' => "direct_debit_gc",
@@ -181,7 +188,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       'contributionRecurID' => $recur['id'],
       'entryURL' => 'http://example.com/somwhere',
     ];
-    CRM_GoCardlessUtils::completeRedirectFlow($params);
+    CRM_GoCardlessUtils::completeRedirectFlowCiviCore($params);
 
     // Now test the contributions were updated.
     $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $recur['id']]);
@@ -353,7 +360,8 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
           'start_date' => "2016-10-01",
           'is_test' => 1,
           'contribution_status_id' => "In Progress",
-          'trxn_id' => 'SUBSCRIPTION_ID'
+          'trxn_id' => 'SUBSCRIPTION_ID',
+          'payment_processor_id' => $this->test_mode_payment_processor['id'],
         ));
 
     // Mock that we have had one completed payment.
@@ -444,7 +452,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Now trigger webhook.
     $event = json_decode(json_encode([ 'links' => [ 'payment' => 'PAYMENT_ID' ]]));
-    $controller->getAndCheckPayment($event, 'confirmed'); // Calling with different status to that which will be fetched from API.
+    $controller->getAndCheckGoCardlessPayment($event, 'confirmed'); // Calling with different status to that which will be fetched from API.
   }
 
   /**
@@ -503,7 +511,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Now trigger webhook.
     $event = json_decode('{"links":{"payment":"PAYMENT_ID"}}');
-    $controller->getAndCheckPayment($event, 'confirmed'); // Calling with different status to that which will be fetched from API.
+    $controller->getAndCheckGoCardlessPayment($event, 'confirmed'); // Calling with different status to that which will be fetched from API.
   }
 
   /**
@@ -666,8 +674,8 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
   /**
    * Return a fake GoCardless payment processor.
    */
-  protected function getMockPaymentProcessor() {
-
+  protected function getPaymentProcessor() {
+    
   }
 
 }

@@ -169,7 +169,6 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       'total_amount'           => number_format($payment->amount / 100, 2, '.', ''),
       'receive_date'           => $payment->charge_date,
       'trxn_id'                => $payment->id,
-      'contribution_status_id' => 'Completed',
       'contribution_recur_id'  => $recur['id'],
       'financial_type_id'      => $recur['financial_type_id'],
       'contact_id'             => $recur['contact_id'],
@@ -180,6 +179,13 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     if ($pending_contribution_id) {
       // There's an existing pending contribution. Use completetransaction API.
       $contribution['id'] = $pending_contribution_id;
+      // Update the amount. This should not have changed, but there is an edge
+      // case where it does since we're talking about an external system.
+      $result = civicrm_api3('Contribution', 'create', $contribution);
+
+      // Now call completetransaction. Note that the only data this updates in
+      // the contribution record is trxn_id and fee_amount (which we don't
+      // supply).
       $result = civicrm_api3('Contribution', 'completetransaction', $contribution);
       // We're done here.
       return;
@@ -187,6 +193,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
 
     // There is no pending contribution, find the original one.
     $contribution['original_contribution_id'] = $this->getOriginalContributionId($recur);
+    $contribution['contribution_status_id'] = 'Completed';
 
     // Create a copy record of the original contribution and send out email receipt
     $result = civicrm_api3('Contribution', 'repeattransaction', $contribution);
@@ -347,7 +354,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     $incomplete_contribs = civicrm_api3('Contribution', 'get',[
       'sequential' => 1,
       'contribution_recur_id' => $recur['id'],
-      'contribution_status_id' => "Pending",
+      'contribution_status_id' => "Completed",
       'is_test' => $this->test_mode ? 1 : 0,
       'options' => ['sort' => 'receive_date', 'limit' => 1],
     ]);
@@ -384,7 +391,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    */
   public function cancelPendingContributions($recur) {
     // There should only be one, but just in case...
-    while ($pending_contribution_id = $this->getPendingContributionId()) {
+    while ($pending_contribution_id = $this->getPendingContributionId($recur)) {
         civicrm_api3('Contribution', 'create', [
           'id' => $pending_contribution_id,
           'contribution_status_id' => "Cancelled",
