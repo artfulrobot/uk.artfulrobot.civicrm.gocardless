@@ -173,6 +173,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       'financial_type_id'      => $recur['financial_type_id'],
       'contact_id'             => $recur['contact_id'],
       'is_test'                => $this->test_mode ? 1 : 0,
+      'is_email_receipt'       => 0, // Do not send email receipts. This might annoy some people. Be nice if it was a setting.
     ];
 
     $pending_contribution_id = $this->getPendingContributionId($recur);
