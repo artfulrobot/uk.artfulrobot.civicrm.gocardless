@@ -30,6 +30,8 @@ Other things to note
 
 ## How to install
 
+Choose option 1a (everyone) or 1b (developers only), then proceed with step 2.
+
 ### 1a. Install it the Simple way
 
 Visit the [Releases page](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/releases) and download the code from there. Unzip it in your extensions directory, then follow instructions for [step 2 below](#createpp).
@@ -54,15 +56,20 @@ Go to Administer » CiviContribute » Payment Processors then click **Add New**
 - Select **GoCardless** from the *Payment Processor Type*
 - give it a name.
 - Select **GoCardless Direct Debit** from the *Payment Method*
-- Add your access tokens (you obvs need a GoCardless account to do this) and make up a secure webhook secret.
+- Add your access tokens (you obvs need a GoCardless account to do this) and make up unique secure webhook secrets.
 - click *Save*.
+
+**Note: for testing purposes you may put your test/sandbox credentials in the Live fields, but you must use CiviCRM's 'test drive' mode for trying payments; live mode will NOT work with test credentials since they are authenticated against different GoCardless API end points.** So your live testing will need to be with real-world live data.
 
 ### 3. Install your webhook at GoCardless
 
 GoCardless has full separation of its test (sandbox) and live account management pages, so **you'll do this twice**. Be sure to supply the webhook secret appropriate to the test/live environments - you **must** choose a different secret for live/test.
 
-The webhook URL is at `/civicrm/gocardless/webhook` for Wordpress this would be
-`?page=CiviCRM&q=civicrm/gocardless/webhook`
+The webhook URL is at:
+
+- Drupal: `/civicrm/gocardless/webhook` 
+- Wordpress `/?page=CiviCRM&q=civicrm/gocardless/webhook`
+- Joomla: `/index.php?option=com_civicrm&task=civicrm/gocardless/webhook`
 
 Note: the webhook will check the key twice; once against the test and once against the live payment processors' webhook secrets. From that information it determines whether it's a test or not. That's one reason you need different secrets.
 
