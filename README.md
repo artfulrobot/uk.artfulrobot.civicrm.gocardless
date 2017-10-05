@@ -13,8 +13,6 @@ Other things to note
 
 - Taking one offs is [not supported/implemented yet](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/12).
 
-- Memberships may or may not be properly updated. See [Issue 3](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/3)
-
 - Generally worth scanning the titles of the [Issue Queue](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/)
 
 - Developers can drive it from a non-CiviCRM form, e.g. if you have a highly custom donate form that does not use CiviCRM's payment pages.
