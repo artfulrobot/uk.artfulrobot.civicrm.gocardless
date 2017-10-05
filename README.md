@@ -30,6 +30,17 @@ Other things to note
 
 Choose option 1a (everyone) or 1b (developers only), then proceed with step 2.
 
+### 0. Set up a GoCardless account
+
+You'll need at least a *sandbox* (i.e. testing) account, so [register a sandbox account at GoCardless](https://manage-sandbox.gocardless.com/signup).
+
+From within GoCardless's dashboard you'll need to **Create an access token**. Once you're logged in at GoCardless, go to Developers » Create » Access Token. 
+
+You want to choose **Read/Write**. Name it whatever you like.  Once you've created an access token a pop-up box will display the token. **You can never get to this again!** So make sure you copy it and store it safely somewhere for later use in your CiviCRM payment processor configuration.
+
+You'll need to come back to the GoCardless control panel later on to set up your webhook.
+
+
 ### 1a. Install it the Simple way
 
 Visit the [Releases page](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/releases) and download the code from there. Unzip it in your extensions directory, then follow instructions for [step 2 below](#createpp).
@@ -54,7 +65,8 @@ Go to Administer » CiviContribute » Payment Processors then click **Add New**
 - Select **GoCardless** from the *Payment Processor Type*
 - give it a name.
 - Select **GoCardless Direct Debit** from the *Payment Method*
-- Add your access tokens (you obvs need a GoCardless account to do this) and make up unique secure webhook secrets.
+- Add your access tokens (you obvs need a GoCardless account to do this) 
+- make up unique and secure webhook secrets
 - click *Save*.
 
 **Note: for testing purposes you may put your test/sandbox credentials in the Live fields, but you must use CiviCRM's 'test drive' mode for trying payments; live mode will NOT work with test credentials since they are authenticated against different GoCardless API end points.** So your live testing will need to be with real-world live data.
