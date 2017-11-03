@@ -153,7 +153,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    * instead of adding another.
    */
   public function doPaymentsConfirmed($event) {
-    $payment = $this->getAndCheckGoCardlessPayment($event, 'confirmed');
+    $payment = $this->getAndCheckGoCardlessPayment($event, ['confirmed', 'paid_out']);
     $recur = $this->getContributionRecurFromSubscriptionId($payment->links->subscription);
 
     // Ensure that the recurring contribution record is set to In Progress.
@@ -204,7 +204,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    * Process webhook for 'payments' resource type, action 'failed'.
    */
   public function doPaymentsFailed($event) {
-    $payment = $this->getAndCheckGoCardlessPayment($event, 'confirmed');
+    $payment = $this->getAndCheckGoCardlessPayment($event, ['confirmed']);
     $recur = $this->getContributionRecurFromSubscriptionId($payment->links->subscription);
 
     // Ensure that the recurring contribution record is set to In Progress.
@@ -280,7 +280,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    *
    * @throws CRM_GoCardless_WebhookEventIgnoredException
    * @param array $event
-   * @param string $expected_status
+   * @param array $expected_status array of acceptable stati
    * @return NULL|\GoCardless\Resources\Payment
    */
   public function getAndCheckGoCardlessPayment($event, $expected_status) {
@@ -288,12 +288,14 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     // According to GoCardless we need to check that the status of the object
     // has not changed since the webhook was fired, so we re-load it and test.
     $payment = $gc_api->payments()->get($event->links->payment);
-    if ($payment->status != $expected_status) {
+    if (!in_array($payment->status, $expected_status)) {
       // Payment status is no longer confirmed, ignore this webhook.
-      throw new CRM_GoCardless_WebhookEventIgnoredException("Webhook out of date, expected status '$expected_status', got '{$payment->status}'");
+      throw new CRM_GoCardless_WebhookEventIgnoredException("Webhook out of date, expected status "
+        . implode("' or '", $expected_status)
+        . ", got '{$payment->status}'");
     }
 
-    // We expect a subscription link, but not payments have this.
+    // We expect a subscription link, but not all payments have this.
     if (empty($payment->links->subscription)) {
       // This payment is not part of a subscription. Assume it's not of interest to us.
       throw new CRM_GoCardless_WebhookEventIgnoredException("Ignored payment that does not belong to a subscription.");
