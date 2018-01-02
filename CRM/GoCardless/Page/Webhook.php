@@ -236,7 +236,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     }
 
     // Make the changes.
-    civicrm_api3('Contribution', 'create', $update);
+    civicrm_api3('Contribution', 'create', $contribution);
   }
   /**
    * Process webhook for 'mandate' resource type, action 'finished'.
