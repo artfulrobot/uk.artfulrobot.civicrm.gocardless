@@ -204,7 +204,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    * Process webhook for 'payments' resource type, action 'failed'.
    */
   public function doPaymentsFailed($event) {
-    $payment = $this->getAndCheckGoCardlessPayment($event, ['confirmed']);
+    $payment = $this->getAndCheckGoCardlessPayment($event, ['failed']);
     $recur = $this->getContributionRecurFromSubscriptionId($payment->links->subscription);
 
     // Ensure that the recurring contribution record is set to In Progress.
