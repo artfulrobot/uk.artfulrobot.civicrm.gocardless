@@ -1,6 +1,6 @@
 # GoCardless Direct Debit integration for CiviCRM
 
-**A CiviCRM extension to GoCardless integration to handle UK 
+**A CiviCRM extension to GoCardless integration to handle UK
 Direct Debits.**
 
 This extension is working well for collecting regular donations from UK supporters. Using it you can enable supporters to set up direct debits and every month when GoCardless takes payment this updates your CiviCRM contributions automatically. If someone cancels their Direct Debit this also updates your CiviCRM records. It also sends them a bunch of flowers thanking them for their support and asking them to reconsider their cancellation. Ok, it doesn't do that last bit.
@@ -34,7 +34,7 @@ Choose option 1a (everyone) or 1b (developers only), then proceed with step 2.
 
 You'll need at least a *sandbox* (i.e. testing) account, so [register a sandbox account at GoCardless](https://manage-sandbox.gocardless.com/signup).
 
-From within GoCardless's dashboard you'll need to **Create an access token**. Once you're logged in at GoCardless, go to Developers » Create » Access Token. 
+From within GoCardless's dashboard you'll need to **Create an access token**. Once you're logged in at GoCardless, go to Developers » Create » Access Token.
 
 You want to choose **Read/Write**. Name it whatever you like.  Once you've created an access token a pop-up box will display the token. **You can never get to this again!** So make sure you copy it and store it safely somewhere for later use in your CiviCRM payment processor configuration.
 
@@ -65,7 +65,7 @@ Go to Administer » CiviContribute » Payment Processors then click **Add New**
 - Select **GoCardless** from the *Payment Processor Type*
 - give it a name.
 - Select **GoCardless Direct Debit** from the *Payment Method*
-- Add your access tokens (you obvs need a GoCardless account to do this) 
+- Add your access tokens (you obvs need a GoCardless account to do this)
 - make up unique and secure webhook secrets
 - click *Save*.
 
@@ -77,7 +77,7 @@ GoCardless has full separation of its test (sandbox) and live account management
 
 The webhook URL is at:
 
-- Drupal: `/civicrm/gocardless/webhook` 
+- Drupal: `/civicrm/gocardless/webhook`
 - Wordpress `/?page=CiviCRM&q=civicrm/gocardless/webhook`
 - Joomla: `/index.php?option=com_civicrm&task=civicrm/gocardless/webhook`
 
@@ -92,44 +92,72 @@ Note: if you're running a "test-drive" contribution page you can use GoCardless'
 Having set up a Direct Debit you should see that in the Contributions tab for your contact's record on CiviCRM, showing as a recurring payment, and also a pending contribution record. The date will be about a week in the future. Check your database several days after that date (GoCardless only knows something's been successful after the time for problems to be raised has expired, which is several working days) and the contribution should have been completed. Check your record next month and there should be another contribution automatically created.
 
 
-## Technical notes                                                                                                                                                                                                                             
-                                                                                                                                                                                                                                               
-GoCardless sends dozens of webhooks and this extension only reacts to the                                                                                                                                                                      
-following:                                                                                                                                                                                                                                     
-                                                                                                                                                                                                                                               
-- payments: confirmed and failed.                                                                                                                                                                                                              
-- subscriptions: cancelled and finished.                                                                                                                                                                                                       
-                                                                                                                                                                                                                                               
-The life-cycle would typically be:                                                                                                                                                                                                             
-                                                                                                                                                                                                                                               
-1. User interacts with CiviCRM forms to set up regular contribution. In CiviCRM                                                                                                                                                                
-   this results in:                                                                                                                                                                                                                            
-                                                                                                                                                                                                                                               
-     - a **pending** contribution with the reecive date in the future.                                                                                                                                                                         
-     - a **pending** recurring contribution with the start date in the future.                                                                                                                                                                 
-                                                                                                                                                                                                                                               
-                                                                                                                                                                                                                                               
+## Technical notes
+
+GoCardless sends dozens of webhooks and this extension only reacts to the
+following:
+
+- payments: confirmed and failed.
+- subscriptions: cancelled and finished.
+
+The life-cycle would typically be:
+
+1. User interacts with CiviCRM forms to set up regular contribution. In CiviCRM
+   this results in:
+
+     - a **pending** contribution with the reecive date in the future.
+     - a **pending** recurring contribution with the start date in the future.
+
+
    And at GoCardless this will have set up:
-   
+
      - a **customer**
      - a **mandate**
-     - a **subscription** - the ID of this begins with `SB` and is stored in the CiviCRM recurring contribution transaction ID.
+     - a **subscription** - the ID of this begins with `SB` and is stored in the
+       CiviCRM recurring contribution transaction ID.
      - a lot of scheduled **payments**
 
-2. GoCardless submits the charge for a payment to the customer's bank and eventually (seems to be 3 working days after submission) this is confirmed. It sends a webhook for `resource_type` `payments`, action `confirmed`. At this point the extension will:
+2. GoCardless submits the charge for a payment to the customer's bank and
+   eventually (seems to be 3 working days after submission) this is confirmed.
+   It sends a webhook for `resource_type` `payments`, action `confirmed`. At
+   this point the extension will:
 
      - look up the payment witih GoCardless to obtain its subscription ID.
-     - look up the CiviCRM recurring contribution record in CiviCRM from this subscription ID (which is stored in the transaction ID field)
-     - find the pending CiviCRM contribution record that belongs to the recurring contribution and update it, setting status to **Completed**, setting the receive date to the **charge date** from GoCardless (n.b. this is earlier than the date this payment confirmed webhook fires) and setting the transaction id to the GoCardless payment ID. It also sets amount to the amount from GoCardless.
-     - finally it changes the status on the CiviCRM recurring contribution record to 'In Progress'.
-     
+     - look up the CiviCRM recurring contribution record in CiviCRM from this
+       subscription ID (which is stored in the transaction ID field)
+     - find the pending CiviCRM contribution record that belongs to the
+       recurring contribution and update it, setting status to **Completed**,
+       setting the receive date to the **charge date** from GoCardless (n.b.
+       this is earlier than the date this payment confirmed webhook fires) and
+       setting the transaction id to the GoCardless payment ID. It also sets
+       amount to the amount from GoCardless.
+     - finally it changes the status on the CiviCRM recurring contribution
+       record to 'In Progress'.
+
+Note: After a while the GoCardless payment status is changed from `confirmed` to
+`paid_out`. Normally the confirmed webhook will have processed the payment
+before this happens, but the extension will allow processing of payment
+confirmed webhooks if the payment's status is `paid_out` too. This can be
+helpful if there has been a problem with the webhook and you need to replay
+some.
+
 3. A month later GoCardless sends another confirmed payment. This time:
 
      - look up payment, get subscription ID. As before.
      - look up recurring contrib. record from subscription ID. As before.
-     - there is no 'pending' contribution now, so a new Completed one is created, copying details from the recurring contribution record.
-     
-4. The Direct Debit ends with either cancelled or completed. Cancellations can be that the *subscription* is cancelled, or the *mandate*. The latter would affect all subscriptions. Probably other things, too, e.g. delete customer. GoCardless will cancel all pending payments and inform CiviCRM via webhook. GoCardless will then cancel the subscription and inform CiviCRM by webhook. Each of these updates the status of the contribution (payment) or recurring contribution (subscription) records.
+     - there is no 'pending' contribution now, so a new Completed one is
+       created, copying details from the recurring contribution record.
+
+4. Any failed payments work like confirmed ones but of course add or update
+   Contributions with status `Failed` instead of `Completed`.
+
+5. The Direct Debit ends with either cancelled or completed. Cancellations can
+   be that the *subscription* is cancelled, or the *mandate*. The latter would
+   affect all subscriptions. Probably other things, too, e.g. delete customer.
+   GoCardless will cancel all pending payments and inform CiviCRM via webhook.
+   GoCardless will then cancel the subscription and inform CiviCRM by webhook.
+   Each of these updates the status of the contribution (payment) or recurring
+   contribution (subscription) records.
 
 
 
