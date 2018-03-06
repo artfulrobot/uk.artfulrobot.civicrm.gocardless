@@ -3,11 +3,13 @@
 **A CiviCRM extension to GoCardless integration to handle UK
 Direct Debits.**
 
-This extension is working well for collecting regular donations from UK supporters. Using it you can enable supporters to set up direct debits and every month when GoCardless takes payment this updates your CiviCRM contributions automatically. If someone cancels their Direct Debit this also updates your CiviCRM records. It also sends them a bunch of flowers thanking them for their support and asking them to reconsider their cancellation. Ok, it doesn't do that last bit.
+This extension is working well for collecting regular weekly, monthly or yearly donations from UK supporters. Using it you can enable supporters to set up direct debits and every month when GoCardless takes payment this updates your CiviCRM contributions automatically. If someone cancels their Direct Debit this also updates your CiviCRM records. It also sends them a bunch of flowers thanking them for their support and asking them to reconsider their cancellation. Ok, it doesn't do that last bit.
 
 [Artful Robot](https://artfulrobot.uk) stitches together open source websites and databases to help campaigns, charities, NGOs and other beautifully-minded people change the world. We specialise in CiviCRM and Drupal.
 
 Other things to note
+
+- Daily recurring is not permitted and fails with message "Error Sorry, we are unable to set up your Direct Debit. Please call us."
 
 - Although "Beta", this has been in production use since November 2016. The usual disclaimers apply :-)
 
