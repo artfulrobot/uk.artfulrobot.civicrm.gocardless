@@ -305,7 +305,7 @@ class CRM_GoCardlessUtils
           'end_date'   => date('Y-m-d', strtotime($subscription->start_date . " + $interval $interval_unit")),
           'start_date' => date('Y-m-d'),
           'join_date'  => date('Y-m-d'),
-          'status_id'  => 1,//New
+          'status_id'  => 'Pending', // https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/28
         ]);
       }
       CRM_Core_Error::debug_log_message(__FUNCTION__ . ": CiviCRM updated successfully (Contribution ID $deets[contributionID]).", FALSE, 'GoCardless', PEAR_LOG_INFO);
