@@ -9,7 +9,7 @@ This extension is working well for collecting regular weekly, monthly or yearly 
 
 Other things to note
 
-- Daily recurring is not permitted and fails with message "Error Sorry, we are unable to set up your Direct Debit. Please call us."
+- Daily recurring is not supported by GoCardless so you should not enable this option when configuring your forms. If you do users will get an error message: "Error Sorry, we are unable to set up your Direct Debit. Please call us."
 
 - Although "Beta", this has been in production use since November 2016. The usual disclaimers apply :-)
 
