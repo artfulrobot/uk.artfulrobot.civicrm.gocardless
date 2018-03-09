@@ -119,7 +119,7 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
         "test_mode"            => (bool) $this->_paymentProcessor['is_test'],
         "session_token"        => $params['qfKey'],
         "success_redirect_url" => $url,
-        "description"          => $params['description'],
+        "description"          => isset($params['description']) ? $params['description'] : NULL,
       ]);
 
       // Store some details on the session that we'll need when the user returns from GoCardless.
