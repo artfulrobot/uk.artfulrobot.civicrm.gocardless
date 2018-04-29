@@ -11,8 +11,6 @@ Other things to note
 
 - Although "Beta", this has been in production use since November 2016. The usual disclaimers apply :-)
 
-- **This takes ongoing regular payments with no end date.** If you need to specify an end date, wait until <https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/34> is implemented/fixed, or help resource it by a PR or contacting me with a budget.
-
 - Daily recurring is not supported by GoCardless so you should not enable this option when configuring your forms. If you do users will get an error message: "Error Sorry, we are unable to set up your Direct Debit. Please call us."
 
 - Taking one offs is [not supported/implemented yet](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/12).

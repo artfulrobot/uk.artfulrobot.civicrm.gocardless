@@ -154,6 +154,14 @@ class CRM_GoCardlessUtils
       throw new Exception("Interval must be at most yearly, not $interval $interval_unit");
     }
 
+    // Check installments is positive
+    if (array_key_exists('installments', $deets)) {
+      if ($deets['installments'] < 0) {
+        throw new Exception("Number of payments must be positive, not " . $deets['installments']);
+      }
+      $installments = $deets['installments'];
+    }
+
     // 1. Complete the flow.
     // This creates a Customer, Customer Bank Account and Mandate at GC.
     $gc_api = CRM_GoCardlessUtils::getApi($deets['test_mode']);
@@ -166,7 +174,7 @@ class CRM_GoCardlessUtils
     // "mandate": "MD123",
     // "customer": "CU123",
     // "customer_bank_account": "BA123"
-    $subscription = $gc_api->subscriptions()->create(["params" => [
+    $params = array(
       'amount'        => (int) (100 * $deets['amount']), // Convert amount to pennies.
       'currency'      => 'GBP',
       'name'          => $deets['description'],
@@ -174,7 +182,12 @@ class CRM_GoCardlessUtils
       'interval_unit' => $interval_unit, // yearly etc.
       'links'         => ['mandate' => $redirect_flow->links->mandate],
       //'metadata' => ['order_no' => 'ABCD1234'],
-    ]]);
+    );
+
+    if (isset($installments)) {
+      $params['count'] = $installments;
+    }
+    $subscription = $gc_api->subscriptions()->create(["params" => $params]);
 
     CRM_Core_Error::debug_log_message(__FUNCTION__ . ": successfully completed redirect flow "
       . $deets['redirect_flow_id']
@@ -212,6 +225,11 @@ class CRM_GoCardlessUtils
         $interval = $result['frequency_interval'];
         $amount = $result['amount'];
 
+        // Check if limited number of installments.
+        if (array_key_exists('installments', $result)) {
+            $installments = $result['installments'];
+        }
+
       } elseif (!empty($deets['membershipID'])) {
         // This is a membership. Load the interval from the type.
         $result = civicrm_api3('Membership', 'getsingle',
@@ -232,12 +250,16 @@ class CRM_GoCardlessUtils
       }
 
       // Now actually do this at GC.
-      $result = static::completeRedirectFlowWithGoCardless( $deets +
-        [
+      $params = array(
           'interval' => $interval,
-          'interval_unit' => $interval_unit . 'ly', // year->yearly
-          'amount' => $amount,
-      ]);
+          'interval_unit' => $interval_unit . 'ly', // year -> yearly
+          'amount' => $amount
+      );
+
+      if (isset($installments)) {
+        $params['installments'] = $installments;
+      }
+      $result = static::completeRedirectFlowWithGoCardless( $deets + $params);
       // It's the subscription we're interested in.
       $subscription = $result['subscription'];
     }
