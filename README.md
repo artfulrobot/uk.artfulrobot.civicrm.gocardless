@@ -163,3 +163,8 @@ some.
 
 
 
+## Change log
+
+- 1.5beta Should now respect a limited number of installments. Previous
+  versions will set up an open-ended subscription. You may not have wanted that
+  ;-)
