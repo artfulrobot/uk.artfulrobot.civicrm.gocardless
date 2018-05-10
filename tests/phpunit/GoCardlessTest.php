@@ -3,6 +3,7 @@
 use Civi\Test\HeadlessInterface;
 use Civi\Test\HookInterface;
 use Civi\Test\TransactionalInterface;
+use \Prophecy\Prophet;
 use \Prophecy\Argument;
 
 /**
@@ -21,6 +22,7 @@ use \Prophecy\Argument;
  */
 class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInterface, HookInterface, TransactionalInterface {
 
+  protected $prophet;
   /** Holds test mode payment processor.
    */
   public $test_mode_payment_processor;
@@ -34,6 +36,8 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
   public function setUp() {
     parent::setUp();
+
+    $this->prophet = new Prophet;
 
     // Set up a Payment Processor that uses GC.
 
@@ -81,6 +85,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
   }
 
   public function tearDown() {
+    $this->prophet->checkPredictions();
     parent::tearDown();
   }
 
@@ -92,9 +97,9 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
    */
   public function testTransferCheckout() {
     // Mock the GC API.
-    $api_prophecy = $this->prophesize('\\GoCardlessPro\\Client');
+    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
     CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
-    $redirect_flows = $this->prophesize('\\GoCardlessPro\\Services\\RedirectFlowsService');
+    $redirect_flows = $this->prophet->prophesize('\\GoCardlessPro\\Services\\RedirectFlowsService');
     $api_prophecy->redirectFlows()->willReturn($redirect_flows->reveal());
     $redirect_flows->create(Argument::any())
       ->shouldBeCalled()
@@ -131,10 +136,14 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
   /**
    * Check a transfer checkout works.
    *
-   * This actually results in a redirect, but all the work that goes into that
-   * is in a separate function, so we can test that.
+   * This creates a contact with a contribution and a ContributionRecur in the
+   * same way that CiviCRM's core Contribution Pages form does, then, having
+   * mocked the GC API it calls
+   * CRM_GoCardlessUtils::completeRedirectFlowCiviCore()
+   * and checks that the result is updated contribution and ContributionRecur records.
+   *
    */
-  public function testTransferCheckoutCompletes() {
+  public function testTransferCheckoutCompletesWithoutInstallments() {
     // We need to mimick what the contribution page does, which AFAICS does:
     // - Creates a Recurring Contribution
     $contact = civicrm_api3('Contact', 'create', array(
@@ -164,16 +173,16 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       ));
 
     // Mock the GC API.
-    $api_prophecy = $this->prophesize('\\GoCardlessPro\\Client');
+    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
     CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
 
-    $redirect_flows_service = $this->prophesize('\\GoCardlessPro\\Services\\RedirectFlowsService');
+    $redirect_flows_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\RedirectFlowsService');
     $api_prophecy->redirectFlows()->willReturn($redirect_flows_service->reveal());
     $redirect_flows_service->complete(Argument::any(), Argument::any())
       ->shouldBeCalled()
       ->willReturn(json_decode('{"redirect_url":"https://gocardless.com/somewhere","id":"RE1234","links":{"mandate":"MANDATEID"}}'));
 
-    $subscription_service = $this->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
+    $subscription_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
     $api_prophecy->subscriptions()->willReturn($subscription_service->reveal());
     $subscription_service->create(Argument::any())
       ->willReturn(json_decode('{"start_date":"2016-10-08","id":"SUBSCRIPTION_ID"}'));
@@ -199,6 +208,93 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $this->assertEquals('2016-10-08 00:00:00', $result['receive_date']);
     $this->assertEquals(2, $result['contribution_status_id']);
 
+  }
+
+  /**
+   * Check a transfer checkout works when a number of contributions have been specified.
+   *
+   * Assumption: CiviContribute sets 'installments' on the recur record.
+   */
+  public function testTransferCheckoutCompletesWithInstallments() {
+    // We need to mimick what the contribution page does.
+    $contact = civicrm_api3('Contact', 'create', [
+        'sequential' => 1,
+        'contact_type' => "Individual",
+        'first_name' => "Wilma",
+        'last_name' => "Flintstone",
+    ]);
+    $recur = civicrm_api3('ContributionRecur', 'create', [
+          'sequential' => 1,
+          'contact_id' => $contact['id'],
+          'frequency_interval' => 1,
+          'amount' => 1,
+          'frequency_unit' => "month",
+          'start_date' => "2016-10-01",
+          'is_test' => 1,
+          'installments' => 7, // <--------------------- installment!
+          'contribution_status_id' => "Pending",
+        ]);
+    $contrib = civicrm_api3('Contribution', 'create', [
+        'sequential' => 1,
+        'financial_type_id' => 1, // Donation
+        'total_amount' => 1,
+        'contact_id' => $contact['id'],
+        'contribution_recur_id' => $recur['id'],
+        'contribution_status_id' => "Pending",
+        'is_test' => 1,
+      ]);
+
+    // Mock the GC API.
+    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
+    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+
+    $redirect_flows_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\RedirectFlowsService');
+    $api_prophecy->redirectFlows()->willReturn($redirect_flows_service->reveal());
+    $redirect_flows_service->complete(Argument::any(), Argument::any())
+      ->shouldBeCalled()
+      ->willReturn(json_decode('{"redirect_url":"https://gocardless.com/somewhere","id":"RE1234","links":{"mandate":"MANDATEID"}}'));
+
+    $subscription_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
+    $api_prophecy->subscriptions()->willReturn($subscription_service->reveal());
+    $subscription_service->create(['params' => [
+      'amount'        => 100,
+      'currency'      => 'GBP',
+      'interval'      => 1,
+      'name'          => 'test contribution',
+      'interval_unit' => 'monthly',
+      'links'         => ['mandate' => 'MANDATEID'],
+      'count'         => 7, // <-------------------------------- installments
+    ]])
+    //$subscription_service->create(Argument::any())
+      /*
+    ->will(function($x) {
+      print "\n\n-----------------------";
+      print_r($x);
+      print "\n\n";
+      return json_decode('{"start_date":"2016-10-08","id":"SUBSCRIPTION_ID"}');
+    })
+       */
+    ->willReturn(json_decode('{"start_date":"2016-10-08","id":"SUBSCRIPTION_ID"}'))
+    ->shouldBeCalled();
+    // Params are usually assembled by the civicrm_buildForm hook.
+    $params = [
+      'test_mode' => TRUE,
+      'redirect_flow_id' => 'RE1234',
+      'session_token' => 'aabbccdd',
+      'contactID' => $contact['id'],
+      'description' => 'test contribution',
+      'contributionID' => $contrib['id'],
+      'contributionRecurID' => $recur['id'],
+      'entryURL' => 'http://example.com/somwhere',
+    ];
+    CRM_GoCardlessUtils::completeRedirectFlowCiviCore($params);
+
+    // We're really just testing that the count parameter was passed to the API
+    // which is tested by the shouldBeCalled() in the teardown method.
+    // testTransferCheckoutCompletes() tested the updates to other stuff. The
+    // following assertion is just to avoid phpunit flagging it as a test with
+    // no assertions.
+    $this->assertTrue(TRUE);
   }
 
   /**
@@ -311,10 +407,10 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
 
     // Mock GC API.
-    $api_prophecy = $this->prophesize('\\GoCardlessPro\\Client');
+    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
     CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
     // First the webhook will load the payment, so mock this.
-    $payments_service = $this->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
+    $payments_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
     $api_prophecy->payments()->willReturn($payments_service->reveal());
     $payments_service->get('PAYMENT_ID')
       ->shouldBeCalled()
@@ -385,10 +481,10 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
 
     // Mock GC API.
-    $api_prophecy = $this->prophesize('\\GoCardlessPro\\Client');
+    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
     CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
     // First the webhook will load the payment, so mock this.
-    $payments_service = $this->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
+    $payments_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
     $api_prophecy->payments()->willReturn($payments_service->reveal());
     $payments_service->get('PAYMENT_ID_2')
       ->shouldBeCalled()
@@ -467,10 +563,10 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
 
     // Mock GC API.
-    $api_prophecy = $this->prophesize('\\GoCardlessPro\\Client');
+    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
     CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
     // First the webhook will load the payment, so mock this.
-    $payments_service = $this->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
+    $payments_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
     $api_prophecy->payments()->willReturn($payments_service->reveal());
     $payments_service->get('PAYMENT_ID')
       ->shouldBeCalled()
@@ -541,10 +637,10 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
 
     // Mock GC API.
-    $api_prophecy = $this->prophesize('\\GoCardlessPro\\Client');
+    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
     CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
     // First the webhook will load the payment, so mock this.
-    $payments_service = $this->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
+    $payments_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
     $api_prophecy->payments()->willReturn($payments_service->reveal());
     $payments_service->get('PAYMENT_ID_2')
       ->shouldBeCalled()
@@ -591,10 +687,10 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $controller = new CRM_GoCardless_Page_Webhook();
 
     // Mock GC API.
-    $api_prophecy = $this->prophesize('\\GoCardlessPro\\Client');
+    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
     CRM_GoCardlessUtils::setApi(FALSE, $api_prophecy->reveal());
     // First the webhook will load the payment, so mock this.
-    $payments_service = $this->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
+    $payments_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
     $api_prophecy->payments()->willReturn($payments_service->reveal());
     $payments_service->get('PAYMENT_ID')
       ->shouldBeCalled()
@@ -621,10 +717,10 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
 
     // Mock GC API.
-    $api_prophecy = $this->prophesize('\\GoCardlessPro\\Client');
+    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
     CRM_GoCardlessUtils::setApi(FALSE, $api_prophecy->reveal());
     // First the webhook will load the subscription, so mock this.
-    $subscription_service = $this->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
+    $subscription_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
     $api_prophecy->subscriptions()->willReturn($subscription_service->reveal());
     $subscription_service->get('SUBSCRIPTION_ID')
       ->shouldBeCalled()
@@ -650,10 +746,10 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $controller = new CRM_GoCardless_Page_Webhook();
 
     // Mock GC API.
-    $api_prophecy = $this->prophesize('\\GoCardlessPro\\Client');
+    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
     CRM_GoCardlessUtils::setApi(FALSE, $api_prophecy->reveal());
     // First the webhook will load the payment, so mock this.
-    $payments_service = $this->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
+    $payments_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
     $api_prophecy->payments()->willReturn($payments_service->reveal());
     $payments_service->get('PAYMENT_ID')
       ->shouldBeCalled()
@@ -717,10 +813,10 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
 
     // Mock GC API.
-    $api_prophecy = $this->prophesize('\\GoCardlessPro\\Client');
+    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
     CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
     // First the webhook will load the subscription, so mock this.
-    $subscription_service = $this->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
+    $subscription_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
     $api_prophecy->subscriptions()->willReturn($subscription_service->reveal());
     $subscription_service->get('SUBSCRIPTION_ID')
       ->shouldBeCalled()
@@ -795,10 +891,10 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
 
     // Mock GC API.
-    $api_prophecy = $this->prophesize('\\GoCardlessPro\\Client');
+    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
     CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
     // First the webhook will load the subscription, so mock this.
-    $subscription_service = $this->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
+    $subscription_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
     $api_prophecy->subscriptions()->willReturn($subscription_service->reveal());
     $subscription_service->get('SUBSCRIPTION_ID')
       ->shouldBeCalled()

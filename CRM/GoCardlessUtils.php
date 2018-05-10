@@ -123,11 +123,14 @@ class CRM_GoCardlessUtils
    * - description
    * - interval_unit yearly/monthly/weekly
    * - amount (in GBP, e.g. 10.50)
+   * - installments (optional positive integer number of payments to take)
    *
-   * @return void
+   * @return array with these keys:
+   * - gc_api         GoCardless API object used.
+   * - redirect_flow  RedirectFlow object
+   * - subscription   Subscription object
    */
-  public static function completeRedirectFlowWithGoCardless($deets)
-  {
+  public static function completeRedirectFlowWithGoCardless($deets) {
     // Validate input.
     foreach (['redirect_flow_id', 'test_mode', 'session_token', 'description',
       'amount', 'interval_unit',
@@ -155,11 +158,12 @@ class CRM_GoCardlessUtils
     }
 
     // Check installments is positive
-    if (array_key_exists('installments', $deets)) {
-      if ($deets['installments'] <= 0) {
+    if (isset($deets['installments'])) {
+      $_ = (int) $deets['installments'];
+      if ($_ <= 0) {
         throw new Exception("Number of payments must be positive, not " . $deets['installments']);
       }
-      $installments = $deets['installments'];
+      $installments = $_;
     }
 
     // 1. Complete the flow.
@@ -174,7 +178,7 @@ class CRM_GoCardlessUtils
     // "mandate": "MD123",
     // "customer": "CU123",
     // "customer_bank_account": "BA123"
-    $params = array(
+    $params = [
       'amount'        => (int) (100 * $deets['amount']), // Convert amount to pennies.
       'currency'      => 'GBP',
       'name'          => $deets['description'],
@@ -182,7 +186,7 @@ class CRM_GoCardlessUtils
       'interval_unit' => $interval_unit, // yearly etc.
       'links'         => ['mandate' => $redirect_flow->links->mandate],
       //'metadata' => ['order_no' => 'ABCD1234'],
-    );
+    ];
 
     if (isset($installments)) {
       $params['count'] = $installments;
@@ -226,8 +230,8 @@ class CRM_GoCardlessUtils
         $amount = $result['amount'];
 
         // Check if limited number of installments.
-        if (array_key_exists('installments', $result)) {
-            $installments = $result['installments'];
+        if (!empty($result['installments'])) {
+          $installments = $result['installments'];
         }
 
       } elseif (!empty($deets['membershipID'])) {
@@ -250,16 +254,17 @@ class CRM_GoCardlessUtils
       }
 
       // Now actually do this at GC.
-      $params = array(
+      $params = [
           'interval' => $interval,
           'interval_unit' => $interval_unit . 'ly', // year -> yearly
           'amount' => $amount
-      );
+      ];
 
       if (isset($installments)) {
         $params['installments'] = $installments;
       }
-      $result = static::completeRedirectFlowWithGoCardless( $deets + $params);
+
+      $result = static::completeRedirectFlowWithGoCardless($deets + $params);
       // It's the subscription we're interested in.
       $subscription = $result['subscription'];
     }
