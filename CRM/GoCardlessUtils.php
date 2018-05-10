@@ -156,7 +156,7 @@ class CRM_GoCardlessUtils
 
     // Check installments is positive
     if (array_key_exists('installments', $deets)) {
-      if ($deets['installments'] < 0) {
+      if ($deets['installments'] <= 0) {
         throw new Exception("Number of payments must be positive, not " . $deets['installments']);
       }
       $installments = $deets['installments'];
