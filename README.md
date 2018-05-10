@@ -167,4 +167,6 @@ some.
 
 - 1.5beta Should now respect a limited number of installments. Previous
   versions will set up an open-ended subscription. You may not have wanted that
-  ;-)
+  ;-) Also updated GoCardlessPro library from 1.2.0 to 1.6.0
+  [GoCardlessPro changelog](https://github.com/gocardless/gocardless-pro-php/releases)
+  should not have broken anything.
