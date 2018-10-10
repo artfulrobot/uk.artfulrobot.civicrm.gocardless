@@ -62,12 +62,13 @@ That should then bring in the GoCardlessPro dependency.
 
 Install it through the CiviCRM Extensions screen as usual (you may need to click Refresh).
 
-Go to Administer » CiviContribute » Payment Processors then click **Add New**
+Set up the payment processor:
 
-- Select **GoCardless** from the *Payment Processor Type*
-- give it a name.
-- Select **GoCardless Direct Debit** from the *Payment Method*
-- Add your access tokens (you obvs need a GoCardless account to do this)
+- go to Administer » CiviContribute » Payment Processors then click **Add New**
+- select **GoCardless** from the *Payment Processor Type*
+- give it a name
+- select **GoCardless Direct Debit** from the *Payment Method*
+- add your access tokens (you obviously need a GoCardless account to do this)
 - make up unique and secure webhook secrets
 - click *Save*.
 
@@ -87,11 +88,11 @@ Note: the webhook will check the key twice; once against the test and once again
 
 ### 4. Use it and test it!
 
-Create a contribution page and set up a regular donation using the "test-drive" page. Check things at CiviCRM's end and at GoCardless' end. Note that GoCardless keeps a log of whether webhooks were succesful and gives you the chance to resubmit them, too, if I remember correctly.
+Create a contribution page and set up a regular donation using the "test-drive" page. Check things at CiviCRM's end and at GoCardless' end. Note that GoCardless keeps a log of whether webhooks were successful and gives you the chance to resubmit them, too, if I remember correctly.
 
-Note: if you're running a "test-drive" contribution page you can use GoCardless's test bank account: `20-00-00` `55779911`
+Note: if you're running a "test-drive" contribution page you can use GoCardless's test bank account: `20-00-00` `55779911`.
 
-Having set up a Direct Debit you should see that in the Contributions tab for your contact's record on CiviCRM, showing as a recurring payment, and also a pending contribution record. The date will be about a week in the future. Check your database several days after that date (GoCardless only knows something's been successful after the time for problems to be raised has expired, which is several working days) and the contribution should have been completed. Check your record next month and there should be another contribution automatically created.
+Having set up a Direct Debit you should see that in the Contributions tab for your contact's record on CiviCRM, showing as a recurring payment, and also a pending contribution record. The date will be about a week in the future. Check your database several days after that date (GoCardless only knows something's been successful after the time for problems to be raised has expired, which is several working days) and the contribution should have been completed. Check your record next week/month/year and there should be another contribution automatically created.
 
 
 ## Technical notes
@@ -107,7 +108,7 @@ The life-cycle would typically be:
 1. User interacts with CiviCRM forms to set up regular contribution. In CiviCRM
    this results in:
 
-     - a **pending** contribution with the reecive date in the future.
+     - a **pending** contribution with the receive date in the future.
      - a **pending** recurring contribution with the start date in the future.
 
 
@@ -116,7 +117,7 @@ The life-cycle would typically be:
      - a **customer**
      - a **mandate**
      - a **subscription** - the ID of this begins with `SB` and is stored in the
-       CiviCRM recurring contribution transaction ID.
+       CiviCRM recurring contribution transaction ID
      - a lot of scheduled **payments**
 
 2. GoCardless submits the charge for a payment to the customer's bank and
@@ -124,14 +125,14 @@ The life-cycle would typically be:
    It sends a webhook for `resource_type` `payments`, action `confirmed`. At
    this point the extension will:
 
-     - look up the payment witih GoCardless to obtain its subscription ID.
+     - look up the payment with GoCardless to obtain its subscription ID.
      - look up the CiviCRM recurring contribution record in CiviCRM from this
        subscription ID (which is stored in the transaction ID field)
      - find the pending CiviCRM contribution record that belongs to the
        recurring contribution and update it, setting status to **Completed**,
        setting the receive date to the **charge date** from GoCardless (n.b.
        this is earlier than the date this payment confirmed webhook fires) and
-       setting the transaction id to the GoCardless payment ID. It also sets
+       setting the transaction ID to the GoCardless payment ID. It also sets
        amount to the amount from GoCardless.
      - finally it changes the status on the CiviCRM recurring contribution
        record to 'In Progress'.
@@ -143,10 +144,10 @@ confirmed webhooks if the payment's status is `paid_out` too. This can be
 helpful if there has been a problem with the webhook and you need to replay
 some.
 
-3. A month later GoCardless sends another confirmed payment. This time:
+3. A week/month/year later GoCardless sends another confirmed payment. This time:
 
      - look up payment, get subscription ID. As before.
-     - look up recurring contrib. record from subscription ID. As before.
+     - look up recurring contribution record from subscription ID. As before.
      - there is no 'pending' contribution now, so a new Completed one is
        created, copying details from the recurring contribution record.
 
@@ -154,8 +155,8 @@ some.
    Contributions with status `Failed` instead of `Completed`.
 
 5. The Direct Debit ends with either cancelled or completed. Cancellations can
-   be that the *subscription* is cancelled, or the *mandate*. The latter would
-   affect all subscriptions. Probably other things, too, e.g. delete customer.
+   be that the *subscription* is cancelled, or the *mandate* is cancelled. The latter would
+   affect all subscriptions. Probably other things too, e.g. delete customer.
    GoCardless will cancel all pending payments and inform CiviCRM via webhook.
    GoCardless will then cancel the subscription and inform CiviCRM by webhook.
    Each of these updates the status of the contribution (payment) or recurring
