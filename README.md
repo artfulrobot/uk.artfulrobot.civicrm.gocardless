@@ -72,7 +72,7 @@ Set up the payment processor:
 - make up unique and secure webhook secrets
 - click *Save*.
 
-**Note: for testing purposes you may put your test/sandbox credentials in the Live fields, but you must use CiviCRM's 'test drive' mode for trying payments; live mode will NOT work with test credentials since they are authenticated against different GoCardless API end points.** So your live testing will need to be with real-world live data.
+**Note: for testing purposes you may put your test/sandbox credentials (excluding webhook secret - see below) in the Live fields, but you must use CiviCRM's 'test drive' mode for trying payments; live mode will NOT work with test credentials since they are authenticated against different GoCardless API end points.** So your live testing will need to be with real-world live data.
 
 ### 3. Install your webhook at GoCardless
 
