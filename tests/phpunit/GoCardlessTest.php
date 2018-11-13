@@ -82,6 +82,19 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       $this->contribution_status_map[$opt['name']] = $opt['value'];
     }
 
+    // Create a membership type
+    $result = civicrm_api3('MembershipType', 'create', [
+      'member_of_contact_id' => 1,
+      'financial_type_id' => "Member Dues",
+      'duration_unit' => "year",
+      'duration_interval' => 1,
+      'period_type' => "rolling",
+      'name' => "MyMembershipType",
+      'minimum_fee' => 50,
+      'auto_renew' => 1,
+    ]);
+
+    $this->membership_status_map = array_flip(CRM_Member_PseudoConstant::membershipstatus());
   }
 
   public function tearDown() {
@@ -134,14 +147,13 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
   }
 
   /**
-   * Check a transfer checkout works.
-   *
    * This creates a contact with a contribution and a ContributionRecur in the
    * same way that CiviCRM's core Contribution Pages form does, then, having
    * mocked the GC API it calls
    * CRM_GoCardlessUtils::completeRedirectFlowCiviCore()
    * and checks that the result is updated contribution and ContributionRecur records.
    *
+   * testing with no membership
    */
   public function testTransferCheckoutCompletesWithoutInstallments() {
     // We need to mimick what the contribution page does, which AFAICS does:
@@ -208,6 +220,290 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $this->assertEquals('2016-10-08 00:00:00', $result['receive_date']);
     $this->assertEquals(2, $result['contribution_status_id']);
 
+  }
+
+  /**
+   * Check a transfer checkout works.
+   *
+   * This creates a Contact with a Contribution, a ContributionRecur and a Membership in the
+   * same way that CiviCRM's core Contribution Pages form does, then, having
+   * mocked the GC API it calls
+   * CRM_GoCardlessUtils::completeRedirectFlowCiviCore()
+   * and checks that the result is updated contribution and ContributionRecur records.
+   *
+   * Testing with a new Membership
+   */
+  public function testTransferCheckoutCompletesWithoutInstallmentsNewMembership() {
+    // We need to mimick what the contribution page does, which AFAICS does:
+    // - Creates a Recurring Contribution
+    $contact = civicrm_api3('Contact', 'create', array(
+        'sequential' => 1,
+        'contact_type' => "Individual",
+        'first_name' => "Wilma",
+        'last_name' => "Flintstone",
+    ));
+    $recur = civicrm_api3('ContributionRecur', 'create', array(
+          'sequential' => 1,
+          'contact_id' => $contact['id'],
+          'frequency_interval' => 1,
+          'amount' => 1,
+          'frequency_unit' => "month",
+          'start_date' => "2016-10-01",
+          'is_test' => 1,
+          'contribution_status_id' => "Pending",
+        ));
+    $contrib = civicrm_api3('Contribution', 'create', array(
+        'sequential' => 1,
+        'financial_type_id' => 1, // Donation
+        'total_amount' => 1,
+        'contact_id' => $contact['id'],
+        'contribution_recur_id' => $recur['id'],
+        'contribution_status_id' => "Pending",
+        'is_test' => 1,
+      ));
+    $membership = civicrm_api3('Membership', 'create', [
+        'sequential' => 1,
+        'membership_type_id' => 'MyMembershipType',
+        'contact_id' => $contact['id'],
+        'contribution_recur_id' => $recur['id'],
+        'status_id' => "Pending",
+        'skipStatusCal' => 1, // Needed to override default status calculation
+    ]);
+    // The dates returned by create and get are formatted differently!
+    // So do a get here to make later comparison easier
+    $membership = civicrm_api3('Membership', 'getsingle', ['id' => $membership['id']]);
+
+    $membershipPayment = civicrm_api3('MembershipPayment', 'create', [
+        'sequential' => 1,
+        'membership_id' => $membership['id'],
+        'contribution_id' => $contrib['id'],
+    ]);
+
+    // Mock the GC API.
+    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
+    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+
+    $redirect_flows_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\RedirectFlowsService');
+    $api_prophecy->redirectFlows()->willReturn($redirect_flows_service->reveal());
+    $redirect_flows_service->complete(Argument::any(), Argument::any())
+      ->shouldBeCalled()
+      ->willReturn(json_decode('{"redirect_url":"https://gocardless.com/somewhere","id":"RE1234","links":{"mandate":"MANDATEID"}}'));
+
+    $subscription_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
+    $api_prophecy->subscriptions()->willReturn($subscription_service->reveal());
+    $subscription_service->create(Argument::any())
+      ->willReturn(json_decode('{"start_date":"2016-10-08","id":"SUBSCRIPTION_ID"}'));
+    // Params are usually assembled by the civicrm_buildForm hook.
+    $params = [
+      'test_mode' => TRUE,
+      'redirect_flow_id' => 'RE1234',
+      'session_token' => 'aabbccdd',
+      'contactID' => $contact['id'],
+      'description' => 'test contribution',
+      'contributionID' => $contrib['id'],
+      'contributionRecurID' => $recur['id'],
+      'membershipID' => $membership['id'],
+      'entryURL' => 'http://example.com/somwhere',
+    ];
+    CRM_GoCardlessUtils::completeRedirectFlowCiviCore($params);
+
+    // Now test the contributions were updated.
+    $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $recur['id']]);
+    $this->assertEquals(5, $result['contribution_status_id']);
+    $this->assertEquals('SUBSCRIPTION_ID', $result['trxn_id']);
+    $this->assertEquals('2016-10-08 00:00:00', $result['start_date']);
+    $result = civicrm_api3('Contribution', 'getsingle', ['id' => $contrib['id']]);
+    $this->assertEquals('2016-10-08 00:00:00', $result['receive_date']);
+    $this->assertEquals(2, $result['contribution_status_id']);
+    $result = civicrm_api3('Membership', 'getsingle', ['id' => $membership['id']]);
+    // status should be still be Pending
+    $this->assertEquals($this->membership_status_map["Pending"], $result['status_id']);
+    // Dates should be unchanged
+    foreach (['start_date', 'end_date', 'join_date'] as $date) {
+      $this->assertEquals($membership[$date], $result[$date]);
+    }
+  }
+
+  /**
+   * Mostly the same as testTransferCheckoutCompletesWithoutInstallmentsNewMembership()
+   * but tests with an existing Current Membership - renewal is via GC but previous payments were not.
+   */
+  public function testTransferCheckoutCompletesWithoutInstallmentsExistingCurrentMembership() {
+    // We need to mimick what the contribution page does, which AFAICS does:
+    // - Creates a Recurring Contribution
+    $contact = civicrm_api3('Contact', 'create', array(
+        'sequential' => 1,
+        'contact_type' => "Individual",
+        'first_name' => "Wilma",
+        'last_name' => "Flintstone",
+    ));
+    $recur = civicrm_api3('ContributionRecur', 'create', array(
+          'sequential' => 1,
+          'contact_id' => $contact['id'],
+          'frequency_interval' => 1,
+          'amount' => 1,
+          'frequency_unit' => "month",
+          'start_date' => "2016-10-01",
+          'is_test' => 1,
+          'contribution_status_id' => "Pending",
+        ));
+    $contrib = civicrm_api3('Contribution', 'create', array(
+        'sequential' => 1,
+        'financial_type_id' => 1, // Donation
+        'total_amount' => 1,
+        'contact_id' => $contact['id'],
+        'contribution_recur_id' => $recur['id'],
+        'contribution_status_id' => "Pending",
+        'is_test' => 1,
+      ));
+      // Mock existing membership
+      $dt = new DateTimeImmutable();
+      $membership = civicrm_api3('Membership', 'create', [
+          'sequential' => 1,
+          'membership_type_id' => 'MyMembershipType',
+          'contact_id' => $contact['id'],
+          'contribution_recur_id' => $recur['id'],
+          'status_id' => "Current",
+          'skipStatusCal' => 1, // Needed to override default status calculation
+          'start_date' => $dt->modify("-11 months")->format("Y-m-d"),
+          'join_date' => $dt->modify("-23 months")->format("Y-m-d"),
+      ]);
+    // The dates returned by create and get are formatted differently!
+    // So do a get here to make later comparison easier
+    $membership = civicrm_api3('Membership', 'getsingle', ['id' => $membership['id']]);
+
+    $membershipPayment = civicrm_api3('MembershipPayment', 'create', [
+        'sequential' => 1,
+        'membership_id' => $membership['id'],
+        'contribution_id' => $contrib['id'],
+    ]);
+
+    // Mock the GC API.
+    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
+    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+
+    $redirect_flows_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\RedirectFlowsService');
+    $api_prophecy->redirectFlows()->willReturn($redirect_flows_service->reveal());
+    $redirect_flows_service->complete(Argument::any(), Argument::any())
+      ->shouldBeCalled()
+      ->willReturn(json_decode('{"redirect_url":"https://gocardless.com/somewhere","id":"RE1234","links":{"mandate":"MANDATEID"}}'));
+
+    $subscription_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
+    $api_prophecy->subscriptions()->willReturn($subscription_service->reveal());
+    $subscription_service->create(Argument::any())
+      ->willReturn(json_decode('{"start_date":"2016-10-08","id":"SUBSCRIPTION_ID"}'));
+    // Params are usually assembled by the civicrm_buildForm hook.
+    $params = [
+      'test_mode' => TRUE,
+      'redirect_flow_id' => 'RE1234',
+      'session_token' => 'aabbccdd',
+      'contactID' => $contact['id'],
+      'description' => 'test contribution',
+      'contributionID' => $contrib['id'],
+      'contributionRecurID' => $recur['id'],
+      'membershipID' => $membership['id'],
+      'entryURL' => 'http://example.com/somwhere',
+    ];
+    CRM_GoCardlessUtils::completeRedirectFlowCiviCore($params);
+
+    $result = civicrm_api3('Membership', 'getsingle', ['id' => $membership['id']]);
+    // Membership status should be still be Current
+    $this->assertEquals($this->membership_status_map["Current"], $result['status_id']);
+    // Dates should be unchanged
+    foreach (['start_date', 'end_date', 'join_date'] as $date) {
+      $this->assertEquals($membership[$date], $result[$date]);
+    }
+  }
+
+  /**
+   * Mostly the same as testTransferCheckoutCompletesWithoutInstallmentsNewMembership()
+   * but tests with an existing Grace Membership - renewal is via GC but previous payments were not.
+   */
+  public function testTransferCheckoutCompletesWithoutInstallmentsExistingGraceMembership() {
+    // We need to mimick what the contribution page does, which AFAICS does:
+    // - Creates a Recurring Contribution
+    $contact = civicrm_api3('Contact', 'create', array(
+        'sequential' => 1,
+        'contact_type' => "Individual",
+        'first_name' => "Wilma",
+        'last_name' => "Flintstone",
+    ));
+    $recur = civicrm_api3('ContributionRecur', 'create', array(
+          'sequential' => 1,
+          'contact_id' => $contact['id'],
+          'frequency_interval' => 1,
+          'amount' => 1,
+          'frequency_unit' => "month",
+          'start_date' => "2016-10-01",
+          'is_test' => 1,
+          'contribution_status_id' => "Pending",
+        ));
+    $contrib = civicrm_api3('Contribution', 'create', array(
+        'sequential' => 1,
+        'financial_type_id' => 1, // Donation
+        'total_amount' => 1,
+        'contact_id' => $contact['id'],
+        'contribution_recur_id' => $recur['id'],
+        'contribution_status_id' => "Pending",
+        'is_test' => 1,
+      ));
+      // Mock existing membership
+      $dt = new DateTimeImmutable();
+      $membership = civicrm_api3('Membership', 'create', [
+          'sequential' => 1,
+          'membership_type_id' => 'MyMembershipType',
+          'contact_id' => $contact['id'],
+          'contribution_recur_id' => $recur['id'],
+          'status_id' => "Grace",
+          'skipStatusCal' => 1, // Needed to override default status calculation
+          'start_date' => $dt->modify("-13 months")->format("Y-m-d"),
+          'join_date' => $dt->modify("-25 months")->format("Y-m-d"),
+      ]);
+    // The dates returned by create and get are formatted differently!
+    // So do a get here to make later comparison easier
+    $membership = civicrm_api3('Membership', 'getsingle', ['id' => $membership['id']]);
+
+    $membershipPayment = civicrm_api3('MembershipPayment', 'create', [
+        'sequential' => 1,
+        'membership_id' => $membership['id'],
+        'contribution_id' => $contrib['id'],
+    ]);
+
+    // Mock the GC API.
+    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
+    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+
+    $redirect_flows_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\RedirectFlowsService');
+    $api_prophecy->redirectFlows()->willReturn($redirect_flows_service->reveal());
+    $redirect_flows_service->complete(Argument::any(), Argument::any())
+      ->shouldBeCalled()
+      ->willReturn(json_decode('{"redirect_url":"https://gocardless.com/somewhere","id":"RE1234","links":{"mandate":"MANDATEID"}}'));
+
+    $subscription_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
+    $api_prophecy->subscriptions()->willReturn($subscription_service->reveal());
+    $subscription_service->create(Argument::any())
+      ->willReturn(json_decode('{"start_date":"2016-10-08","id":"SUBSCRIPTION_ID"}'));
+    // Params are usually assembled by the civicrm_buildForm hook.
+    $params = [
+      'test_mode' => TRUE,
+      'redirect_flow_id' => 'RE1234',
+      'session_token' => 'aabbccdd',
+      'contactID' => $contact['id'],
+      'description' => 'test contribution',
+      'contributionID' => $contrib['id'],
+      'contributionRecurID' => $recur['id'],
+      'membershipID' => $membership['id'],
+      'entryURL' => 'http://example.com/somwhere',
+    ];
+    CRM_GoCardlessUtils::completeRedirectFlowCiviCore($params);
+
+    $result = civicrm_api3('Membership', 'getsingle', ['id' => $membership['id']]);
+    // Membership status should be still be Current
+    $this->assertEquals($this->membership_status_map["Grace"], $result['status_id']);
+    // Dates should be unchanged
+    foreach (['start_date', 'end_date', 'join_date'] as $date) {
+      $this->assertEquals($membership[$date], $result[$date]);
+    }
   }
 
   /**
@@ -370,20 +666,26 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
    */
   public function testWebhookPaymentConfirmationFirst() {
 
+    $dt = new DateTimeImmutable();  // when webhook called
+    $today = $dt->format("Y-m-d");
+    $setup_date = $dt->modify("-5 days")->format("Y-m-d");  // when DD setup
+    $charge_date = $dt->modify("-2 days")->format("Y-m-d"); // when GC charged
+
     $contact = civicrm_api3('Contact', 'create', array(
         'sequential' => 1,
         'contact_type' => "Individual",
         'first_name' => "Wilma",
         'last_name' => "Flintstone",
     ));
+
     $recur = civicrm_api3('ContributionRecur', 'create', array(
           'sequential' => 1,
           'contact_id' => $contact['id'],
           'financial_type_id' => 1, // Donation
           'frequency_interval' => 1,
-          'amount' => 1,
-          'frequency_unit' => "month",
-          'start_date' => "2016-10-01",
+          'amount' => 50,
+          'frequency_unit' => "year",
+          'start_date' => $setup_date,
           'is_test' => 1,
           'contribution_status_id' => "In Progress",
           'trxn_id' => 'SUBSCRIPTION_ID'
@@ -395,9 +697,27 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
         'contact_id' => $contact['id'],
         'contribution_recur_id' => $recur['id'],
         'contribution_status_id' => "Pending",
-        'receive_date' => '2016-10-01',
+        'receive_date' => $setup_date,
         'is_test' => 1,
       ));
+    $membership = civicrm_api3('Membership', 'create', [
+        'sequential' => 1,
+        'membership_type_id' => 'MyMembershipType',
+        'contact_id' => $contact['id'],
+        'contribution_recur_id' => $recur['id'],
+        'status_id' => "Pending",
+        'skipStatusCal' => 1, // Needed to override default status calculation
+        'join_date' => $setup_date,
+        'start_date' => $setup_date,
+    ]);
+    // The dates returned by create and get are formatted differently!
+    // So do a get here to make later comparison easier
+    $membership = civicrm_api3('Membership', 'getsingle', ['id' => $membership['id']]);
+    $membershipPayment = civicrm_api3('MembershipPayment', 'create', [
+        'sequential' => 1,
+        'membership_id' => $membership['id'],
+        'contribution_id' => $contrib['id'],
+    ]);
 
     // Mock webhook input data.
     $controller = new CRM_GoCardless_Page_Webhook();
@@ -417,8 +737,8 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       ->willReturn(json_decode('{
         "id":"PAYMENT_ID",
           "status":"confirmed",
-          "charge_date":"2016-10-02",
-          "amount":123,
+          "charge_date":"' . $charge_date . '",
+          "amount":5000,
           "links":{"subscription":"SUBSCRIPTION_ID"}
         }'));
 
@@ -428,10 +748,19 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Now check the changes have been made.
     $result = civicrm_api3('Contribution', 'getsingle', ['id' => $contrib['id']]);
-    $this->assertEquals('2016-10-02 00:00:00', $result['receive_date']);
-    $this->assertEquals(1.23, $result['total_amount']);
+    $this->assertEquals($charge_date . ' 00:00:00', $result['receive_date']);
+    $this->assertEquals(50, $result['total_amount']);
     $this->assertEquals('PAYMENT_ID', $result['trxn_id']);
     $this->assertEquals($this->contribution_status_map['Completed'], $result['contribution_status_id']);
+    $result = civicrm_api3('Membership', 'getsingle', ['id' => $membership['id']]);
+    // status should be updated to New
+    $this->assertEquals($this->membership_status_map["New"], $result['status_id']);
+    // join_date should be unchanged
+    $this->assertEquals($membership['join_date'], $result['join_date']);
+    // start_date updated to today ()
+    $this->assertEquals($today, $result['start_date']);
+    // end_date updated
+    $this->assertEquals((new DateTimeImmutable($today))->modify("+1 year")->modify("-1 day")->format("Y-m-d"), $result['end_date']);
 
   }
   /**
@@ -472,6 +801,27 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
         'is_test' => 1,
         'trxn_id' => 'PAYMENT_ID',
       ));
+
+    // Mock existing membership
+    $dt = new DateTimeImmutable();
+    $membership = civicrm_api3('Membership', 'create', [
+        'sequential' => 1,
+        'membership_type_id' => 'MyMembershipType',
+        'contact_id' => $contact['id'],
+        'contribution_recur_id' => $recur['id'],
+        'status_id' => "Current",
+        'skipStatusCal' => 1, // Needed to override default status calculation
+        'start_date' => $dt->modify("-11 months")->format("Y-m-d"),
+        'join_date' => $dt->modify("-23 months")->format("Y-m-d"),
+    ]);
+    // The dates returned by create and get are formatted differently!
+    // So do a get here to make later comparison easier
+    $membership = civicrm_api3('Membership', 'getsingle', ['id' => $membership['id']]);
+    $membershipPayment = civicrm_api3('MembershipPayment', 'create', [
+        'sequential' => 1,
+        'membership_id' => $membership['id'],
+        'contribution_id' => $contrib['id'],
+    ]);
 
     // Mock webhook input data.
     $controller = new CRM_GoCardless_Page_Webhook();
@@ -518,6 +868,15 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $this->assertEquals(1.23, $contrib['total_amount']);
     $this->assertEquals('PAYMENT_ID_2', $contrib['trxn_id']);
     $this->assertEquals($this->contribution_status_map['Completed'], $contrib['contribution_status_id']);
+
+    $result = civicrm_api3('Membership', 'getsingle', ['id' => $membership['id']]);
+    $this->assertEquals($this->membership_status_map["Current"], $result['status_id']);
+    // join_date and start_date are unchanged
+    $this->assertEquals($membership['join_date'], $result['join_date']);
+    $this->assertEquals($membership['start_date'], $result['start_date']);
+    // end_date is 12 months later
+    $end_dt = new DateTimeImmutable($membership['end_date']);
+    $this->assertEquals($end_dt->modify("+12 months")->format("Y-m-d"), $result['end_date']);
 
   }
   /**
@@ -927,7 +1286,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
    * Return a fake GoCardless payment processor.
    */
   protected function getPaymentProcessor() {
-    
+
   }
 
 }
