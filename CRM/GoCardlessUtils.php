@@ -234,14 +234,17 @@ class CRM_GoCardlessUtils
           $installments = $result['installments'];
         }
 
-      } elseif (!empty($deets['membershipID'])) {
-        // This is a membership. Load the interval from the type.
-        $result = civicrm_api3('Membership', 'getsingle',
-          ['id' => $deets['membershipID'], 'api.MembershipType.getsingle' => []]
-        );
-        $interval_unit = $result['api.MembershipType.getsingle']['duration_unit'];
-        $interval = $result['api.MembershipType.getsingle']['duration_interval'];
       }
+      // This section of code might be useful if we implement one-off payment, but until then
+      // all cases should have a recurring contribution.
+      // elseif (!empty($deets['membershipID'])) {
+      //   // This is a membership. Load the interval from the type.
+      //   $result = civicrm_api3('Membership', 'getsingle',
+      //     ['id' => $deets['membershipID'], 'api.MembershipType.getsingle' => []]
+      //   );
+      //   $interval_unit = $result['api.MembershipType.getsingle']['duration_unit'];
+      //   $interval = $result['api.MembershipType.getsingle']['duration_interval'];
+      // }
       else {
         // Something is wrong.
         throw new Exception("Failed to find interval details");
@@ -322,19 +325,6 @@ class CRM_GoCardlessUtils
         ]);
       }
 
-      if (!empty($deets['membershipID'])) {
-        // Calculate the end date for the membership, although hopefully this will be renewed automatically.
-        // People expect their membership to start immediately, although the payment might not come through for a couple of days.
-        // Use today's date as the start date, and contribution date + N * interval for end date.
-        // Update membership dates.
-        civicrm_api3("Membership" ,"create" , [
-          'id'         => $deets['membershipID'],
-          'end_date'   => date('Y-m-d', strtotime($subscription->start_date . " + $interval $interval_unit")),
-          'start_date' => date('Y-m-d'),
-          'join_date'  => date('Y-m-d'),
-          'status_id'  => 'Pending', // https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/28
-        ]);
-      }
       CRM_Core_Error::debug_log_message(__FUNCTION__ . ": CiviCRM updated successfully (Contribution ID $deets[contributionID]).", FALSE, 'GoCardless', PEAR_LOG_INFO);
     }
     catch (Exception $e) {
