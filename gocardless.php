@@ -252,3 +252,19 @@ function gocardless_civicrm_navigationMenu(&$menu) {
   ));
   _gocardless_civix_navigationMenu($menu);
 } // */
+/**
+ * Implements hook_civicrm_validateForm().
+ *
+ * @param string $formName
+ * @param array $fields
+ * @param array $files
+ * @param CRM_Core_Form $form
+ * @param array $errors
+ */
+function gocardless_civicrm_validateForm($formName, &$fields, &$files, &$form, &$errors) {
+  if ($formName === 'CRM_Admin_Form_PaymentProcessor') {
+    if ($fields['signature'] === $fields['test_signature']) {
+      $errors['test_signature'] = ts('Webhook secrets MUST be unique between test and live.');
+    }
+  }
+}
