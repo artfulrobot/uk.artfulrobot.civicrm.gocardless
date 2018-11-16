@@ -107,20 +107,13 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
    * @return string URL to redirec to.
    */
   public function doTransferCheckoutWorker( &$params, $component ) {
-    // Where should the user come back on our site after completing the GoCardless offsite process?
-    $url = CRM_Utils_System::url(
-      ($component == 'event') ? 'civicrm/event/register' : 'civicrm/contribute/transact',
-      "_qf_ThankYou_display=1&qfKey={$params['qfKey']}"."&cid={$params['contactID']}",
-      true, null, false );
+
+    $x=1;
 
     try {
       // Get a GoCardless redirect flow URL.
-      $redirect_flow = CRM_GoCardlessUtils::getRedirectFlow([
-        "test_mode"            => (bool) $this->_paymentProcessor['is_test'],
-        "session_token"        => $params['qfKey'],
-        "success_redirect_url" => $url,
-        "description"          => isset($params['description']) ? $params['description'] : NULL,
-      ]);
+      $redirect_params = $this->getRedirectParametersFromParams($params, $component);
+      $redirect_flow = CRM_GoCardlessUtils::getRedirectFlow($redirect_params);
 
       // Store some details on the session that we'll need when the user returns from GoCardless.
       // Key these by the redirect flow id just in case the user simultaneously
@@ -151,4 +144,115 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
     }
   }
 
+  /**
+   * Create the inputs for creating a GoCardless redirect flow from the CiviCRM provided parameters.
+   *
+   *
+   * Name, address, phone, email parameters provided by profiles have names like:
+   *
+   * - email-5 (5 is the LocationType ID)
+   * - email-Primary (Primary email was selected)
+   *
+   * We try to pick the billing location types if possible, after that we look
+   * for Primary, after that we go with any given.
+   *
+   * @see https://developer.gocardless.com/api-reference/#core-endpoints-redirect-flows
+   *
+   * @param array $params
+   * @param string $component ("event"|"contribute")
+   */
+  public function getRedirectParametersFromParams($params, $component) {
+    // Where should the user come back on our site after completing the GoCardless offsite process?
+    $url = CRM_Utils_System::url(
+      ($component == 'event') ? 'civicrm/event/register' : 'civicrm/contribute/transact',
+      "_qf_ThankYou_display=1&qfKey={$params['qfKey']}"."&cid={$params['contactID']}",
+      true, null, false );
+
+    $redirect_params = [
+        "test_mode"            => (bool) $this->_paymentProcessor['is_test'],
+        "session_token"        => $params['qfKey'],
+        "success_redirect_url" => $url,
+        "description"          => isset($params['description']) ? $params['description'] : NULL,
+      ];
+
+    // Check for things we can pre-fill.
+    $customer = [];
+    $emails = [];
+    $addresses = [];
+    foreach ($params as $civi_prop => $value) {
+      if ($civi_prop == 'first_name') {
+        $customer['given_name'] = $value;
+      }
+      elseif ($civi_prop == 'last_name') {
+        $customer['family_name'] = $value;
+      }
+      elseif (preg_match('/^email-(\d)+$/', $civi_prop, $matches)) {
+        $emails[$matches[1]] = $value;
+      }
+      elseif (preg_match('/^(street_address|city|postal_code|country|state_province)-(\d|\w+)+$/', $civi_prop, $matches)) {
+        $addresses[$matches[2]][$matches[1]] = $value;
+      }
+    }
+
+    // First choice is 'billing'.
+    $preferences = [];
+    $billing_location_type_id = CRM_Core_BAO_LocationType::getBilling();
+    if ($billing_location_type_id) {
+      $preferences[] = $billing_location_type_id;
+    }
+    // Second choice is 'Primary'.
+    $preferences[] = 'Primary';
+
+    /**
+     * Sugar for finding a preferred value, in case there are two.
+     *
+     * @param array $prefs array of preferences, like [5, 'Primary']
+     * @param array $data array to search in.
+     * @return mixed Best preference value from $data array. Or NULL.
+     */
+    function select_by_preference($prefs, $data) {
+      $selected = NULL;
+      if ($data) {
+        // Fallback preference.
+        $prefs []= array_keys($data)[0];
+
+        foreach ($prefs as $type) {
+          if (isset($data[$type])) {
+            $selected = $data[$type];
+            break;
+          }
+        }
+      }
+      return $selected;
+    }
+
+    $_ = select_by_preference($preferences, $addresses);
+    if ($_) {
+      // We have an address, use it.
+      if (isset($_['street_address'])) {
+        $customer['address_line1'] = $_['street_address'];
+      }
+      if (isset($_['city'])) {
+        $customer['city'] = $_['city'];
+      }
+      if (isset($_['postal_code'])) {
+        $customer['postal_code'] = $_['postal_code'];
+      }
+      if (isset($_['country'])) {
+        // We need an ISO 3166-1 alpha-2 version of the country, not the CiviCRM country ID.
+        $customer['country_code'] = CRM_Core_PseudoConstant::countryIsoCode($_['country']);
+      }
+    }
+
+    // If we have an email, use it.
+    $_ = select_by_preference($preferences, $emails);
+    if ($_) {
+      $customer['email'] = $_;
+    }
+
+    if ($customer) {
+      $redirect_params['prefilled_customer'] = $customer;
+    }
+    return $redirect_params;
+  }
 }

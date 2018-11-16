@@ -96,17 +96,25 @@ class CRM_GoCardlessUtils
    */
   public static function getRedirectFlow($deets) {
 
+    // We need test_mode but it's not part of the params we pass on.
+    if (!isset($deets['test_mode'])) {
+      throw new InvalidArgumentException("Missing test_mode passed to CRM_GoCardlessUtils::getRedirectFlow.");
+    }
+    $gc_api = CRM_GoCardlessUtils::getApi($deets['test_mode']);
+
+    // Check for and copy the essential parameters.
     foreach (['session_token', 'success_redirect_url', 'description'] as $_) {
       if (empty($deets[$_])) {
         throw new InvalidArgumentException("Missing $_ passed to CRM_GoCardlessUtils::getRedirectFlow.");
       }
       $params[$_] = $deets[$_];
     }
-    if (!isset($deets['test_mode'])) {
-      throw new InvalidArgumentException("Missing test_mode passed to CRM_GoCardlessUtils::getRedirectFlow.");
+
+    // Copy optional parameters, if we have them.
+    if (!empty($deets['prefilled_customer'])) {
+      $params['prefilled_customer'] = $deets['prefilled_customer'];
     }
 
-    $gc_api = CRM_GoCardlessUtils::getApi($deets['test_mode']);
     /** @var \GoCardlessPro\Resources\RedirectFlow $redirect_flow */
     $redirect_flow = $gc_api->redirectFlows()->create(["params" => $params]);
 
