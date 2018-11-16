@@ -31,7 +31,7 @@ cd ../ || { echo "X hmm. failed to go up dir."; exit 1; }
 # Remove any old versions.
 rm -f "$PROJECT_NAME".zip "$PROJECT_NAME".tgz
 
-tar czf "$PROJECT_NAME".tgz "$PROJECT_NAME" --exclude='**/.git*' --exclude='**/bin' --exclude='**/tests'
+tar czf "$PROJECT_NAME".tgz "$PROJECT_NAME" --exclude='**/.git*' --exclude='**/bin' --exclude='**/tests' --exclude='**/cli'
 
 # PR wanted: if you can get zip to behave the same way as tar, please replace this clugey hack!
 mkdir temp && cd temp || { echo "X failed making temp dir to create zip file"; exit 1; }

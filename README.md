@@ -49,14 +49,21 @@ Visit the [Releases page](https://github.com/artfulrobot/uk.artfulrobot.civicrm.
 
 ### 1b. Install it the Difficult way (developers)
 
-This extension requires the GoCardlessPro PHP library. Here's how to install from the \*nix command line. You need [composer](https://getcomposer.org/download/)
+The packaged version of this extension include the GoCardlessPro PHP libraries
+and exclude some dev-only bits including the `bin`, `cli` and `tests`
+directories.
+
+This extension requires the GoCardlessPro PHP library. Here's how to install
+from the \*nix command line. You need
+[composer](https://getcomposer.org/download/)
 
     $ cd /path/to/your/extensions/dir
     $ git clone https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless.git
     $ cd uk.artfulrobot.civicrm.gocardless
     $ which composer >/dev/null && composer install || echo You need composer, pls see https://getcomposer.org/download/ Then repeat this command. (i.e. composer install)
 
-That should then bring in the GoCardlessPro dependency.
+That should then bring in the GoCardlessPro dependency and you should be good to
+go.
 
 ### <a name="createpp" id="createpp"></a> 2. Install the extension and create a payment processor
 
@@ -221,7 +228,26 @@ some.
 
 
 
+## Developers: Importing from GoCardless
+
+If you clone from the github repo, you'll see a cli directory. This contains a
+script I used as a one-off to import some pre-existing GoCardless subscriptions.
+It's not a fully fledged tool but it may help others with one-off import tasks
+to build a tool for their own needs from that.
+
 ## Change log
+
+-  1.6 "stable"!
+
+   - Membership now supported thanks to work by William Mortada @wmortada and
+     Aidan Saunders @aydun, and this extension is in production use by quite a few
+     organisations so calling this release stable.
+
+   - GoCardless forms are now pre-filled with address, email, phone numbers if
+     you have collected those details before passing on to GoCardless.
+
+   - Updated GoCardlessPro library to 1.7.0 just to keep up-to-date.
+
 
 - 1.5beta Should now respect a limited number of installments. Previous
   versions will set up an open-ended subscription. You may not have wanted that

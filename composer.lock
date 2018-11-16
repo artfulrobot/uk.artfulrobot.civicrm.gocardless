@@ -1,23 +1,23 @@
 {
     "_readme": [
         "This file locks the dependencies of your project to a known state",
-        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
     "content-hash": "dba616a41007c57462c7b6719bee1897",
     "packages": [
         {
             "name": "gocardless/gocardless-pro",
-            "version": "1.6.0",
+            "version": "1.7.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/gocardless/gocardless-pro-php.git",
-                "reference": "a459565e2392886adacf05ad369c56ef432216ca"
+                "reference": "39413c73a6a798a62c855833e85b65c8cb9b3fbf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/gocardless/gocardless-pro-php/zipball/a459565e2392886adacf05ad369c56ef432216ca",
-                "reference": "a459565e2392886adacf05ad369c56ef432216ca",
+                "url": "https://api.github.com/repos/gocardless/gocardless-pro-php/zipball/39413c73a6a798a62c855833e85b65c8cb9b3fbf",
+                "reference": "39413c73a6a798a62c855833e85b65c8cb9b3fbf",
                 "shasum": ""
             },
             "require": {
@@ -56,7 +56,7 @@
                 "direct debit",
                 "gocardless"
             ],
-            "time": "2018-04-26T10:37:17+00:00"
+            "time": "2018-05-22T12:28:03+00:00"
         },
         {
             "name": "guzzlehttp/guzzle",
