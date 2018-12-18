@@ -237,6 +237,11 @@ to build a tool for their own needs from that.
 
 ## Change log
 
+- 1.7 (unreleased)
+
+   - Fixed issue in certain use cases that resulted in the First Name field not 
+     being pre-populated.
+
 -  1.6 "stable"!
 
    - Membership now supported thanks to work by William Mortada @wmortada and
