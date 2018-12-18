@@ -180,10 +180,10 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
     $emails = [];
     $addresses = [];
     foreach ($params as $civi_prop => $value) {
-      if ($civi_prop == 'first_name') {
+      if ($civi_prop === 'first_name') {
         $customer['given_name'] = $value;
       }
-      elseif ($civi_prop == 'last_name') {
+      elseif ($civi_prop === 'last_name') {
         $customer['family_name'] = $value;
       }
       elseif (preg_match('/^email-(\d)+$/', $civi_prop, $matches)) {
