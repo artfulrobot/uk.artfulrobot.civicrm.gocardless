@@ -23,11 +23,14 @@ class CRM_GoCardlessUtils
    *
    * There's a singleton pattern here for each of live/test.
    *
+   * @deprecated Please use the CRM_Core_Payment_GoCardless->getGoCardlessApi() method.
+   *
    * @param bool $test Sandbox or Live API?
    * @return \GoCardlessPro\Client
    */
   public static function getApi($test=FALSE)
   {
+    trigger_error("Calling CRM_GoCardlessUtils::getApi is deprecated. Instead you should load the CRM_Core_Payment_GoCardless payment processor object and call its getGoCardlessApi() method.", E_USER_DEPRECATED);
     if ($test && isset(static::$api_test)) {
       return static::$api_test;
     }
@@ -53,6 +56,8 @@ class CRM_GoCardlessUtils
   }
   /**
    * Do a PaymentProcessor:getsingle for the GoCardless processor type.
+   *
+   * @deprecated This pattern only works for sites that only have one GoCardless payment processor.
    *
    * @param bool $test Whether to find a test processor or a live one.
    */
@@ -95,6 +100,7 @@ class CRM_GoCardlessUtils
    * @return \GoCardlessPro\Resources\RedirectFlow
    */
   public static function getRedirectFlow($deets) {
+    trigger_error("Calling CRM_GoCardlessUtils::getRedirectFlow is deprecated. Instead you should load the CRM_Core_Payment_GoCardless payment processor object and call its getRedirectFlow() method.", E_USER_DEPRECATED);
 
     // We need test_mode but it's not part of the params we pass on.
     if (!isset($deets['test_mode'])) {
@@ -144,7 +150,7 @@ class CRM_GoCardlessUtils
       'amount', 'interval_unit',
     ] as $_) {
       if (!isset($deets[$_])) {
-        throw new InvalidArgumentException("Missing $_ passed to CRM_GoCardlessUtils::getRedirectFlow.");
+        throw new InvalidArgumentException("Missing $_ passed to CRM_GoCardlessUtils::completeRedirectFlowWithGoCardless.");
       }
     }
 
@@ -342,4 +348,8 @@ class CRM_GoCardlessUtils
       CRM_Core_Session::setStatus("Sorry, there was a problem recording the details of your Direct Debit. Please call us.", 'Error', 'error');
     }
   }
+  /**
+   * Placeholder for sugar. Calling this will require this file and thereby the GC libraries.
+   */
+  public static function loadLibraries() {}
 }

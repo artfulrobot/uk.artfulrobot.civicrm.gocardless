@@ -19,7 +19,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
 
   /** @var array of webhook events that we can process */
   public $events;
-  /** @var array payment processor loaded from CiviCRM API paymentProcessor entity */
+  /** @var CRM_Core_Payment_GoCardless payment processor loaded from CiviCRM API paymentProcessor entity */
   protected $payment_processor;
   /** Timestamp for logs. */
   public $now;
@@ -103,20 +103,22 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       throw new InvalidArgumentException("Unsigned API request.");
     }
     $provided_signature = $headers["Webhook-Signature"];
+
+    // Loop through all GoCardless Payment Processors until we find one for which the signature is valid.
+    $candidates = civicrm_api3('PaymentProcessor', 'get', ['payment_processor_type_id' => "GoCardless", 'is_active' => 1]);
     $valid = FALSE;
-    foreach([FALSE, TRUE] as $test) {
-      $pp = CRM_GoCardlessUtils::getPaymentProcessor($test);
+    foreach ($candidates['values'] as $payment_processor_id => $pp) {
       $token = isset($pp['signature']) ? $pp['signature']  : '';
       $calculated_signature = hash_hmac("sha256", $raw_payload, $token);
-      if ($token && $provided_signature == $calculated_signature) {
+      if ($token && $provided_signature === $calculated_signature) {
         $valid = TRUE;
-        $this->test_mode = $test;
-        $this->payment_processor = $pp;
+        $this->test_mode = !empty($pp['is_test']);
+        $this->payment_processor = Civi\Payment\System::singleton()->getByProcessor($this->payment_processor);
         break;
       }
     }
     if (!$valid) {
-      throw new InvalidArgumentException("Invalid signature in request.");
+      throw new InvalidArgumentException("Invalid signature in request. (Or payment processor is not active)");
     }
     $data = json_decode($raw_payload);
     if (!$data || empty($data->events)) {
@@ -284,7 +286,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    * @return NULL|\GoCardless\Resources\Payment
    */
   public function getAndCheckGoCardlessPayment($event, $expected_status) {
-    $gc_api = CRM_GoCardlessUtils::getApi($this->test_mode);
+    $gc_api = $this->payment_processor->getGoCardlessApi();
     // According to GoCardless we need to check that the status of the object
     // has not changed since the webhook was fired, so we re-load it and test.
     $payment = $gc_api->payments()->get($event->links->payment);
@@ -376,7 +378,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    * @return NULL|\GoCardless\Resources\Subscription
    */
   public function getAndCheckSubscription($event, $expected_status) {
-    $gc_api = CRM_GoCardlessUtils::getApi($this->test_mode);
+    $gc_api = $this->payment_processor->getGoCardlessApi();
     // According to GoCardless we need to check that the status of the object
     // has not changed since the webhook was fired, so we re-load it and test.
     $subscription = $gc_api->subscriptions()->get($event->links->subscription);

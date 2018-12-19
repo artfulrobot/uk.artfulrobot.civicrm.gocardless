@@ -21,7 +21,7 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
    * @param $paymentProcessor
    */
   function __construct($mode, &$paymentProcessor) {
-    $this->test_mode = ($mode == 'test');
+    $this->test_mode = ($mode === 'test');
     $this->_paymentProcessor = $paymentProcessor;
     // ? $this->_processorName    = ts('GoCardless Processor');
   }
@@ -108,12 +108,10 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
    */
   public function doTransferCheckoutWorker( &$params, $component ) {
 
-    $x=1;
-
     try {
       // Get a GoCardless redirect flow URL.
       $redirect_params = $this->getRedirectParametersFromParams($params, $component);
-      $redirect_flow = CRM_GoCardlessUtils::getRedirectFlow($redirect_params);
+      $redirect_flow = $this->getRedirectFlow($redirect_params);
 
       // Store some details on the session that we'll need when the user returns from GoCardless.
       // Key these by the redirect flow id just in case the user simultaneously
@@ -255,4 +253,50 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
     }
     return $redirect_params;
   }
+
+  /**
+   * Sets up a redirect flow with GoCardless.
+   *
+   * @param Array $deets has the following keys:
+   * - description          string what is the person signing up to/buying?
+   * - session_token        string required by GoCardless to verify that the completion happens by the same user.
+   * - success_redirect_url string URL on our site that GoCardless will issue a redirect to on success.
+   *
+   * @return \GoCardlessPro\Resources\RedirectFlow
+   */
+  public function getRedirectFlow($deets) {
+
+
+    foreach (['session_token', 'success_redirect_url', 'description'] as $_) {
+      if (empty($deets[$_])) {
+        throw new InvalidArgumentException("Missing $_ passed to CRM_Core_Payment_GoCardless::getRedirectFlow.");
+      }
+      $params[$_] = $deets[$_];
+    }
+    $deets['test_mode'] = $this->test_mode ? 1: 0;
+
+    $gc_api = $this->getGoCardlessApi();
+    /** @var \GoCardlessPro\Resources\RedirectFlow $redirect_flow */
+    $redirect_flow = $gc_api->redirectFlows()->create(["params" => $params]);
+
+    return $redirect_flow;
+  }
+  /**
+   * Returns a GoCardless API object for this payment processor.
+   *
+   * @return \GoCardlessPro\Client
+   */
+  public function getGoCardlessApi() {
+    $pp = $this->getPaymentProcessor();
+    $access_token = $pp['user_name'];
+
+    CRM_GoCardlessUtils::loadLibraries();
+    $client = new \GoCardlessPro\Client(array(
+        'access_token' => $access_token,
+        'environment'  => $pp['is_test'] ? \GoCardlessPro\Environment::SANDBOX : \GoCardlessPro\Environment::LIVE
+        ));
+
+    return $client;
+  }
+
 }
