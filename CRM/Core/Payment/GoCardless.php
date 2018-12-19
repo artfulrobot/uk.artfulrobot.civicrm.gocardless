@@ -14,6 +14,9 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
   /** @var bool TRUE if test mode.  */
   protected $test_mode;
 
+  /** @var Array of \GoCardlessPro\Client objects keyed by payment processor id.
+    */
+  protected static $gocardless_api;
   /**
    * Constructor
    *
@@ -266,7 +269,6 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
    */
   public function getRedirectFlow($deets) {
 
-
     foreach (['session_token', 'success_redirect_url', 'description'] as $_) {
       if (empty($deets[$_])) {
         throw new InvalidArgumentException("Missing $_ passed to CRM_Core_Payment_GoCardless::getRedirectFlow.");
@@ -284,19 +286,37 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
   /**
    * Returns a GoCardless API object for this payment processor.
    *
+   * These are cached not because they are expensive to create, but to allow
+   * testing.  Nb. this may be injected by setGoCardlessApi() for testing.
+   *
    * @return \GoCardlessPro\Client
    */
   public function getGoCardlessApi() {
     $pp = $this->getPaymentProcessor();
-    $access_token = $pp['user_name'];
+    if (!isset(static::$gocardless_api[$pp['id']])) {
+      $access_token = $pp['user_name'];
+      CRM_GoCardlessUtils::loadLibraries();
+      static::$gocardless_api[$pp['id']] = new \GoCardlessPro\Client(array(
+          'access_token' => $access_token,
+          'environment'  => $pp['is_test'] ? \GoCardlessPro\Environment::SANDBOX : \GoCardlessPro\Environment::LIVE
+          ));
+    }
+    return static::$gocardless_api[$pp['id']];
+  }
 
-    CRM_GoCardlessUtils::loadLibraries();
-    $client = new \GoCardlessPro\Client(array(
-        'access_token' => $access_token,
-        'environment'  => $pp['is_test'] ? \GoCardlessPro\Environment::SANDBOX : \GoCardlessPro\Environment::LIVE
-        ));
-
-    return $client;
+  /**
+   * Returns a GoCardless API object for this payment processor.
+   *
+   * @param \GoCardlessPro\Client|null $mocked_api pass NULL to remove cache.
+   */
+  public function setGoCardlessApi($mocked_api) {
+    $pp = $this->getPaymentProcessor();
+    if ($mocked_api === NULL) {
+      unset(static::$gocardless_api[$pp['id']]);
+    }
+    else {
+      static::$gocardless_api[$pp['id']] = $mocked_api;
+    }
   }
 
 }

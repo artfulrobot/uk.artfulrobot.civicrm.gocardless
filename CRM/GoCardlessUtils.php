@@ -62,6 +62,7 @@ class CRM_GoCardlessUtils
    * @param bool $test Whether to find a test processor or a live one.
    */
   public static function getPaymentProcessor($test=FALSE) {
+    trigger_error("Calling CRM_GoCardlessUtils::getPaymentProcessor is deprecated. Instead you should load the CRM_Core_Payment_GoCardless payment processor object using other CiviCRM native methods.", E_USER_DEPRECATED);
     // Find the credentials.
     $result = civicrm_api3('PaymentProcessor', 'getsingle',
       ['payment_processor_type_id' => "GoCardless", 'is_test' => (int)$test]);
@@ -147,7 +148,7 @@ class CRM_GoCardlessUtils
   public static function completeRedirectFlowWithGoCardless($deets) {
     // Validate input.
     foreach (['redirect_flow_id', 'test_mode', 'session_token', 'description',
-      'amount', 'interval_unit',
+      'amount', 'interval_unit', 'payment_processor_id',
     ] as $_) {
       if (!isset($deets[$_])) {
         throw new InvalidArgumentException("Missing $_ passed to CRM_GoCardlessUtils::completeRedirectFlowWithGoCardless.");
@@ -181,8 +182,12 @@ class CRM_GoCardlessUtils
     }
 
     // 1. Complete the flow.
+
+    // We need the GC API, and for this we need the payment processor id.
+    $pp = Civi\Payment\System::singleton()->getById($deets['payment_processor_id']);
     // This creates a Customer, Customer Bank Account and Mandate at GC.
-    $gc_api = CRM_GoCardlessUtils::getApi($deets['test_mode']);
+    $gc_api = $pp->getGoCardlessApi();
+
     $redirect_flow = $gc_api->redirectFlows()->complete($deets['redirect_flow_id'], [
       "params" => ["session_token" => $deets['session_token']],
     ]);

@@ -111,14 +111,15 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
   public function testTransferCheckout() {
     // Mock the GC API.
     $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
-    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+
+
     $redirect_flows = $this->prophet->prophesize('\\GoCardlessPro\\Services\\RedirectFlowsService');
     $api_prophecy->redirectFlows()->willReturn($redirect_flows->reveal());
     $redirect_flows->create(Argument::any())
       ->shouldBeCalled()
       ->willReturn(json_decode('{"redirect_url":"https://gocardless.com/somewhere","id":"RE1234"}'));
 
-    $pp = CRM_GoCardlessUtils::getPaymentProcessor(TRUE);
+    $pp = $this->test_mode_payment_processor;
 
     $obj = new CRM_Core_Payment_GoCardless('test', $pp);
     $params = [
@@ -127,8 +128,10 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       'description' => 'test contribution',
       'contributionID' => 222,
       'contributionRecurID' => 333,
+      'payment_processor_id' => $this->test_mode_payment_processor['id'],
       'entryURL' => 'http://example.com/somwhere',
     ];
+    $obj->setGoCardlessApi($api_prophecy->reveal());
     $url = $obj->doTransferCheckoutWorker($params, 'contribute');
     $this->assertInternalType('string', $url);
     $this->assertNotEmpty('string', $url);
@@ -186,7 +189,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Mock the GC API.
     $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
-    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+    $this->mockGoCardlessApiForTestPaymentProcessor($api_prophecy->reveal());
 
     $redirect_flows_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\RedirectFlowsService');
     $api_prophecy->redirectFlows()->willReturn($redirect_flows_service->reveal());
@@ -207,6 +210,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       'description' => 'test contribution',
       'contributionID' => $contrib['id'],
       'contributionRecurID' => $recur['id'],
+      'payment_processor_id' => $this->test_mode_payment_processor['id'],
       'entryURL' => 'http://example.com/somwhere',
     ];
     CRM_GoCardlessUtils::completeRedirectFlowCiviCore($params);
@@ -281,7 +285,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Mock the GC API.
     $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
-    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+    $this->mockGoCardlessApiForTestPaymentProcessor($api_prophecy->reveal());
 
     $redirect_flows_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\RedirectFlowsService');
     $api_prophecy->redirectFlows()->willReturn($redirect_flows_service->reveal());
@@ -303,6 +307,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       'contributionID' => $contrib['id'],
       'contributionRecurID' => $recur['id'],
       'membershipID' => $membership['id'],
+      'payment_processor_id' => $this->test_mode_payment_processor['id'],
       'entryURL' => 'http://example.com/somwhere',
     ];
     CRM_GoCardlessUtils::completeRedirectFlowCiviCore($params);
@@ -380,7 +385,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Mock the GC API.
     $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
-    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+    $this->mockGoCardlessApiForTestPaymentProcessor($api_prophecy->reveal());
 
     $redirect_flows_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\RedirectFlowsService');
     $api_prophecy->redirectFlows()->willReturn($redirect_flows_service->reveal());
@@ -401,6 +406,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       'description' => 'test contribution',
       'contributionID' => $contrib['id'],
       'contributionRecurID' => $recur['id'],
+      'payment_processor_id' => $this->test_mode_payment_processor['id'],
       'membershipID' => $membership['id'],
       'entryURL' => 'http://example.com/somwhere',
     ];
@@ -471,7 +477,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Mock the GC API.
     $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
-    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+    $this->mockGoCardlessApiForTestPaymentProcessor($api_prophecy->reveal());
 
     $redirect_flows_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\RedirectFlowsService');
     $api_prophecy->redirectFlows()->willReturn($redirect_flows_service->reveal());
@@ -493,6 +499,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       'contributionID' => $contrib['id'],
       'contributionRecurID' => $recur['id'],
       'membershipID' => $membership['id'],
+      'payment_processor_id' => $this->test_mode_payment_processor['id'],
       'entryURL' => 'http://example.com/somwhere',
     ];
     CRM_GoCardlessUtils::completeRedirectFlowCiviCore($params);
@@ -542,7 +549,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Mock the GC API.
     $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
-    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+    $this->mockGoCardlessApiForTestPaymentProcessor($api_prophecy->reveal());
 
     $redirect_flows_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\RedirectFlowsService');
     $api_prophecy->redirectFlows()->willReturn($redirect_flows_service->reveal());
@@ -579,6 +586,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       'session_token' => 'aabbccdd',
       'contactID' => $contact['id'],
       'description' => 'test contribution',
+      'payment_processor_id' => $this->test_mode_payment_processor['id'],
       'contributionID' => $contrib['id'],
       'contributionRecurID' => $recur['id'],
       'entryURL' => 'http://example.com/somwhere',
@@ -728,7 +736,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Mock GC API.
     $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
-    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+    $this->mockGoCardlessApiForTestPaymentProcessor($api_prophecy->reveal());
     // First the webhook will load the payment, so mock this.
     $payments_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
     $api_prophecy->payments()->willReturn($payments_service->reveal());
@@ -832,7 +840,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Mock GC API.
     $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
-    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+    $this->mockGoCardlessApiForTestPaymentProcessor($api_prophecy->reveal());
     // First the webhook will load the payment, so mock this.
     $payments_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
     $api_prophecy->payments()->willReturn($payments_service->reveal());
@@ -923,7 +931,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Mock GC API.
     $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
-    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+    $this->mockGoCardlessApiForTestPaymentProcessor($api_prophecy->reveal());
     // First the webhook will load the payment, so mock this.
     $payments_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
     $api_prophecy->payments()->willReturn($payments_service->reveal());
@@ -997,7 +1005,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Mock GC API.
     $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
-    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+    $this->mockGoCardlessApiForTestPaymentProcessor($api_prophecy->reveal());
     // First the webhook will load the payment, so mock this.
     $payments_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
     $api_prophecy->payments()->willReturn($payments_service->reveal());
@@ -1043,11 +1051,11 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
    */
   public function testWebhookOutOfDate() {
 
-    $controller = new CRM_GoCardless_Page_Webhook();
+    $controller = $this->getWebhookControllerForTestProcessor();
 
     // Mock GC API.
     $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
-    CRM_GoCardlessUtils::setApi(FALSE, $api_prophecy->reveal());
+    $this->mockGoCardlessApiForTestPaymentProcessor($api_prophecy->reveal());
     // First the webhook will load the payment, so mock this.
     $payments_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
     $api_prophecy->payments()->willReturn($payments_service->reveal());
@@ -1073,11 +1081,9 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
    * @expectedExceptionMessage Webhook out of date
    */
   public function testWebhookOutOfDateSubscription() {
-
-
     // Mock GC API.
     $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
-    CRM_GoCardlessUtils::setApi(FALSE, $api_prophecy->reveal());
+    $this->mockGoCardlessApiForTestPaymentProcessor($api_prophecy->reveal());
     // First the webhook will load the subscription, so mock this.
     $subscription_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
     $api_prophecy->subscriptions()->willReturn($subscription_service->reveal());
@@ -1089,7 +1095,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
         }'));
 
     $event = json_decode('{"links":{"subscription":"SUBSCRIPTION_ID"}}');
-    $controller = new CRM_GoCardless_Page_Webhook();
+    $controller = $this->getWebhookControllerForTestProcessor();
     $controller->getAndCheckSubscription($event, 'complete'); // Calling with different status to that which will be fetched from API.
   }
 
@@ -1102,11 +1108,11 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
    */
   public function testWebhookPaymentWithoutSubscriptionIgnored() {
 
-    $controller = new CRM_GoCardless_Page_Webhook();
+    $controller = $this->getWebhookControllerForTestProcessor();
 
     // Mock GC API.
     $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
-    CRM_GoCardlessUtils::setApi(FALSE, $api_prophecy->reveal());
+    $this->mockGoCardlessApiForTestPaymentProcessor($api_prophecy->reveal());
     // First the webhook will load the payment, so mock this.
     $payments_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
     $api_prophecy->payments()->willReturn($payments_service->reveal());
@@ -1173,7 +1179,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Mock GC API.
     $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
-    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+    $this->mockGoCardlessApiForTestPaymentProcessor($api_prophecy->reveal());
     // First the webhook will load the subscription, so mock this.
     $subscription_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
     $api_prophecy->subscriptions()->willReturn($subscription_service->reveal());
@@ -1251,7 +1257,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Mock GC API.
     $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
-    CRM_GoCardlessUtils::setApi(TRUE, $api_prophecy->reveal());
+    $this->mockGoCardlessApiForTestPaymentProcessor($api_prophecy->reveal());
     // First the webhook will load the subscription, so mock this.
     $subscription_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
     $api_prophecy->subscriptions()->willReturn($subscription_service->reveal());
@@ -1284,9 +1290,21 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
   }
   /**
    * Return a fake GoCardless payment processor.
+   *
+   * Helper function for other tests.
    */
-  protected function getPaymentProcessor() {
-
+  protected function getWebhookControllerForTestProcessor() {
+    $controller = new CRM_GoCardless_Page_Webhook();
+    $pp_config = $this->test_mode_payment_processor;
+    $pp = Civi\Payment\System::singleton()->getByProcessor($pp_config);
+    $controller->setPaymentProcessor($pp);
+    return $controller;
   }
 
+  /** Helper
+   */
+  protected function mockGoCardlessApiForTestPaymentProcessor($mock) {
+    $obj = new CRM_Core_Payment_GoCardless('test', $this->test_mode_payment_processor);
+    $obj->setGoCardlessApi($mock);
+  }
 }

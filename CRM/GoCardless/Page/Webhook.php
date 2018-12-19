@@ -113,7 +113,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       if ($token && $provided_signature === $calculated_signature) {
         $valid = TRUE;
         $this->test_mode = !empty($pp['is_test']);
-        $this->payment_processor = Civi\Payment\System::singleton()->getByProcessor($this->payment_processor);
+        $this->payment_processor = Civi\Payment\System::singleton()->getByProcessor($pp);
         break;
       }
     }
@@ -402,5 +402,13 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
           'contribution_status_id' => "Cancelled",
         ]);
     }
+  }
+  /**
+   * This is only to help mock things for tests. Do not use!
+   *
+   * @param CRM_Core_Payment_GoCardless $pp
+   */
+  public function setPaymentProcessor($pp) {
+    $this->payment_processor = $pp;
   }
 }
