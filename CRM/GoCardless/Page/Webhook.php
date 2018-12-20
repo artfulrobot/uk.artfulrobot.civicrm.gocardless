@@ -2,6 +2,11 @@
 /**
  * @file
  * Provides webhook endpoint for GoCardless.
+ *
+ * @todo this should probably be implemented as an IPN and the code moved into
+ * CRM_Core_Payment_GoCardless::handlePaymentNotification() However, I was not
+ * sure about how CiviCRM processes those as it seems to rely on $_REQUEST
+ * which does strange things with JSON input.
  */
 
 require_once 'CRM/Core/Page.php';
