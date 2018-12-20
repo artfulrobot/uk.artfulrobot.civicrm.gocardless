@@ -277,6 +277,11 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
     }
     $deets['test_mode'] = $this->test_mode ? 1: 0;
 
+    // Copy optional parameters, if we have them.
+    if (!empty($deets['prefilled_customer'])) {
+      $params['prefilled_customer'] = $deets['prefilled_customer'];
+    }
+
     $gc_api = $this->getGoCardlessApi();
     /** @var \GoCardlessPro\Resources\RedirectFlow $redirect_flow */
     $redirect_flow = $gc_api->redirectFlows()->create(["params" => $params]);
