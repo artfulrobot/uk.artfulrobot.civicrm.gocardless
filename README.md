@@ -255,11 +255,14 @@ to build a tool for their own needs from that.
 
 ## Change log
 
-- 1.7 (unreleased)
+- 1.7
 
-   - Fixed issue in certain use cases that resulted in the First Name field not 
-     being pre-populated. Also further thanks to Aidan for knotty discussions on
-     membership.
+   - Fixed issue in certain use cases that resulted in the First Name field not
+     being pre-populated (#45). Also further thanks to Aidan for knotty
+     discussions on membership.
+
+   - Fixed issue that caused *other* payment processors' configuration forms to
+     not save. (#49)
 
 -  1.6 "stable"!
 
