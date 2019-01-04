@@ -255,11 +255,7 @@ to build a tool for their own needs from that.
 
 ## Change log
 
-- 1.7 (unreleased)
-
-   - Fixed issue in certain use cases that resulted in the First Name field not
-     being pre-populated. Also further thanks to Aidan for knotty discussions on
-     membership.
+- 1.8
 
    - Major change, possibly breaking: multiple GoCardless payment processors now
      allowed. Previous versions had assumed a single GoCardless payment
@@ -284,6 +280,16 @@ to build a tool for their own needs from that.
 
      Currently these methods are left in but will trigger `E_USER_DEPRECATED`
      errors to help you find use.
+
+
+- 1.7
+
+   - Fixed issue in certain use cases that resulted in the First Name field not
+     being pre-populated (#45). Also further thanks to Aidan for knotty
+     discussions on membership.
+
+   - Fixed issue that caused *other* payment processors' configuration forms to
+     not save. (#49)
 
 -  1.6 "stable"!
 
