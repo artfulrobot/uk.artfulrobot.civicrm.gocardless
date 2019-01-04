@@ -136,6 +136,7 @@ class CRM_GoCardlessUtils
    * - session_token string used in creating the flow with getRedirectFlow().
    * - redirect_flow_id
    * - description
+   * - payment_processor_id
    * - interval_unit yearly/monthly/weekly
    * - amount (in GBP, e.g. 10.50)
    * - installments (optional positive integer number of payments to take)

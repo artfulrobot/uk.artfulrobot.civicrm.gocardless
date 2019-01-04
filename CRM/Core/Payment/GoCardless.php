@@ -275,7 +275,6 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
       }
       $params[$_] = $deets[$_];
     }
-    $deets['test_mode'] = $this->test_mode ? 1: 0;
 
     // Copy optional parameters, if we have them.
     if (!empty($deets['prefilled_customer'])) {
@@ -324,4 +323,11 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
     }
   }
 
+  /**
+   * Shorthand method to determine if this processor is a test one.
+   */
+  public function isTestMode() {
+    $pp = $this->getPaymentProcessor();
+    return $pp['is_test'];
+  }
 }
