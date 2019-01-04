@@ -263,6 +263,16 @@ function gocardless_civicrm_navigationMenu(&$menu) {
  */
 function gocardless_civicrm_validateForm($formName, &$fields, &$files, &$form, &$errors) {
   if ($formName === 'CRM_Admin_Form_PaymentProcessor') {
+    if (empty($fields['payment_processor_type_id'])) {
+      // huh?
+      return;
+    }
+    $payment_processor_name = civicrm_api3('PaymentProcessorType', 'getvalue', ['return' => 'name', 'id' => $fields['payment_processor_type_id']]);
+    if ('GoCardless' !== $payment_processor_name) {
+      // Not a GoCardless payment processor form.
+      return;
+    }
+    // Now we know it's a GoCardless payment processor form.
     if ($fields['signature'] === $fields['test_signature']) {
       $errors['test_signature'] = ts('Webhook secrets MUST be unique between test and live.');
     }
