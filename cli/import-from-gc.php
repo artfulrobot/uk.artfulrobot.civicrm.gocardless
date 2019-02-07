@@ -30,20 +30,29 @@
  */
 
 // You may want to set a suitable limit here, especially while testing.
-const GC_IMPORT_SUBSCRIPTIONS_LIMIT=100;
-const GC_IMPORT_PAYMENT_INSTRUMENT_ID=23; // xxx set this to whatever the direct_debit_gc is on your site.
-const GC_IMPORT_FINANCIAL_TYPE_ID=20;     // xxx set this to whatever you need.
 
 
 if (php_sapi_name() != 'cli') {
   exit;
 }
 
+const GC_SUBSCRIPTIONS_LIMIT = 1000; // xxx
+const GC_IMPORT_FINANCIAL_TYPE_ID=20;     // xxx set this to whatever you need.
 // Get GC api.
 civicrm_initialize();
+define('GC_IMPORT_PAYMENT_INSTRUMENT_ID', civicrm_api3('OptionValue', 'getvalue', [
+  'return' => "value",
+  'option_group_id' => "payment_instrument",
+  'name' => "direct_debit_gc",
+]));
+
+if (!GC_IMPORT_PAYMENT_INSTRUMENT_ID) {
+  echo "Failed to find direct_debit_gc payment instrument.";
+  exit;
+}
 $gc_api = CRM_GoCardlessUtils::getApi(FALSE);
 $subscriptions = $gc_api->subscriptions()->list(['params' => [
-  'limit' => SUBSCRIPTIONS_LIMIT,
+  'limit' => GC_SUBSCRIPTIONS_LIMIT,
   'status' => 'active',
 ]]);
 print count($subscriptions->records) . " active subscriptions\n";
@@ -82,6 +91,7 @@ foreach ($subscriptions->records as $subscription) {
     foreach ($payments->records as $payment) {
       if ($payment->status == 'confirmed' || $payment->status == 'paid_out') {
         $payments_to_copy[] = [
+          'trxn_id'      => $payment->id,
           'receive_date' => $payment->charge_date,
           'total_amount' => $payment->amount/100,
         ];
@@ -117,7 +127,6 @@ foreach ($subscriptions->records as $subscription) {
         $_ += [
           'contact_id'             => $contact['id'],
           "payment_instrument_id"  => GC_IMPORT_PAYMENT_INSTRUMENT_ID,
-          //"trxn_id"              => '', // Think this should probably be set to something. xxx
           'currency'               => 'GBP',
           "financial_type_id"      => GC_IMPORT_FINANCIAL_TYPE_ID,
           'contribution_recur_id'  => $recur_id,
@@ -141,6 +150,7 @@ foreach ($subscriptions->records as $subscription) {
     }
   }
   else {
+    print "Already found: $subscription->id\n";
     //print json_encode($recur['values'][$recur['id']], JSON_PRETTY_PRINT);
   }
 }
