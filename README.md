@@ -187,20 +187,29 @@ following:
 
 The life-cycle would typically be:
 
-1. User interacts with CiviCRM forms to set up regular contribution. In CiviCRM
-   this results in:
+1. User interacts with a CiviCRM Contribution form to set up regular
+   contribution. On submitting the form the user is redirected to the GoCardless
+   website after the following records are set up in CiviCRM:
 
-     - a **pending** contribution with the receive date in the future.
-     - a **pending** recurring contribution with the start date in the future.
+     - a **pending** contribution
+     - a **pending** recurring contribution
 
+   Those records have receive and start date set (by core CiviCRM) to the date
+   and time the form was submitted (as you might expect). However, once the user
+   completes the page(s) on the GoCardless website they are redirected back to
+   your website which completes the set up. On completion, the receive date of
+   the contribution and the start date of the recurring contribution will have
+   been set to a date **in the future**. This is the date provided by GoCardless
+   itself and corresponds to the earliest date they can make a charge.
 
-   And at GoCardless this will have set up:
+   The completion process sets up the following at GoCardless:
 
      - a **customer**
      - a **mandate**
      - a **subscription** - the ID of this begins with `SB` and is stored in the
        CiviCRM recurring contribution transaction ID
      - a lot of scheduled **payments**
+
 
 2. GoCardless submits the charge for a payment to the customer's bank and
    eventually (seems to be 3 working days after submission) this is confirmed.
