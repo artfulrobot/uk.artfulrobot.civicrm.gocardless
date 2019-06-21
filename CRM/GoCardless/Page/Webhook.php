@@ -164,10 +164,29 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     $recur = $this->getContributionRecurFromSubscriptionId($payment->links->subscription);
 
     // Ensure that the recurring contribution record is set to In Progress.
-    civicrm_api3('ContributionRecur', 'create', [
-      'id' => $recur['id'],
-      'contribution_status_id' => 'In Progress',
-    ]);
+    // ...but only if it's currently Pending or Overdue.
+    // ...AND check that it has not been cancelled.
+    $contrib_recur_statuses = CRM_Contribute_BAO_ContributionRecur::buildOptions('contribution_status_id', 'validate');
+    if (in_array($contrib_recur_statuses[$recur['contribution_status_id']], ['Pending', 'Overdue'])) {
+      // It would be Pending if this is the first payment on a new mandate.
+      // It would be Overdue if the last payment failed.
+      //
+      // In these situations, having just received a successful payment
+      // (subject to any "late failures" yet to occur) then the recur record
+      // should be set to "In Progress".
+      //
+      // However we don't do this for other statuses (namely Cancelled, or
+      // Completed). A payment may come in on a Cancelled mandate, if your
+      // timing is unluckly, it does not mean the mandate is In Progress.
+      // See https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/54
+      //
+      civicrm_api3('ContributionRecur', 'create', [
+        'id'                     => $recur['id'],
+        'contribution_status_id' => 'In Progress',
+        'failure_count'          => 0, // Reset the failure count.
+      ]);
+    }
+
     // There's all sorts of other fields on recur - do we need to set them?
     // e.g. date of next expected payment, date of last update etc. @todo
 
