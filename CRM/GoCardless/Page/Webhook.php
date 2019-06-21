@@ -233,10 +233,12 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     $payment = $this->getAndCheckGoCardlessPayment($event, ['failed']);
     $recur = $this->getContributionRecurFromSubscriptionId($payment->links->subscription);
 
-    // Ensure that the recurring contribution record is set to In Progress.
+    // Ensure that the recurring contribution record is set to Overdue
+    // Nb. others (Stripe) set this to Failed.
     civicrm_api3('ContributionRecur', 'create', [
-      'id' => $recur['id'],
-      'contribution_status_id' => 'Overdue', // is this appropriate? @todo
+      'id'                     => $recur['id'],
+      'failure_count'          => ($recur['failure_count'] ?? 0) + 1,
+      'contribution_status_id' => 'Overdue',
     ]);
 
     // Prepare to update the contribution records.
@@ -257,8 +259,30 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       $contribution['id'] = $pending_contribution_id;
     }
     else {
-      // There is no pending contribution, find the original one.
-      $contribution['original_contribution_id'] = $this->getOriginalContributionId($recur);
+      // There is no pending contribution, but perhaps this is a late failure?
+      // Can we find a contribution with the same trxn_id?
+      $result = civicrm_api3('Contribution', 'get', [
+        'sequential'            => 1,
+        'trxn_id'               => $payment->id,
+        'contribution_recur_id' => $recur['id'],
+        'is_test'               => $this->test_mode ? 1 : 0,
+      ]);
+      if ($result['count'] >0) {
+        // Yes, there is one! We'll update it to failed.
+        $contribution['id'] = $result['values'][0]['id'];
+        // Include Late Failure in the notes.
+        $note = ($result['values'][0]['note'] ?? '');
+        if ($note) {
+          $note .= "\n";
+        }
+        $contribution['note'] = $note . "Late Failure";
+      }
+      else {
+        // There is no pending contribution, nor one that relates to this GC payment.
+        // So we'll be creating a new Contribution.
+        // For this we need to note the original_contribution_id, where possible.
+        $contribution['original_contribution_id'] = $this->getOriginalContributionId($recur);
+      }
     }
 
     // Make the changes.
@@ -315,7 +339,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     // has not changed since the webhook was fired, so we re-load it and test.
     $payment = $gc_api->payments()->get($event->links->payment);
     if (!in_array($payment->status, $expected_status)) {
-      // Payment status is no longer confirmed, ignore this webhook.
+      // Payment status is no longer as expected, ignore this webhook.
       throw new CRM_GoCardless_WebhookEventIgnoredException("Webhook out of date, expected status "
         . implode("' or '", $expected_status)
         . ", got '{$payment->status}'");
@@ -380,16 +404,16 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    */
   public function getOriginalContributionId($recur) {
     // See if there's a Completed contribution we can update. xxx ??? No contribs at all?
-    $incomplete_contribs = civicrm_api3('Contribution', 'get',[
-      'sequential' => 1,
-      'contribution_recur_id' => $recur['id'],
+    $contribs = civicrm_api3('Contribution', 'get',[
+      'sequential'             => 1,
+      'contribution_recur_id'  => $recur['id'],
       'contribution_status_id' => "Completed",
-      'is_test' => $this->test_mode ? 1 : 0,
-      'options' => ['sort' => 'receive_date', 'limit' => 1],
+      'is_test'                => $this->test_mode ? 1 : 0,
+      'options'                => ['sort' => 'receive_date', 'limit' => 1],
     ]);
-    if ($incomplete_contribs['count'] > 0) {
+    if ($contribs['count'] > 0) {
       // Found one (possibly more than one, edge case - ignore and take first).
-      return $incomplete_contribs['values'][0]['id'];
+      return $contribs['values'][0]['id'];
     }
   }
   /**

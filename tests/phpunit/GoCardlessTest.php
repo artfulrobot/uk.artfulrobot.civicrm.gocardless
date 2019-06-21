@@ -1151,6 +1151,78 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
   }
   /**
+   * Late Payments.
+   * See Issue 55
+   *
+   */
+  public function testWebhookPaymentFailedLate() {
+
+    $contact = civicrm_api3('Contact', 'create', array(
+        'sequential' => 1,
+        'contact_type' => "Individual",
+        'first_name' => "Wilma",
+        'last_name' => "Flintstone",
+    ));
+    $recur = civicrm_api3('ContributionRecur', 'create', array(
+          'sequential' => 1,
+          'contact_id' => $contact['id'],
+          'frequency_interval' => 1,
+          'financial_type_id' => 1, // Donation
+          'amount' => 1,
+          'frequency_unit' => "month",
+          'start_date' => "2016-10-01",
+          'is_test' => 1,
+          'contribution_status_id' => "Cancelled",
+          'trxn_id' => 'SUBSCRIPTION_ID',
+          'payment_processor_id' => $this->test_mode_payment_processor['id'],
+        ));
+
+    // Mock that we have had one completed payment.
+    $contrib = civicrm_api3('Contribution', 'create', array(
+        'sequential' => 1,
+        'total_amount' => 1,
+        'financial_type_id' => 1, // Donation
+        'contact_id' => $contact['id'],
+        'contribution_recur_id' => $recur['id'],
+        'contribution_status_id' => "Completed",
+        'receive_date' => '2016-10-01',
+        'is_test' => 1,
+        'trxn_id' => 'PAYMENT_ID',
+      ));
+
+    // Mock webhook input data.
+    $controller = new CRM_GoCardless_Page_Webhook();
+    $body = '{"events":[
+      {"id":"EV1","resource_type":"payments","action":"failed","links":{"payment":"PAYMENT_ID"}}
+      ]}';
+    $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
+
+    // Mock GC API.
+    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
+    $this->mockGoCardlessApiForTestPaymentProcessor($api_prophecy->reveal());
+    // First the webhook will load the payment, so mock this.
+    $payments_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
+    $api_prophecy->payments()->willReturn($payments_service->reveal());
+    $payments_service->get('PAYMENT_ID')
+      ->shouldBeCalled()
+      ->willReturn(json_decode('{
+        "id":"PAYMENT_ID",
+        "status":"failed",
+        "charge_date":"2016-10-02",
+        "amount":123,
+        "links":{"subscription":"SUBSCRIPTION_ID"}
+        }'));
+
+    // Now trigger webhook.
+    $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
+    $controller->processWebhookEvents(TRUE);
+
+    // Now check the changes have been made.
+    $result = civicrm_api3('Contribution', 'getsingle', ['id' => $contrib['id']]);
+    $this->assertEquals($this->contribution_status_map['Failed'], $result['contribution_status_id']);
+    $this->assertEquals('PAYMENT_ID', $result['trxn_id']);
+  }
+  /**
    * A payment confirmation webhook that is out of date.
    *
    * @expectedException CRM_GoCardless_WebhookEventIgnoredException
