@@ -51,12 +51,30 @@ function gocardless_civicrm_install() {
     return $result['values'][0];
   };
 
+  // We need a PaymentProcessorType, which in turn needs a Payment Instrument, which in turn needs a financial account.
+
+  // Find a "GoCardless Account" - we could have used the normally pre-existing
+  // Payment Processor Account, but actually it will be a separate account.
+  $financial_account = $get_or_create('FinancialAccount', [
+    'financial_account_type_id' => 'Asset',
+    'name' => 'GoCardless Account',
+    'description' => 'Funds held by GoCardless from which they will make pay outs to your account as per their policy.',
+  ], []);
+
+
   // We need a payment instrument known as direct_debit_gc.
   $payment_instrument = $get_or_create('OptionValue',
-    [ 'option_group_id' => "payment_instrument", 'name' => "direct_debit_gc", ],
-    [ 'label' => ts("GoCardless Direct Debit"), ]);
+    [
+      'option_group_id' => "payment_instrument",
+      'name' => "direct_debit_gc",
+    ],
+    [
+      'label' => ts("GoCardless Direct Debit"),
+      'financial_account_id' => $financial_account['id'],
+    ]);
   $payment_instrument_id = $payment_instrument['value'];
 
+  // Now create the PaymentProcessorType.
   $get_or_create('PaymentProcessorType',
     [
       'name' => 'GoCardless',
