@@ -23,11 +23,14 @@ class CRM_GoCardlessUtils
    *
    * There's a singleton pattern here for each of live/test.
    *
+   * @deprecated Please use the CRM_Core_Payment_GoCardless->getGoCardlessApi() method.
+   *
    * @param bool $test Sandbox or Live API?
    * @return \GoCardlessPro\Client
    */
   public static function getApi($test=FALSE)
   {
+    trigger_error("Calling CRM_GoCardlessUtils::getApi is deprecated. Instead you should load the CRM_Core_Payment_GoCardless payment processor object and call its getGoCardlessApi() method.", E_USER_DEPRECATED);
     if ($test && isset(static::$api_test)) {
       return static::$api_test;
     }
@@ -54,9 +57,12 @@ class CRM_GoCardlessUtils
   /**
    * Do a PaymentProcessor:getsingle for the GoCardless processor type.
    *
+   * @deprecated This pattern only works for sites that only have one GoCardless payment processor.
+   *
    * @param bool $test Whether to find a test processor or a live one.
    */
   public static function getPaymentProcessor($test=FALSE) {
+    trigger_error("Calling CRM_GoCardlessUtils::getPaymentProcessor is deprecated. Instead you should load the CRM_Core_Payment_GoCardless payment processor object using other CiviCRM native methods.", E_USER_DEPRECATED);
     // Find the credentials.
     $result = civicrm_api3('PaymentProcessor', 'getsingle',
       ['payment_processor_type_id' => "GoCardless", 'is_test' => (int)$test]);
@@ -95,6 +101,7 @@ class CRM_GoCardlessUtils
    * @return \GoCardlessPro\Resources\RedirectFlow
    */
   public static function getRedirectFlow($deets) {
+    trigger_error("Calling CRM_GoCardlessUtils::getRedirectFlow is deprecated. Instead you should load the CRM_Core_Payment_GoCardless payment processor object and call its getRedirectFlow() method.", E_USER_DEPRECATED);
 
     // We need test_mode but it's not part of the params we pass on.
     if (!isset($deets['test_mode'])) {
@@ -129,6 +136,7 @@ class CRM_GoCardlessUtils
    * - session_token string used in creating the flow with getRedirectFlow().
    * - redirect_flow_id
    * - description
+   * - payment_processor_id
    * - interval_unit yearly/monthly/weekly
    * - amount (in GBP, e.g. 10.50)
    * - installments (optional positive integer number of payments to take)
@@ -141,10 +149,10 @@ class CRM_GoCardlessUtils
   public static function completeRedirectFlowWithGoCardless($deets) {
     // Validate input.
     foreach (['redirect_flow_id', 'test_mode', 'session_token', 'description',
-      'amount', 'interval_unit',
+      'amount', 'interval_unit', 'payment_processor_id',
     ] as $_) {
       if (!isset($deets[$_])) {
-        throw new InvalidArgumentException("Missing $_ passed to CRM_GoCardlessUtils::getRedirectFlow.");
+        throw new InvalidArgumentException("Missing $_ passed to CRM_GoCardlessUtils::completeRedirectFlowWithGoCardless.");
       }
     }
 
@@ -175,8 +183,12 @@ class CRM_GoCardlessUtils
     }
 
     // 1. Complete the flow.
+
+    // We need the GC API, and for this we need the payment processor id.
+    $pp = Civi\Payment\System::singleton()->getById($deets['payment_processor_id']);
     // This creates a Customer, Customer Bank Account and Mandate at GC.
-    $gc_api = CRM_GoCardlessUtils::getApi($deets['test_mode']);
+    $gc_api = $pp->getGoCardlessApi();
+
     $redirect_flow = $gc_api->redirectFlows()->complete($deets['redirect_flow_id'], [
       "params" => ["session_token" => $deets['session_token']],
     ]);
@@ -342,4 +354,8 @@ class CRM_GoCardlessUtils
       CRM_Core_Session::setStatus("Sorry, there was a problem recording the details of your Direct Debit. Please call us.", 'Error', 'error');
     }
   }
+  /**
+   * Placeholder for sugar. Calling this will require this file and thereby the GC libraries.
+   */
+  public static function loadLibraries() {}
 }

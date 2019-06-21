@@ -14,6 +14,9 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
   /** @var bool TRUE if test mode.  */
   protected $test_mode;
 
+  /** @var Array of \GoCardlessPro\Client objects keyed by payment processor id.
+    */
+  protected static $gocardless_api;
   /**
    * Constructor
    *
@@ -21,7 +24,7 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
    * @param $paymentProcessor
    */
   function __construct($mode, &$paymentProcessor) {
-    $this->test_mode = ($mode == 'test');
+    $this->test_mode = ($mode === 'test');
     $this->_paymentProcessor = $paymentProcessor;
     // ? $this->_processorName    = ts('GoCardless Processor');
   }
@@ -108,12 +111,10 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
    */
   public function doTransferCheckoutWorker( &$params, $component ) {
 
-    $x=1;
-
     try {
       // Get a GoCardless redirect flow URL.
       $redirect_params = $this->getRedirectParametersFromParams($params, $component);
-      $redirect_flow = CRM_GoCardlessUtils::getRedirectFlow($redirect_params);
+      $redirect_flow = $this->getRedirectFlow($redirect_params);
 
       // Store some details on the session that we'll need when the user returns from GoCardless.
       // Key these by the redirect flow id just in case the user simultaneously
@@ -254,5 +255,79 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
       $redirect_params['prefilled_customer'] = $customer;
     }
     return $redirect_params;
+  }
+
+  /**
+   * Sets up a redirect flow with GoCardless.
+   *
+   * @param Array $deets has the following keys:
+   * - description          string what is the person signing up to/buying?
+   * - session_token        string required by GoCardless to verify that the completion happens by the same user.
+   * - success_redirect_url string URL on our site that GoCardless will issue a redirect to on success.
+   *
+   * @return \GoCardlessPro\Resources\RedirectFlow
+   */
+  public function getRedirectFlow($deets) {
+
+    foreach (['session_token', 'success_redirect_url', 'description'] as $_) {
+      if (empty($deets[$_])) {
+        throw new InvalidArgumentException("Missing $_ passed to CRM_Core_Payment_GoCardless::getRedirectFlow.");
+      }
+      $params[$_] = $deets[$_];
+    }
+
+    // Copy optional parameters, if we have them.
+    if (!empty($deets['prefilled_customer'])) {
+      $params['prefilled_customer'] = $deets['prefilled_customer'];
+    }
+
+    $gc_api = $this->getGoCardlessApi();
+    /** @var \GoCardlessPro\Resources\RedirectFlow $redirect_flow */
+    $redirect_flow = $gc_api->redirectFlows()->create(["params" => $params]);
+
+    return $redirect_flow;
+  }
+  /**
+   * Returns a GoCardless API object for this payment processor.
+   *
+   * These are cached not because they are expensive to create, but to allow
+   * testing.  Nb. this may be injected by setGoCardlessApi() for testing.
+   *
+   * @return \GoCardlessPro\Client
+   */
+  public function getGoCardlessApi() {
+    $pp = $this->getPaymentProcessor();
+    if (!isset(static::$gocardless_api[$pp['id']])) {
+      $access_token = $pp['user_name'];
+      CRM_GoCardlessUtils::loadLibraries();
+      static::$gocardless_api[$pp['id']] = new \GoCardlessPro\Client(array(
+          'access_token' => $access_token,
+          'environment'  => $pp['is_test'] ? \GoCardlessPro\Environment::SANDBOX : \GoCardlessPro\Environment::LIVE
+          ));
+    }
+    return static::$gocardless_api[$pp['id']];
+  }
+
+  /**
+   * Returns a GoCardless API object for this payment processor.
+   *
+   * @param \GoCardlessPro\Client|null $mocked_api pass NULL to remove cache.
+   */
+  public function setGoCardlessApi($mocked_api) {
+    $pp = $this->getPaymentProcessor();
+    if ($mocked_api === NULL) {
+      unset(static::$gocardless_api[$pp['id']]);
+    }
+    else {
+      static::$gocardless_api[$pp['id']] = $mocked_api;
+    }
+  }
+
+  /**
+   * Shorthand method to determine if this processor is a test one.
+   */
+  public function isTestMode() {
+    $pp = $this->getPaymentProcessor();
+    return $pp['is_test'];
   }
 }

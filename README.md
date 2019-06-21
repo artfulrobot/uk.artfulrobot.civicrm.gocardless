@@ -264,6 +264,33 @@ to build a tool for their own needs from that.
 
 ## Change log
 
+- 1.8
+
+   - Major change, possibly breaking: multiple GoCardless payment processors now
+     allowed. Previous versions had assumed a single GoCardless payment
+     processor, and that's fine for most organisations. However some
+     organisations have cause to use multiple GoCardless accounts with one
+     CiviCRM instance.
+
+     **This change should hopefully be invisible to you and existing sites should
+     continue to work as before**, with the **possible exception** of anyone who
+     has done a custom (non-CiviCRM Contribution Page) donation form and used
+     the GoCardless classes directly. If you have done this then you need to
+     adjust your code, removing calls to:
+
+     1. `CRM_GoCardlessUtils::getApi`
+     2. `CRM_GoCardlessUtils::getRedirectFlow`
+     3. `CRM_GoCardlessUtils::getPaymentProcessor`
+
+     In cases (1), (2), you should now be looking to find an appropriate
+     `CRM_Core_Payment_GoCardless` payment processor object and call its methods
+     which have the same names. In case (3) please just use CiviCRM's native
+     methods for finding a payment processor.
+
+     Currently these methods are left in but will trigger `E_USER_DEPRECATED`
+     errors to help you find use.
+
+
 - 1.7
 
    - Fixed issue in certain use cases that resulted in the First Name field not
@@ -280,7 +307,8 @@ to build a tool for their own needs from that.
      organisations so calling this release stable.
 
    - GoCardless forms are now pre-filled with address, email, phone numbers if
-     you have collected those details before passing on to GoCardless.
+     you have collected those details before passing on to GoCardless. Thanks to
+     [Vitilgo Society](https://vitiligosociety.org.uk/) for funding this work.
 
    - Updated GoCardlessPro library to 1.7.0 just to keep up-to-date.
 
