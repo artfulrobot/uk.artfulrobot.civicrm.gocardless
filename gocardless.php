@@ -296,3 +296,29 @@ function gocardless_civicrm_validateForm($formName, &$fields, &$files, &$form, &
     }
   }
 }
+/**
+ * Implementation of hook_civicrm_check
+ *
+ * Add a check to the status page/System.check that the payment instrument has a financial account.
+ * See https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/51
+ */
+function gocardless_civicrm_check(&$messages) {
+  $result = civicrm_api3('OptionValue', 'getsingle', [
+      'option_group_id' => "payment_instrument",
+      'name' => "direct_debit_gc",
+  ]);
+  $financial_account_id = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($result['id'], NULL, 'civicrm_option_value');
+
+  if (empty($financial_account_id)) {
+    $messages[] = new CRM_Utils_Check_Message(
+      'gocardless_missing_financial_account',
+      ts('Please visit Administer » CiviContribute » Payment Methods and edit '
+          . 'the entry called GoCardless Direct Debit. Select a suitable Financial Account '
+          . 'and press Save. Without this you may see errors like "No Payments found for '
+          . 'this contribution record".'),
+      ts('Missing Financial Account for GoCardless'),
+      \Psr\Log\LogLevel::WARNING,
+      'fa-flag'
+    );
+  }
+}
