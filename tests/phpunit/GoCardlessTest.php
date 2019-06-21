@@ -695,7 +695,8 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
           'frequency_unit' => "year",
           'start_date' => $setup_date,
           'is_test' => 1,
-          'contribution_status_id' => "In Progress",
+          //'contribution_status_id' => "In Progress",
+          'contribution_status_id' => "Pending",
           'trxn_id' => 'SUBSCRIPTION_ID'
         ));
     $contrib = civicrm_api3('Contribution', 'create', array(
@@ -770,6 +771,10 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     // end_date updated
     $this->assertEquals((new DateTimeImmutable($today))->modify("+1 year")->modify("-1 day")->format("Y-m-d"), $result['end_date']);
 
+    // Check the recur record has been updated.
+    $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $result['contribution_recur_id']]);
+    $contrib_recur_statuses = CRM_Contribute_BAO_ContributionRecur::buildOptions('contribution_status_id', 'validate');
+    $this->assertEquals($contrib_recur_statuses[$result['contribution_status_id']], 'In Progress', 'Expected the contrib recur record to have status In Progress after first successful contribution received.');
   }
   /**
    * A payment confirmation should create a new contribution.
@@ -886,6 +891,114 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $end_dt = new DateTimeImmutable($membership['end_date']);
     $this->assertEquals($end_dt->modify("+12 months")->format("Y-m-d"), $result['end_date']);
 
+  }
+  /**
+   * A payment confirmation should not change a recur status from Cancelled to In Progress.
+   * See Issue 54
+   *
+   */
+  public function testWebhookPaymentConfirmationDoesNotMarkCancelledAsInProgress() {
+
+    $contact = civicrm_api3('Contact', 'create', array(
+        'sequential' => 1,
+        'contact_type' => "Individual",
+        'first_name' => "Wilma",
+        'last_name' => "Flintstone",
+    ));
+    $recur = civicrm_api3('ContributionRecur', 'create', array(
+          'sequential' => 1,
+          'contact_id' => $contact['id'],
+          'frequency_interval' => 1,
+          'financial_type_id' => 1, // Donation
+          'amount' => 1,
+          'frequency_unit' => "month",
+          'start_date' => "2016-10-01",
+          'is_test' => 1,
+          'contribution_status_id' => "Cancelled",
+          'trxn_id' => 'SUBSCRIPTION_ID',
+          'payment_processor_id' => $this->test_mode_payment_processor['id'],
+        ));
+
+    // Mock that we have had one completed payment.
+    $contrib = civicrm_api3('Contribution', 'create', array(
+        'sequential' => 1,
+        'total_amount' => 1,
+        'financial_type_id' => 1, // Donation
+        'contact_id' => $contact['id'],
+        'contribution_recur_id' => $recur['id'],
+        'contribution_status_id' => "Completed",
+        'receive_date' => '2016-10-01',
+        'is_test' => 1,
+        'trxn_id' => 'PAYMENT_ID',
+      ));
+
+    // Mock existing membership
+    $dt = new DateTimeImmutable();
+    $membership = civicrm_api3('Membership', 'create', [
+        'sequential' => 1,
+        'membership_type_id' => 'MyMembershipType',
+        'contact_id' => $contact['id'],
+        'contribution_recur_id' => $recur['id'],
+        'status_id' => "Current",
+        'skipStatusCal' => 1, // Needed to override default status calculation
+        'start_date' => $dt->modify("-11 months")->format("Y-m-d"),
+        'join_date' => $dt->modify("-23 months")->format("Y-m-d"),
+    ]);
+    // The dates returned by create and get are formatted differently!
+    // So do a get here to make later comparison easier
+    $membership = civicrm_api3('Membership', 'getsingle', ['id' => $membership['id']]);
+    $membershipPayment = civicrm_api3('MembershipPayment', 'create', [
+        'sequential' => 1,
+        'membership_id' => $membership['id'],
+        'contribution_id' => $contrib['id'],
+    ]);
+
+    // Mock webhook input data.
+    $controller = new CRM_GoCardless_Page_Webhook();
+    $body = '{"events":[
+      {"id":"EV1","resource_type":"payments","action":"confirmed","links":{"payment":"PAYMENT_ID_2"}}
+      ]}';
+    $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
+
+    // Mock GC API.
+    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
+    $this->mockGoCardlessApiForTestPaymentProcessor($api_prophecy->reveal());
+    // First the webhook will load the payment, so mock this.
+    $payments_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
+    $api_prophecy->payments()->willReturn($payments_service->reveal());
+    $payments_service->get('PAYMENT_ID_2')
+      ->shouldBeCalled()
+      ->willReturn(json_decode('{
+        "id":"PAYMENT_ID_2",
+        "status":"confirmed",
+        "charge_date":"2016-10-02",
+        "amount":123,
+        "links":{"subscription":"SUBSCRIPTION_ID"}
+        }'));
+
+    // Now trigger webhook.
+    $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
+    $controller->processWebhookEvents(TRUE);
+
+    // Now check the changes have been made.
+    $result = civicrm_api3('Contribution', 'get', [
+      'contribution_recur_id' => $recur['id'],
+      'is_test' => 1,
+      ]);
+    // Should be 2 records now.
+    $this->assertEquals(2, $result['count']);
+    // Ensure we have the first one.
+    $this->assertArrayHasKey($contrib['id'], $result['values']);
+    // Now we can get rid of it.
+    unset($result['values'][$contrib['id']]);
+    // And the remaining one should be our new one.
+    $contrib = reset($result['values']);
+
+    // Check the recur status is still cancelled.
+    $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $contrib['contribution_recur_id']]);
+    $contrib_recur_statuses = CRM_Contribute_BAO_ContributionRecur::buildOptions('contribution_status_id', 'validate');
+    $this->assertEquals($contrib_recur_statuses[$result['contribution_status_id']], 'Cancelled',
+      'Expected the contrib recur record to STILL have status Cancelled after a successful contribution received.');
   }
   /**
    * A payment failed should update the initial Pending Contribution.
