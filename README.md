@@ -284,12 +284,16 @@ to build a tool for their own needs from that.
 
      In cases (1), (2), you should now be looking to find an appropriate
      `CRM_Core_Payment_GoCardless` payment processor object (e.g. use
-         // This assumes you only have one active GoCardless processor.
-         $payment_processor_array = civicrm_api3(
-             'PaymentProcessor',
-             'getsingle',
-             ['payment_processor_type_id' => 'GoCardless', 'is_active' => 1]);
-         Civi\Payment\System::singleton()->getByProcessor($payment_processor_array);
+     ```php
+     // This assumes you only have one active GoCardless processor.
+     $processor_config = civicrm_api3(
+         'PaymentProcessor',
+         'getsingle',
+         ['payment_processor_type_id' => 'GoCardless', 'is_active' => 1]);
+     $processor = Civi\Payment\System::singleton()->getByProcessor($processor_config);
+     $redirect_flow = $processor->getRedirectFlow(...);
+     ```
+     
      ) and call its methods
      which have the same names. In case (3) please just use CiviCRM's native
      methods for finding a payment processor.
