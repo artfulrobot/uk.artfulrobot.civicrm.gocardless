@@ -379,7 +379,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    * @return null|int Either the contribution id of the original contribution, or NULL
    */
   public function getOriginalContributionId($recur) {
-    // See if there's a Pending contribution we can update. xxx ??? No contribs at all?
+    // See if there's a Completed contribution we can update. xxx ??? No contribs at all?
     $incomplete_contribs = civicrm_api3('Contribution', 'get',[
       'sequential' => 1,
       'contribution_recur_id' => $recur['id'],

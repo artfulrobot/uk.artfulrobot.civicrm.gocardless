@@ -1,0 +1,51 @@
+digraph A {
+  graph [fontname="Lato"]
+  node [fontname="Lato", shape=rectangle]
+  edge [fontname="Lato"]
+
+
+  subgraph cluster_a {
+    start [label="Lifecycle of first Contribution", style="filled", fillcolor="#ffee88"]
+    statusPending [label="Pending" color="#0284ea", fontcolor="#0284ea"]
+    statusComplete [label="Complete" color="#0284ea", fontcolor="#0284ea"]
+    statusCancelled [label="Cancelled" color="#0284ea", fontcolor="#0284ea"]
+    statusFailed [label="Failed" color="#0284ea", fontcolor="#0284ea"]
+
+    start -> statusPending [label="User starts flow"]
+    statusPending -> statusComplete [label="Payment Confirmed"]
+    statusComplete -> statusFailed [label="Late Failure"]
+    statusPending -> statusCancelled [label="Cancelled"]
+    statusPending -> statusFailed [label="Failed"]
+  }
+
+  subgraph cluster_c {
+    startNew [label="Lifecycle of new Contributions", style="filled", fillcolor="#ffee88"]
+    statusNewComplete [label="Complete" color="#0284ea", fontcolor="#0284ea"]
+    statusNewCancelled [label="Cancelled" color="#0284ea", fontcolor="#0284ea"]
+    statusNewFailed [label="Failed" color="#0284ea", fontcolor="#0284ea"]
+
+    startNew -> statusNewComplete [label="Confirmed"]
+    startNew -> statusNewFailed [label="Failed"]
+    startNew -> statusNewCancelled [label="Cancelled"]
+    statusNewComplete -> statusNewFailed [label="Late Failure"]
+  }
+
+  subgraph cluster_b {
+    start2 [label="Lifecycyle of a Recurring Contribution", style="filled", fillcolor="#ffee88"]
+    statusCrPending [label="Pending" color="#0284ea", fontcolor="#0284ea"]
+    statusCrIP [label="In Progress" color="#0284ea", fontcolor="#0284ea"]
+    statusCrCancelled [label="Cancelled" color="#0284ea", fontcolor="#0284ea"]
+    statusCrFailed [label="Failed" color="#0284ea", fontcolor="#0284ea"]
+    statusCrOverdue [label="Overdue" color="#0284ea", fontcolor="#0284ea"]
+    statusCrCompleted [label="Completed" color="#0284ea", fontcolor="#0284ea"]
+
+    start2 -> statusCrPending [label="User starts flow"]
+    statusCrPending -> statusCrIP [label="Payment\lConfirmed"]
+    statusCrIP -> statusCrOverdue [label="Payment\lfailed"]
+    statusCrOverdue -> statusCrIP [label="Payment\lConfirmed"]
+    statusCrIP -> statusCrCancelled [label="Mandate/subscription\lcancelled"]
+    statusCrIP -> statusCrCompleted [label="Subscription\l Finished" ]
+    statusCrPending -> statusCrFailed [label="User\labandons\lprocess"]
+
+  }
+}

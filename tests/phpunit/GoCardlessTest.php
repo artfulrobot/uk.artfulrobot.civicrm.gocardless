@@ -23,6 +23,8 @@ use \Prophecy\Argument;
 class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInterface, HookInterface, TransactionalInterface {
 
   protected $prophet;
+  /** @var array Holds a map of name -> value for contribution statuses */
+  protected $contribution_status_map;
   /** Holds test mode payment processor.
    */
   public $test_mode_payment_processor;
@@ -72,15 +74,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     ));
 
     // Map contribution statuses to values.
-    // @todo I think there's some nicer way to deal with this??
-    $result = civicrm_api3('OptionValue', 'get', array(
-      'sequential' => 1,
-      'return' => array("value", "name"),
-      'option_group_id' => "contribution_status",
-    ));
-    foreach($result['values'] as $opt) {
-      $this->contribution_status_map[$opt['name']] = $opt['value'];
-    }
+    $this->contribution_status_map = array_flip(CRM_Contribute_BAO_ContributionRecur::buildOptions('contribution_status_id', 'validate'));
 
     // Create a membership type
     $result = civicrm_api3('MembershipType', 'create', [
@@ -773,7 +767,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Check the recur record has been updated.
     $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $result['contribution_recur_id']]);
-    $contrib_recur_statuses = CRM_Contribute_BAO_ContributionRecur::buildOptions('contribution_status_id', 'validate');
+    $contrib_recur_statuses = array_flip($this->contribution_status_map);
     $this->assertEquals($contrib_recur_statuses[$result['contribution_status_id']], 'In Progress', 'Expected the contrib recur record to have status In Progress after first successful contribution received.');
   }
   /**
@@ -996,7 +990,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Check the recur status is still cancelled.
     $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $contrib['contribution_recur_id']]);
-    $contrib_recur_statuses = CRM_Contribute_BAO_ContributionRecur::buildOptions('contribution_status_id', 'validate');
+    $contrib_recur_statuses = array_flip($this->contribution_status_map);
     $this->assertEquals($contrib_recur_statuses[$result['contribution_status_id']], 'Cancelled',
       'Expected the contrib recur record to STILL have status Cancelled after a successful contribution received.');
   }
@@ -1400,6 +1394,9 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $this->assertEquals('SUBSCRIPTION_ID', $contrib['trxn_id']);
     $this->assertEquals($this->contribution_status_map['Completed'], $contrib['contribution_status_id']);
 
+  }
+  public function testAbandonedStatusExists() {
+    $this->assertArrayHasKey('Abandoned', $this->contribution_status_map);
   }
   /**
    * Return a fake GoCardless payment processor.

@@ -4,7 +4,16 @@ ini_set('memory_limit', '2G');
 ini_set('safe_mode', 0);
 eval(cv('php:boot --level=classloader', 'phpcode'));
 
+// gocardless: We need to add in our vendor dir
 require_once(dirname(dirname(__DIR__)) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php');
+// Allow autoloading of PHPUnit helper classes in this extension.
+$loader = new \Composer\Autoload\ClassLoader();
+$loader->add('CRM_', __DIR__);
+$loader->add('Civi\\', __DIR__);
+$loader->add('api_', __DIR__);
+$loader->add('api\\', __DIR__);
+$loader->register();
+
 /**
  * Call the "cv" command.
  *
@@ -22,6 +31,11 @@ function cv($cmd, $decode = 'json') {
   $descriptorSpec = array(0 => array("pipe", "r"), 1 => array("pipe", "w"), 2 => STDERR);
   $oldOutput = getenv('CV_OUTPUT');
   putenv("CV_OUTPUT=json");
+
+  // Execute `cv` in the original folder. This is a work-around for
+  // phpunit/codeception, which seem to manipulate PWD.
+  $cmd = sprintf('cd %s; %s', escapeshellarg(getenv('PWD')), $cmd);
+
   $process = proc_open($cmd, $descriptorSpec, $pipes, __DIR__);
   putenv("CV_OUTPUT=$oldOutput");
   fclose($pipes[0]);

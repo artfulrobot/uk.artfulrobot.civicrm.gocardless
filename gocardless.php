@@ -32,68 +32,6 @@ function gocardless_civicrm_xmlMenu(&$files) {
  */
 function gocardless_civicrm_install() {
   _gocardless_civix_civicrm_install();
-
-  /**
-   * Helper function for creating data structures.
-   *
-   * @param string $entity - name of the API entity.
-   * @param Array $params_min parameters to use for search.
-   * @param Array $params_extra these plus $params_min are used if a create call
-   *              is needed.
-   */
-  $get_or_create = function ($entity, $params_min, $params_extra) {
-    $params_min += ['sequential' => 1];
-    $result = civicrm_api3($entity, 'get', $params_min);
-    if (!$result['count']) {
-      // Couldn't find it, create it now.
-      $result = civicrm_api3($entity, 'create', $params_extra + $params_min);
-    }
-    return $result['values'][0];
-  };
-
-  // We need a PaymentProcessorType, which in turn needs a Payment Instrument, which in turn needs a financial account.
-
-  // Find a "GoCardless Account" - we could have used the normally pre-existing
-  // Payment Processor Account, but actually it will be a separate account.
-  $financial_account = $get_or_create('FinancialAccount', [
-    'financial_account_type_id' => 'Asset',
-    'name' => 'GoCardless Account',
-    'description' => 'Funds held by GoCardless from which they will make pay outs to your account as per their policy.',
-  ], []);
-
-
-  // We need a payment instrument known as direct_debit_gc.
-  $payment_instrument = $get_or_create('OptionValue',
-    [
-      'option_group_id' => "payment_instrument",
-      'name' => "direct_debit_gc",
-    ],
-    [
-      'label' => ts("GoCardless Direct Debit"),
-      'financial_account_id' => $financial_account['id'],
-    ]);
-  $payment_instrument_id = $payment_instrument['value'];
-
-  // Now create the PaymentProcessorType.
-  $get_or_create('PaymentProcessorType',
-    [
-      'name' => 'GoCardless',
-      'title' => 'GoCardless',
-      'class_name' => 'Payment_GoCardless',
-      'billing_mode' => 4,
-      'is_recur' => 1,
-    ],
-    [
-      'is_active' => 1,
-      'is_default' => 0,
-      'user_name_label' => 'API Access Token',
-      'signature_label' => 'Webhook Secret',
-      'url_api_default' => 'https://api.gocardless.com/',
-      'url_api_test_default' => 'https://api-sandbox.gocardless.com/',
-      'billing_mode' => 4,
-      'is_recur' => 1,
-      'payment_type' => $payment_instrument_id,
-    ]);
 }
 
 /**
