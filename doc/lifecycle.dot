@@ -18,7 +18,7 @@ digraph A {
     start -> statusPending [label="User starts flow", color="#22b022", fontcolor="#22b022"]
     statusPending -> statusComplete [label="Payment\lConfirmed", color="#22b022", fontcolor="#22b022"]
     statusComplete -> statusRefunded [label="Late\lFailure", color="#b02222", fontcolor="#b02222"]
-    statusPending -> statusCancelled [label="Cancelled", color="#b02222", fontcolor="#b02222"]
+    statusPending -> statusCancelled [label="Cancelled\lor\lAbandoned\lmandate", color="#b02222", fontcolor="#b02222"]
     statusPending -> statusFailed [label="Failed", color="#b02222", fontcolor="#b02222"]
   }
 
