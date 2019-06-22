@@ -23,6 +23,9 @@ class api_v3_Job_GocardlessfailabandonedTest extends \PHPUnit_Framework_TestCase
   /** @var int contrib recur id */
   protected $contribution_recur_id;
 
+  /** @var int contrib id */
+  protected $contribution_id;
+
   /**
    * Civi\Test has many helpers, like install(), uninstall(), sql(), and sqlFile().
    * See: https://docs.civicrm.org/dev/en/latest/testing/phpunit/#civitest
@@ -106,6 +109,20 @@ class api_v3_Job_GocardlessfailabandonedTest extends \PHPUnit_Framework_TestCase
       'payment_processor_id'   => $this->test_mode_payment_processor['id'],
     ]);
     $this->contribution_recur_id = $result['id'];
+
+    // Create the pending contribution.
+    $result = civicrm_api3('Contribution', 'create', [
+      'sequential'             => 1,
+      'contact_id'             => $this->contact_id,
+      'financial_type_id'      => 1, // Donation
+      'total_amount'           => 1,
+      'contribution_recur_id'  => $this->contribution_recur_id,
+      'amount'                 => 1,
+      'receive_date'           => "2019-06-01",
+      'is_test'                => 1,
+      'contribution_status_id' => "Pending",
+    ]);
+    $this->contribution_id = $result['id'];
   }
 
   /**
@@ -128,6 +145,7 @@ class api_v3_Job_GocardlessfailabandonedTest extends \PHPUnit_Framework_TestCase
 
     // Check that the thing is now Failed.
     $this->assertCrStatus('Failed', 'Should have set CR to Failed');
+    $this->assertCStatus('Cancelled', 'Should have cancelled the Contribution');
   }
   /**
    * Test new ones are not.
@@ -141,6 +159,7 @@ class api_v3_Job_GocardlessfailabandonedTest extends \PHPUnit_Framework_TestCase
 
     // Check that the thing is still Pending
     $this->assertCrStatus('Pending', 'Should have left a recent record alone');
+    $this->assertCStatus('Pending', 'Should have left the Contribution alone');
   }
   /**
    * Test that it does not touch things belonging to other payment processors.
@@ -161,6 +180,7 @@ class api_v3_Job_GocardlessfailabandonedTest extends \PHPUnit_Framework_TestCase
 
     // Check that the thing is still Pending
     $this->assertCrStatus('Pending', 'Should have left a recent record alone');
+    $this->assertCStatus('Pending', 'Should have left the Contribution alone');
   }
   /**
    * Test that it does not touch things belonging to other payment processors.
@@ -182,12 +202,18 @@ class api_v3_Job_GocardlessfailabandonedTest extends \PHPUnit_Framework_TestCase
 
       $result = civicrm_api3('Job', 'Gocardlessfailabandoned');
       $this->assertEquals(['contribution_recur_ids' => []], $result['values'], "Expected it to not affect '$words' contribution statuses");
+      $this->assertCStatus('Pending', 'Should have left the Contribution alone');
     }
 
   }
   protected function assertCrStatus($status, $message=NULL) {
     $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $this->contribution_recur_id]);
     $this->assertEquals($this->contribution_status_map[$status], $result['contribution_status_id'], $message);
+  }
+  protected function assertCStatus($status, $message=NULL) {
+    $result = civicrm_api3('Contribution', 'getsingle', ['id' => $this->contribution_id]);
+    $sm = array_flip($this->contribution_status_map);
+    $this->assertEquals($status, $sm[$result['contribution_status_id']], $message);
   }
   /**
    * SQL to update modified date.

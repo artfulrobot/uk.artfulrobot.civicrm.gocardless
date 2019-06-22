@@ -44,17 +44,37 @@ function civicrm_api3_job_Gocardlessfailabandoned($params) {
 
     $old_crs = civicrm_api3('ContributionRecur', 'get', [
       'payment_processor_id'   => ['IN' => $payment_processor_ids],
-      'contribution_status_id' => "Pending",
+      'contribution_status_id' => 'Pending',
       'modified_date'          => ['<' => date('Y-m-d H:i:s', $too_old)],
     ]);
 
     if ($old_crs['count'] > 0) {
-      foreach (array_keys($old_crs['values']) as $contribution_recur_id) {
+      foreach ($old_crs['values'] as $contribution_recur_id=>$contribution_recur) {
+
+        // Mark the ContributionRecur record as Failed
         civicrm_api3('ContributionRecur', 'create', [
           'contribution_status_id' => 'Failed',
           'id'                     => $contribution_recur_id,
         ]);
         $returnValues['contribution_recur_ids'][] = $contribution_recur_id;
+
+        // Find the pending payment and mark that as Cancelled.
+        $contributions = civicrm_api3('Contribution', 'get', [
+          'sequential'             => 1,
+          'contribution_recur_id'  => $contribution_recur_id,
+          'contribution_status_id' => 'Pending',
+          'contact_id'             => $contribution_recur['contact_id'],
+          'is_test'                => $contribution_recur['is_test'],
+        ]);
+        if ($contributions['count'] == 1) {
+          // We only expect one.
+          civicrm_api3('Contribution', 'create', [
+            'id'                     => $contributions['values'][0]['id'],
+            'contact_id'             => $contribution_recur['contact_id'],
+            'contribution_status_id' => 'Cancelled',
+            'note'                   => 'Mandate setup abandoned or failed.',
+          ]);
+        }
       }
     }
   }
