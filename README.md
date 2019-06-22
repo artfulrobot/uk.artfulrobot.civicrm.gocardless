@@ -266,6 +266,10 @@ to build a tool for their own needs from that.
 
 - 1.8
 
+   - Now with pictures showing the lifecycle of Contribution and
+     ContributionRecur records.  
+     ![Lifecycle diagrams](doc/lifecycle.svg)
+
    - Major change, possibly breaking: multiple GoCardless payment processors now
      allowed. Previous versions had assumed a single GoCardless payment
      processor, and that's fine for most organisations. However some
@@ -301,6 +305,22 @@ to build a tool for their own needs from that.
      Currently these methods are left in but will trigger `E_USER_DEPRECATED`
      errors to help you find use.
 
+
+   - Now handles "Late Failures"
+
+     With BACS (and SEPA, although that's not yet suppoorted here) payments can
+     apparently be "Confirmed" one day, then next day they can still fail. This
+     is just to keep you on your toes.
+
+     It's called [late failure](https://support.gocardless.com/hc/en-gb/articles/360001467265-Payment-failures).
+
+     Until v1.8 we didn't know about late failures which would result in
+     'Completed' contributions being recorded which had actually failed the next
+     day.
+
+     This new version of the extension handles late failures by changing the
+     Contribution status to Refunded. Note that CiviCRM will not let us change a
+     Completed Contribution to Failed, which is why it's processed as a refund.
 
 - 1.7
 

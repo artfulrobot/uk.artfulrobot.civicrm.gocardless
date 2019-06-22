@@ -1219,7 +1219,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Now check the changes have been made.
     $result = civicrm_api3('Contribution', 'getsingle', ['id' => $contrib['id']]);
-    $this->assertEquals($this->contribution_status_map['Failed'], $result['contribution_status_id']);
+    $this->assertEquals($this->contribution_status_map['Refunded'], $result['contribution_status_id']);
     $this->assertEquals('PAYMENT_ID', $result['trxn_id']);
   }
   /**

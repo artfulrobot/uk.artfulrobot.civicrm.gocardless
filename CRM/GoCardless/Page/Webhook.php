@@ -268,8 +268,13 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
         'is_test'               => $this->test_mode ? 1 : 0,
       ]);
       if ($result['count'] >0) {
-        // Yes, there is one! We'll update it to failed.
+        // Yes, there is one! We'll update it to refunded.
         $contribution['id'] = $result['values'][0]['id'];
+
+        // CiviCRM will not let us change from Completed to Failed.
+        // So we have to use Refunded.
+        $contribution['contribution_status_id'] = 'Refunded';
+
         // Include Late Failure in the notes.
         $note = ($result['values'][0]['note'] ?? '');
         if ($note) {
