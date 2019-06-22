@@ -264,88 +264,105 @@ to build a tool for their own needs from that.
 
 ## Change log
 
-- 1.8
+### 1.8 Big changes
 
-   - Now with pictures showing the lifecycle of Contribution and
-     ContributionRecur records.  
-     ![Lifecycle diagrams](doc/lifecycle.svg)
+- **Now with pictures** showing the lifecycle of Contribution and
+  ContributionRecur records.  
+  ![Lifecycle diagrams](doc/lifecycle.svg)
 
-   - Major change, possibly breaking: multiple GoCardless payment processors now
-     allowed. Previous versions had assumed a single GoCardless payment
-     processor, and that's fine for most organisations. However some
-     organisations have cause to use multiple GoCardless accounts with one
-     CiviCRM instance.
+- **Major change, possibly breaking**: multiple GoCardless payment processors
+  now allowed. Previous versions had assumed a single GoCardless payment
+  processor, and that's fine for most organisations. However some organisations
+  have cause to use multiple GoCardless accounts with one CiviCRM instance.
 
-     **This change should hopefully be invisible to you and existing sites should
-     continue to work as before**, with the **possible exception** of anyone who
-     has done a custom (non-CiviCRM Contribution Page) donation form and used
-     the GoCardless classes directly. If you have done this then you need to
-     adjust your code, removing calls to:
+  **This change should hopefully be invisible to you and existing sites should
+  continue to work as before**, with the **possible exception** of anyone who
+  has done a custom (non-CiviCRM Contribution Page) donation form and used
+  the GoCardless classes directly. If you have done this then you need to
+  adjust your code, removing calls to:
 
-     1. `CRM_GoCardlessUtils::getApi`
-     2. `CRM_GoCardlessUtils::getRedirectFlow`
-     3. `CRM_GoCardlessUtils::getPaymentProcessor`
+  1. `CRM_GoCardlessUtils::getApi`
+  2. `CRM_GoCardlessUtils::getRedirectFlow`
+  3. `CRM_GoCardlessUtils::getPaymentProcessor`
 
-     In cases (1), (2), you should now be looking to find an appropriate
-     `CRM_Core_Payment_GoCardless` payment processor object (e.g. use
-     ```php
-     // This assumes you only have one active GoCardless processor.
-     $processor_config = civicrm_api3(
-         'PaymentProcessor',
-         'getsingle',
-         ['payment_processor_type_id' => 'GoCardless', 'is_active' => 1]);
-     $processor = Civi\Payment\System::singleton()->getByProcessor($processor_config);
-     $redirect_flow = $processor->getRedirectFlow(...);
-     ```
-     
-     ) and call its methods
-     which have the same names. In case (3) please just use CiviCRM's native
-     methods for finding a payment processor.
+  In cases (1), (2), you should now be looking to find an appropriate
+  `CRM_Core_Payment_GoCardless` payment processor object (e.g. use
+  ```php
+  // This assumes you only have one active GoCardless processor.
+  $processor_config = civicrm_api3(
+      'PaymentProcessor',
+      'getsingle',
+      ['payment_processor_type_id' => 'GoCardless', 'is_active' => 1]);
+  $processor = Civi\Payment\System::singleton()->getByProcessor($processor_config);
+  $redirect_flow = $processor->getRedirectFlow(...);
+  ```
 
-     Currently these methods are left in but will trigger `E_USER_DEPRECATED`
-     errors to help you find use.
+  ) and call its methods
+  which have the same names. In case (3) please just use CiviCRM's native
+  methods for finding a payment processor.
 
-
-   - Now handles "Late Failures"
-
-     With BACS (and SEPA, although that's not yet suppoorted here) payments can
-     apparently be "Confirmed" one day, then next day they can still fail. This
-     is just to keep you on your toes.
-
-     It's called [late failure](https://support.gocardless.com/hc/en-gb/articles/360001467265-Payment-failures).
-
-     Until v1.8 we didn't know about late failures which would result in
-     'Completed' contributions being recorded which had actually failed the next
-     day.
-
-     This new version of the extension handles late failures by changing the
-     Contribution status to Refunded. Note that CiviCRM will not let us change a
-     Completed Contribution to Failed, which is why it's processed as a refund.
-
-- 1.7
-
-   - Fixed issue in certain use cases that resulted in the First Name field not
-     being pre-populated (#45). Also further thanks to Aidan for knotty
-     discussions on membership.
-
-   - Fixed issue that caused *other* payment processors' configuration forms to
-     not save. (#49)
-
--  1.6 "stable"!
-
-   - Membership now supported thanks to work by William Mortada @wmortada and
-     Aidan Saunders @aydun, and this extension is in production use by quite a few
-     organisations so calling this release stable.
-
-   - GoCardless forms are now pre-filled with address, email, phone numbers if
-     you have collected those details before passing on to GoCardless. Thanks to
-     [Vitilgo Society](https://vitiligosociety.org.uk/) for funding this work.
-
-   - Updated GoCardlessPro library to 1.7.0 just to keep up-to-date.
+  Currently these methods are left in but will trigger `E_USER_DEPRECATED`
+  errors to help you find use.
 
 
-- 1.5beta Should now respect a limited number of installments. Previous
-  versions will set up an open-ended subscription. You may not have wanted that
-  ;-) Also updated GoCardlessPro library from 1.2.0 to 1.6.0
-  [GoCardlessPro changelog](https://github.com/gocardless/gocardless-pro-php/releases)
-  should not have broken anything.
+- **Now handles "Late Failures"**
+
+  With BACS (and SEPA, although that's not yet suppoorted here) payments can
+  apparently be "Confirmed" one day, then next day they can still fail. This
+  is just to keep you on your toes.
+
+  It's called [late failure](https://support.gocardless.com/hc/en-gb/articles/360001467265-Payment-failures).
+
+  Until v1.8 we didn't know about late failures which would result in
+  'Completed' contributions being recorded which had actually failed the next
+  day.
+
+  This new version of the extension handles late failures by changing the
+  Contribution status to Refunded. Note that CiviCRM will not let us change a
+  Completed Contribution to Failed, which is why it's processed as a refund.
+
+- **Scheduled job for abandoned/failed mandate setups**
+
+  When a user clicks submit and is redirected to the offsite GoCardless page to
+  enter their bank details, a recurring contribution and a contribution record
+  are created as Pending on their Contact record.
+
+  If the user gives up at this point then those records would stay in "Pending",
+  which means you can't then easily differentiate between those abandoned ones
+  and the ones that should complete soon.
+
+  v1.8 includes a scheduled job which will look for any Pending recurring
+  contributions older than 24 hours and will mark them as Failed. The Pending
+  Contribution record is marked as Cancelled.
+
+  So you can now find abandoned set up attempts by searching for Failed
+  recurring payments.
+
+### 1.7
+
+- Fixed issue in certain use cases that resulted in the First Name field not
+ being pre-populated (#45). Also further thanks to Aidan for knotty
+ discussions on membership.
+
+- Fixed issue that caused *other* payment processors' configuration forms to
+ not save. (#49)
+
+###  1.6 "stable"!
+
+- Membership now supported thanks to work by William Mortada @wmortada and
+ Aidan Saunders @aydun, and this extension is in production use by quite a few
+ organisations so calling this release stable.
+
+- GoCardless forms are now pre-filled with address, email, phone numbers if
+ you have collected those details before passing on to GoCardless. Thanks to
+ [Vitilgo Society](https://vitiligosociety.org.uk/) for funding this work.
+
+- Updated GoCardlessPro library to 1.7.0 just to keep up-to-date.
+
+### 1.5beta
+
+Should now respect a limited number of installments. Previous
+versions will set up an open-ended subscription. You may not have wanted that
+;-) Also updated GoCardlessPro library from 1.2.0 to 1.6.0
+[GoCardlessPro changelog](https://github.com/gocardless/gocardless-pro-php/releases)
+should not have broken anything.
