@@ -292,9 +292,11 @@ to build a tool for their own needs from that.
   $processor_config = civicrm_api3(
       'PaymentProcessor',
       'getsingle',
-      ['payment_processor_type_id' => 'GoCardless', 'is_active' => 1]);
+      ['payment_processor_type_id' => 'GoCardless',
+       'is_active' => 1, 'is_test' => 0]);
   $processor = Civi\Payment\System::singleton()->getByProcessor($processor_config);
   $redirect_flow = $processor->getRedirectFlow(...);
+  $gc_api = $processor->getGoCardlessApi();
   ```
 
   ) and call its methods
