@@ -26,7 +26,7 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
   function __construct($mode, &$paymentProcessor) {
     $this->test_mode = ($mode === 'test');
     $this->_paymentProcessor = $paymentProcessor;
-    // ? $this->_processorName    = ts('GoCardless Processor');
+    // ? $this->_processorName    = E::ts('GoCardless Processor');
   }
 
   /**
@@ -75,12 +75,12 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
    * nice to offer a collection day choice, this is not implemented here yet.
    */
   public function buildForm(&$form) {
-    //$form->add('select', 'preferred_collection_day', ts('Preferred Collection Day'), $collectionDaysArray, FALSE);
+    //$form->add('select', 'preferred_collection_day', E::ts('Preferred Collection Day'), $collectionDaysArray, FALSE);
   }
   /** The only implementation is sending people off-site using doTransferCheckout.
    */
   public function doDirectPayment(&$params) {
-    CRM_Core_Error::fatal(ts('This function is not implemented'));
+    CRM_Core_Error::fatal(E::ts('This function is not implemented'));
   }
 
   /**
@@ -138,7 +138,7 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
       return $redirect_flow->redirect_url;
     }
     catch (\Exception $e) {
-      CRM_Core_Session::setStatus(E::ts('Sorry, there was an error contacting the payment processor GoCardless.'), ts("Error"), "error");
+      CRM_Core_Session::setStatus(E::ts('Sorry, there was an error contacting the payment processor GoCardless.'), E::ts("Error"), "error");
       CRM_Core_Error::debug_log_message('CRM_Core_Payment_GoCardless::doTransferCheckoutWorker exception: ' . $e->getMessage() . "\n\n" . $e->getTraceAsString(), FALSE, 'GoCardless', PEAR_LOG_ERR);
       return $params['entryURL'];
     }
