@@ -4,7 +4,7 @@
  * @file
  * Payment Processor for GoCardless.
  */
-
+use CRM_GoCardless_ExtensionUtil as E;
 
 /**
  *
@@ -40,21 +40,20 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
    * @return string the error message if any
    */
   public function checkConfig() {
-
     if (empty($this->_paymentProcessor['user_name'])) {
-      $errors []= ts("Missing " . $this->_paymentProcessor['api.payment_processor_type.getsingle']['user_name_label']);
+      $errors []= E::ts("Missing %1", [1 => $this->_paymentProcessor['api.payment_processor_type.getsingle']['user_name_label']]);
     }
     if (empty($this->_paymentProcessor['url_api'])) {
-      $errors []= ts("Missing URL for API. This sould probably be "
-        . $this->_paymentProcessor['api.payment_processor_type.getsingle']['url_api_default']
-        . " (for live payments), or "
-        . $this->_paymentProcessor['api.payment_processor_type.getsingle']['url_api_test_default']
-        . " (for test/sandbox)");
+      $errors []= E::ts("Missing URL for API. This sould probably be %1 (for live payments) or %2 (for test/sandbox)",
+        [
+          1 => $this->_paymentProcessor['api.payment_processor_type.getsingle']['url_api_default'],
+          2 => $this->_paymentProcessor['api.payment_processor_type.getsingle']['url_api_test_default'],
+        ]);
     }
 
     if ( !empty( $errors ) ) {
       $errors = "<ul><li>" . implode( '</li><li>', $errors ) . "</li></ul>";
-      CRM_Core_Session::setStatus($errors, 'Error', 'error');
+      CRM_Core_Session::setStatus($errors, E::ts('Error'), 'error');
       return $errors;
     }
 
@@ -139,7 +138,7 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
       return $redirect_flow->redirect_url;
     }
     catch (\Exception $e) {
-      CRM_Core_Session::setStatus('Sorry, there was an error contacting the payment processor GoCardless.', ts("Error"), "error");
+      CRM_Core_Session::setStatus(E::ts('Sorry, there was an error contacting the payment processor GoCardless.'), ts("Error"), "error");
       CRM_Core_Error::debug_log_message('CRM_Core_Payment_GoCardless::doTransferCheckoutWorker exception: ' . $e->getMessage() . "\n\n" . $e->getTraceAsString(), FALSE, 'GoCardless', PEAR_LOG_ERR);
       return $params['entryURL'];
     }

@@ -1,4 +1,5 @@
 <?php
+use CRM_GoCardless_ExtensionUtil as E;
 
 require_once 'gocardless.civix.php';
 
@@ -199,7 +200,7 @@ function gocardless_civicrm_preProcess($formName, &$form) {
  *
 function gocardless_civicrm_navigationMenu(&$menu) {
   _gocardless_civix_insert_navigation_menu($menu, NULL, array(
-    'label' => ts('The Page', array('domain' => 'uk.artfulrobot.civicrm.gocardless')),
+    'label' => E::ts('The Page', array('domain' => 'uk.artfulrobot.civicrm.gocardless')),
     'name' => 'the_page',
     'url' => 'civicrm/the-page',
     'permission' => 'access CiviReport,access CiviContribute',
@@ -230,7 +231,7 @@ function gocardless_civicrm_validateForm($formName, &$fields, &$files, &$form, &
     }
     // Now we know it's a GoCardless payment processor form.
     if ($fields['signature'] === $fields['test_signature']) {
-      $errors['test_signature'] = ts('Webhook secrets MUST be unique between test and live.');
+      $errors['test_signature'] = E::ts('Webhook secrets MUST be unique between test and live.');
     }
   }
 }
@@ -250,11 +251,11 @@ function gocardless_civicrm_check(&$messages) {
   if (empty($financial_account_id)) {
     $messages[] = new CRM_Utils_Check_Message(
       'gocardless_missing_financial_account',
-      ts('Please visit Administer » CiviContribute » Payment Methods and edit '
+      E::ts('Please visit Administer » CiviContribute » Payment Methods and edit '
           . 'the entry called GoCardless Direct Debit. Select a suitable Financial Account '
           . 'and press Save. Without this you may see errors like "No Payments found for '
           . 'this contribution record".'),
-      ts('Missing Financial Account for GoCardless'),
+      E::ts('Missing Financial Account for GoCardless'),
       \Psr\Log\LogLevel::WARNING,
       'fa-flag'
     );

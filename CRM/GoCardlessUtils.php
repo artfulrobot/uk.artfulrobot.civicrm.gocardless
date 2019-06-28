@@ -4,6 +4,8 @@
  * @author Rich Lott / Artful Robot.
  */
 
+use CRM_GoCardless_ExtensionUtil as E;
+
 require_once (dirname(__DIR__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php' );
 
 /**
@@ -30,7 +32,7 @@ class CRM_GoCardlessUtils
    */
   public static function getApi($test=FALSE)
   {
-    trigger_error("Calling CRM_GoCardlessUtils::getApi is deprecated. Instead you should load the CRM_Core_Payment_GoCardless payment processor object and call its getGoCardlessApi() method.", E_USER_DEPRECATED);
+    trigger_error("Calling CRM_GoCardlessUtils::getApi is deprecated as of v1.8. Instead you should load the CRM_Core_Payment_GoCardless payment processor object and call its getGoCardlessApi() method.", E_USER_DEPRECATED);
     if ($test && isset(static::$api_test)) {
       return static::$api_test;
     }
@@ -62,7 +64,7 @@ class CRM_GoCardlessUtils
    * @param bool $test Whether to find a test processor or a live one.
    */
   public static function getPaymentProcessor($test=FALSE) {
-    trigger_error("Calling CRM_GoCardlessUtils::getPaymentProcessor is deprecated. Instead you should load the CRM_Core_Payment_GoCardless payment processor object using other CiviCRM native methods.", E_USER_DEPRECATED);
+    trigger_error("Calling CRM_GoCardlessUtils::getPaymentProcessor is deprecated as of v1.8. Instead you should load the CRM_Core_Payment_GoCardless payment processor object using other CiviCRM native methods.", E_USER_DEPRECATED);
     // Find the credentials.
     $result = civicrm_api3('PaymentProcessor', 'getsingle',
       ['payment_processor_type_id' => "GoCardless", 'is_test' => (int)$test]);
@@ -314,7 +316,7 @@ class CRM_GoCardlessUtils
         ]);
       }
 
-      CRM_Core_Session::setStatus("Sorry, we were unable to set up your Direct Debit. Please call us.", 'Error', 'error');
+      CRM_Core_Session::setStatus(E::ts("Sorry, we were unable to set up your Direct Debit. Please call us."), 'Error', 'error');
 
       /* I'm not sure this applies to memberships...
       $cancelURL  = CRM_Utils_System::url( 'civicrm/contribute/transact',
@@ -351,7 +353,7 @@ class CRM_GoCardlessUtils
       // The Subscription *was* set up but we died updating CiviCRM about it. Disaster, darling.
       // This is not going to be nice.
       CRM_Core_Error::debug_log_message(__FUNCTION__ . ": EXCEPTION *after* successfully setting up subscription at GoCardless: " . $e->getMessage() . "\n" . $e->getTraceAsString(), FALSE, 'GoCardless', PEAR_LOG_INFO);
-      CRM_Core_Session::setStatus("Sorry, there was a problem recording the details of your Direct Debit. Please call us.", 'Error', 'error');
+      CRM_Core_Session::setStatus(E::ts("Sorry, there was a problem recording the details of your Direct Debit. Please call us."), 'Error', 'error');
     }
   }
   /**
