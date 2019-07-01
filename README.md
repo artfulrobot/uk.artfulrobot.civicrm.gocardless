@@ -93,6 +93,8 @@ The webhook URL is at:
 
 Note: the webhook will check the key twice; once against the test and once against the live payment processors' webhook secrets. From that information it determines whether it's a test or not. That's one reason you need different secrets.
 
+**Note: a webhok is a web page; it's not something for you to view in your browser**. i.e. if you enter the webhook URL in your browser you *should* see a blank page. To find out whether it's working you'll need GoCardless to send it some data.
+
 ### 4. Use it and test it!
 
 Create a contribution page and set up a regular donation using the "test-drive" page. Check things at CiviCRM's end and at GoCardless' end. Note that GoCardless keeps a log of whether webhooks were successful and gives you the chance to resubmit them, too, if I remember correctly.
