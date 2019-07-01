@@ -93,7 +93,7 @@ The webhook URL is at:
 
 Note: the webhook will check the key twice; once against the test and once against the live payment processors' webhook secrets. From that information it determines whether it's a test or not. That's one reason you need different secrets.
 
-**Note: a webhok is a web page; it's not something for you to view in your browser**. i.e. if you enter the webhook URL in your browser you *should* see a blank page. To find out whether it's working you'll need GoCardless to send it some data.
+**Note: a webohok is a web page; it's not something for you to view in your browser**. i.e. if you enter the webhook URL in your browser you *should* see a blank page. To find out whether it's working you'll need GoCardless to send it some data.
 
 ### 4. Use it and test it!
 
