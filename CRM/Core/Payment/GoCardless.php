@@ -87,6 +87,56 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
     //$form->add('select', 'preferred_collection_day', E::ts('Preferred Collection Day'), $collectionDaysArray, FALSE);
   }
   /**
+   * Attempt to cancel the subscription at GoCardless.
+   *
+   * @see supportsCancelRecurring()
+   *
+   * @param string $message
+   * @param array $params. We can't use this though as it only has
+   * 'subscriptionId' (which actually relates to
+   * civicrm_contribution_recur.processor_id)
+   *
+   * @return bool
+   * @throws \Civi\Payment\Exception\PaymentProcessorException
+   */
+  public function cancelSubscription(&$message = '', $params = []) {
+    // Get the GoCardless subscription ID, stored in trxn_id
+    $contrib_recur = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $this->getContributionRecurID()]);
+    $subscription_id = $contrib_recur['trxn_id'] ?? NULL;
+    if (!$subscription_id) {
+      throw new PaymentProcessorException("Missing GoCardless subscription ID in ContributionRecur trxn_id field. Cannot process changing subscription amount.");
+    }
+
+		$log_message = __FUNCTION__ . ": "
+			. json_encode(['subscription_id' => $subscription_id, 'contribution_recur_id' => $params['id']])
+			. ' ';
+    try {
+      $gc_api = $this->getGoCardlessApi();
+      $gc_api->subscriptions()->cancel($subscription_id);
+      CRM_Core_Error::debug_log_message("$log_message SUCCESS", FALSE, 'GoCardless', PEAR_LOG_INFO);
+    }
+		catch (\GoCardlessPro\Core\Exception\ApiException $e) {
+			// Api request failed / record couldn't be created.
+      $this->logGoCardlessException("$log_message FAILED", $e);
+      // repackage as PaymentProcessorException
+      throw new PaymentProcessorException($e->getMessage());
+
+		} catch (\GoCardlessPro\Core\Exception\MalformedResponseException $e) {
+			// Unexpected non-JSON response
+      $this->logGoCardlessException("$log_message FAILED", $e);
+      throw new PaymentProcessorException('Unexpected response type from GoCardless');
+
+		} catch (\GoCardlessPro\Core\Exception\ApiConnectionException $e) {
+			// Network error
+      $this->logGoCardlessException("$log_message FAILED", $e);
+      throw new PaymentProcessorException('Network error, please try later.');
+    }
+
+
+    $message = "Successfully cancelled the subscription at GoCardless.";
+    return TRUE;
+  }
+  /**
    * Attempt to change the subscription at GoCardless.
    *
    * Note there are some limitations here:
@@ -120,8 +170,8 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
    */
   public function changeSubscriptionAmount(&$message = '', $params = []) {
     // Get the GoCardless subscription ID, stored in trxn_id
-    $contrib_recur = CRM_Contribute_BAO_ContributionRecur::getSubscriptionDetails($params['id']);
-    $subscription_id = $contrib_recur['trxn_id'];
+    $contrib_recur = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $params['id']]);
+    $subscription_id = $contrib_recur['trxn_id'] ?? NULL;
     if (!$subscription_id) {
       throw new PaymentProcessorException("Missing GoCardless subscription ID in ContributionRecur trxn_id field. Cannot process changing subscription amount.");
     }
@@ -133,14 +183,40 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
       throw new PaymentProcessorException("The given amount is the same as the current amount. Refusing to update subscription without a change in amount.");
     }
 
-    $subscription_updates = [
-      'amount' => (int) (100 * $params['amount']), // Convert to pennies.
-    ];
-    $gc_api = $this->getGoCardlessApi();
-    $gc_api->subscriptions()->update($subscription_id, $subscription_updates);
+    if (!empty($params['installments'])) {
+      throw new PaymentProcessorException("This processor does not support changing the number of installments.");
+    }
 
-    CRM_Core_Error::debug_log_message(__FUNCTION__ . ": successfully completed updating subscription $subscription_id from ContributionRecur $params[id] with "
-      . json_encode($subscription_updates), FALSE, 'GoCardless', PEAR_LOG_INFO);
+    $subscription_updates = [
+      'params' => [
+        'amount' => (int) (100 * $params['amount']), // Convert to pennies.
+      ]
+    ];
+
+		$log_message = __FUNCTION__ . ": "
+			. json_encode(['subscription_id' => $subscription_id, 'contribution_recur_id' => $params['id']])
+			. ' ';
+    try {
+      $gc_api = $this->getGoCardlessApi();
+      $gc_api->subscriptions()->update($subscription_id, $subscription_updates);
+      CRM_Core_Error::debug_log_message("$log_message SUCCESS", FALSE, 'GoCardless', PEAR_LOG_INFO);
+    }
+		catch (\GoCardlessPro\Core\Exception\ApiException $e) {
+			// Api request failed / record couldn't be created.
+      $this->logGoCardlessException("$log_message FAILED", $e);
+      // repackage as PaymentProcessorException
+      throw new PaymentProcessorException($e->getMessage());
+
+		} catch (\GoCardlessPro\Core\Exception\MalformedResponseException $e) {
+			// Unexpected non-JSON response
+      $this->logGoCardlessException("$log_message FAILED", $e);
+      throw new PaymentProcessorException('Unexpected response type from GoCardless');
+
+		} catch (\GoCardlessPro\Core\Exception\ApiConnectionException $e) {
+			// Network error
+      $this->logGoCardlessException("$log_message FAILED", $e);
+      throw new PaymentProcessorException('Network error, please try later.');
+    }
 
     $message = "Successfully updated regular amount to $params[amount].";
     return TRUE;
@@ -388,6 +464,34 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
     else {
       static::$gocardless_api[$pp['id']] = $mocked_api;
     }
+  }
+
+  /**
+   * Shared code to handle extracting info from a gocardless exception.
+   * @see https://github.com/gocardless/gocardless-pro-php/
+   */
+	protected function logGoCardlessException($prefix, $e) {
+			CRM_Core_Error::debug_log_message(
+          "$prefix" . json_encode([
+            'message' => $e->getMessage(),
+            'type' => $e->getType(),
+            'errors' => $e->getErrors(),
+            'requestId' => $e->getRequestId(),
+            'documentationUrl' => $e->getDocumentationUrl(),
+          ], JSON_PRETTY_PRINT),
+        FALSE, 'GoCardless', PEAR_LOG_INFO);
+	}
+  /**
+   * Does this processor support cancelling recurring contributions through code.
+   *
+   * GoCardless does, but only if CiviCRM version 5.20+
+   * because it depends on
+   * https://github.com/civicrm/civicrm-core/pull/15673
+   *
+   * @return bool
+   */
+  protected function supportsCancelRecurring() {
+    return version_compare(CRM_Utils_System::version(), '5.20') >= 0;
   }
 
   /**
