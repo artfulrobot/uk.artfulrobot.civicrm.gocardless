@@ -284,6 +284,16 @@ class CRM_GoCardlessUtils {
         $amount = $result['total_amount'];
       }
 
+      // Convert daily intervals to weekly if poss.
+      if ($interval_unit === 'day') {
+        if (($interval % 7) !== 0) {
+          throw new InvalidArgumentException("GoCardless does not support 'day' as an interval. 'week' is the lowest unit.");
+        }
+        // Convert to weeks.
+        $interval /= 7;
+        $interval_unit = 'week';
+      }
+
       // Now actually do this at GC.
       $params = [
         'interval' => $interval,
