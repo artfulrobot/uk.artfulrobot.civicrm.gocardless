@@ -3,8 +3,8 @@
 use Civi\Test\HeadlessInterface;
 use Civi\Test\HookInterface;
 use Civi\Test\TransactionalInterface;
-use \Prophecy\Prophet;
-use \Prophecy\Argument;
+use Prophecy\Prophet;
+use Prophecy\Argument;
 
 /**
  * Tests the GoCardless direct debit extension.
@@ -20,16 +20,21 @@ use \Prophecy\Argument;
  *
  * @group headless
  */
-class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInterface, HookInterface, TransactionalInterface {
+class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInterface, HookInterface, TransactionalInterface {
 
   protected $prophet;
-  /** @var array Holds a map of name -> value for contribution recur statuses */
+  /**
+   * @var array Holds a map of name -> value for contribution recur statuses */
   protected $contribution_recur_status_map;
-  /** @var array Holds a map of name -> value for contribution statuses */
+  /**
+   * @var array Holds a map of name -> value for contribution statuses */
   protected $contribution_status_map;
-  /** Holds test mode payment processor.
+  /**
+   * Holds test mode payment processor.
+   * @var array
    */
   public $test_mode_payment_processor;
+
   public function setUpHeadless() {
     // Civi\Test has many helpers, like install(), uninstall(), sql(), and sqlFile().
     // See: https://github.com/civicrm/org.civicrm.testapalooza/blob/master/civi-test.md
@@ -41,7 +46,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
   public function setUp() {
     parent::setUp();
 
-    $this->prophet = new Prophet;
+    $this->prophet = new Prophet();
 
     // Set up a Payment Processor that uses GC.
 
@@ -109,7 +114,6 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     // Mock the GC API.
     $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
 
-
     $redirect_flows = $this->prophet->prophesize('\\GoCardlessPro\\Services\\RedirectFlowsService');
     $api_prophecy->redirectFlows()->willReturn($redirect_flows->reveal());
     $redirect_flows->create(Argument::any())
@@ -159,30 +163,31 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     // We need to mimick what the contribution page does, which AFAICS does:
     // - Creates a Recurring Contribution
     $contact = civicrm_api3('Contact', 'create', array(
-        'sequential' => 1,
-        'contact_type' => "Individual",
-        'first_name' => "Wilma",
-        'last_name' => "Flintstone",
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
     ));
     $recur = civicrm_api3('ContributionRecur', 'create', array(
-          'sequential' => 1,
-          'contact_id' => $contact['id'],
-          'frequency_interval' => 1,
-          'amount' => 1,
-          'frequency_unit' => "month",
-          'start_date' => "2016-10-01",
-          'is_test' => 1,
-          'contribution_status_id' => "Pending",
-        ));
+      'sequential' => 1,
+      'contact_id' => $contact['id'],
+      'frequency_interval' => 1,
+      'amount' => 1,
+      'frequency_unit' => "month",
+      'start_date' => "2016-10-01",
+      'is_test' => 1,
+      'contribution_status_id' => "Pending",
+    ));
     $contrib = civicrm_api3('Contribution', 'create', array(
-        'sequential' => 1,
-        'financial_type_id' => 1, // Donation
-        'total_amount' => 1,
-        'contact_id' => $contact['id'],
-        'contribution_recur_id' => $recur['id'],
-        'contribution_status_id' => "Pending",
-        'is_test' => 1,
-      ));
+      'sequential' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'total_amount' => 1,
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Pending",
+      'is_test' => 1,
+    ));
 
     // Mock the GC API.
     $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
@@ -238,46 +243,48 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     // We need to mimick what the contribution page does, which AFAICS does:
     // - Creates a Recurring Contribution
     $contact = civicrm_api3('Contact', 'create', array(
-        'sequential' => 1,
-        'contact_type' => "Individual",
-        'first_name' => "Wilma",
-        'last_name' => "Flintstone",
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
     ));
     $recur = civicrm_api3('ContributionRecur', 'create', array(
-          'sequential' => 1,
-          'contact_id' => $contact['id'],
-          'frequency_interval' => 1,
-          'amount' => 1,
-          'frequency_unit' => "month",
-          'start_date' => "2016-10-01",
-          'is_test' => 1,
-          'contribution_status_id' => "Pending",
-        ));
+      'sequential' => 1,
+      'contact_id' => $contact['id'],
+      'frequency_interval' => 1,
+      'amount' => 1,
+      'frequency_unit' => "month",
+      'start_date' => "2016-10-01",
+      'is_test' => 1,
+      'contribution_status_id' => "Pending",
+    ));
     $contrib = civicrm_api3('Contribution', 'create', array(
-        'sequential' => 1,
-        'financial_type_id' => 1, // Donation
-        'total_amount' => 1,
-        'contact_id' => $contact['id'],
-        'contribution_recur_id' => $recur['id'],
-        'contribution_status_id' => "Pending",
-        'is_test' => 1,
-      ));
+      'sequential' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'total_amount' => 1,
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Pending",
+      'is_test' => 1,
+    ));
     $membership = civicrm_api3('Membership', 'create', [
-        'sequential' => 1,
-        'membership_type_id' => 'MyMembershipType',
-        'contact_id' => $contact['id'],
-        'contribution_recur_id' => $recur['id'],
-        'status_id' => "Pending",
-        'skipStatusCal' => 1, // Needed to override default status calculation
+      'sequential' => 1,
+      'membership_type_id' => 'MyMembershipType',
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'status_id' => "Pending",
+    // Needed to override default status calculation
+      'skipStatusCal' => 1,
     ]);
     // The dates returned by create and get are formatted differently!
     // So do a get here to make later comparison easier
     $membership = civicrm_api3('Membership', 'getsingle', ['id' => $membership['id']]);
 
     $membershipPayment = civicrm_api3('MembershipPayment', 'create', [
-        'sequential' => 1,
-        'membership_id' => $membership['id'],
-        'contribution_id' => $contrib['id'],
+      'sequential' => 1,
+      'membership_id' => $membership['id'],
+      'contribution_id' => $contrib['id'],
     ]);
 
     // Mock the GC API.
@@ -334,50 +341,52 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     // We need to mimick what the contribution page does, which AFAICS does:
     // - Creates a Recurring Contribution
     $contact = civicrm_api3('Contact', 'create', array(
-        'sequential' => 1,
-        'contact_type' => "Individual",
-        'first_name' => "Wilma",
-        'last_name' => "Flintstone",
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
     ));
     $recur = civicrm_api3('ContributionRecur', 'create', array(
-          'sequential' => 1,
-          'contact_id' => $contact['id'],
-          'frequency_interval' => 1,
-          'amount' => 1,
-          'frequency_unit' => "month",
-          'start_date' => "2016-10-01",
-          'is_test' => 1,
-          'contribution_status_id' => "Pending",
-        ));
+      'sequential' => 1,
+      'contact_id' => $contact['id'],
+      'frequency_interval' => 1,
+      'amount' => 1,
+      'frequency_unit' => "month",
+      'start_date' => "2016-10-01",
+      'is_test' => 1,
+      'contribution_status_id' => "Pending",
+    ));
     $contrib = civicrm_api3('Contribution', 'create', array(
-        'sequential' => 1,
-        'financial_type_id' => 1, // Donation
-        'total_amount' => 1,
-        'contact_id' => $contact['id'],
-        'contribution_recur_id' => $recur['id'],
-        'contribution_status_id' => "Pending",
-        'is_test' => 1,
-      ));
-      // Mock existing membership
-      $dt = new DateTimeImmutable();
-      $membership = civicrm_api3('Membership', 'create', [
-          'sequential' => 1,
-          'membership_type_id' => 'MyMembershipType',
-          'contact_id' => $contact['id'],
-          'contribution_recur_id' => $recur['id'],
-          'status_id' => "Current",
-          'skipStatusCal' => 1, // Needed to override default status calculation
-          'start_date' => $dt->modify("-11 months")->format("Y-m-d"),
-          'join_date' => $dt->modify("-23 months")->format("Y-m-d"),
-      ]);
+      'sequential' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'total_amount' => 1,
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Pending",
+      'is_test' => 1,
+    ));
+    // Mock existing membership
+    $dt = new DateTimeImmutable();
+    $membership = civicrm_api3('Membership', 'create', [
+      'sequential' => 1,
+      'membership_type_id' => 'MyMembershipType',
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'status_id' => "Current",
+    // Needed to override default status calculation
+      'skipStatusCal' => 1,
+      'start_date' => $dt->modify("-11 months")->format("Y-m-d"),
+      'join_date' => $dt->modify("-23 months")->format("Y-m-d"),
+    ]);
     // The dates returned by create and get are formatted differently!
     // So do a get here to make later comparison easier
     $membership = civicrm_api3('Membership', 'getsingle', ['id' => $membership['id']]);
 
     $membershipPayment = civicrm_api3('MembershipPayment', 'create', [
-        'sequential' => 1,
-        'membership_id' => $membership['id'],
-        'contribution_id' => $contrib['id'],
+      'sequential' => 1,
+      'membership_id' => $membership['id'],
+      'contribution_id' => $contrib['id'],
     ]);
 
     // Mock the GC API.
@@ -426,50 +435,52 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     // We need to mimick what the contribution page does, which AFAICS does:
     // - Creates a Recurring Contribution
     $contact = civicrm_api3('Contact', 'create', array(
-        'sequential' => 1,
-        'contact_type' => "Individual",
-        'first_name' => "Wilma",
-        'last_name' => "Flintstone",
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
     ));
     $recur = civicrm_api3('ContributionRecur', 'create', array(
-          'sequential' => 1,
-          'contact_id' => $contact['id'],
-          'frequency_interval' => 1,
-          'amount' => 1,
-          'frequency_unit' => "month",
-          'start_date' => "2016-10-01",
-          'is_test' => 1,
-          'contribution_status_id' => "Pending",
-        ));
+      'sequential' => 1,
+      'contact_id' => $contact['id'],
+      'frequency_interval' => 1,
+      'amount' => 1,
+      'frequency_unit' => "month",
+      'start_date' => "2016-10-01",
+      'is_test' => 1,
+      'contribution_status_id' => "Pending",
+    ));
     $contrib = civicrm_api3('Contribution', 'create', array(
-        'sequential' => 1,
-        'financial_type_id' => 1, // Donation
-        'total_amount' => 1,
-        'contact_id' => $contact['id'],
-        'contribution_recur_id' => $recur['id'],
-        'contribution_status_id' => "Pending",
-        'is_test' => 1,
-      ));
-      // Mock existing membership
-      $dt = new DateTimeImmutable();
-      $membership = civicrm_api3('Membership', 'create', [
-          'sequential' => 1,
-          'membership_type_id' => 'MyMembershipType',
-          'contact_id' => $contact['id'],
-          'contribution_recur_id' => $recur['id'],
-          'status_id' => "Grace",
-          'skipStatusCal' => 1, // Needed to override default status calculation
-          'start_date' => $dt->modify("-13 months")->format("Y-m-d"),
-          'join_date' => $dt->modify("-25 months")->format("Y-m-d"),
-      ]);
+      'sequential' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'total_amount' => 1,
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Pending",
+      'is_test' => 1,
+    ));
+    // Mock existing membership
+    $dt = new DateTimeImmutable();
+    $membership = civicrm_api3('Membership', 'create', [
+      'sequential' => 1,
+      'membership_type_id' => 'MyMembershipType',
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'status_id' => "Grace",
+    // Needed to override default status calculation
+      'skipStatusCal' => 1,
+      'start_date' => $dt->modify("-13 months")->format("Y-m-d"),
+      'join_date' => $dt->modify("-25 months")->format("Y-m-d"),
+    ]);
     // The dates returned by create and get are formatted differently!
     // So do a get here to make later comparison easier
     $membership = civicrm_api3('Membership', 'getsingle', ['id' => $membership['id']]);
 
     $membershipPayment = civicrm_api3('MembershipPayment', 'create', [
-        'sequential' => 1,
-        'membership_id' => $membership['id'],
-        'contribution_id' => $contrib['id'],
+      'sequential' => 1,
+      'membership_id' => $membership['id'],
+      'contribution_id' => $contrib['id'],
     ]);
 
     // Mock the GC API.
@@ -518,31 +529,33 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
   public function testTransferCheckoutCompletesWithInstallments() {
     // We need to mimick what the contribution page does.
     $contact = civicrm_api3('Contact', 'create', [
-        'sequential' => 1,
-        'contact_type' => "Individual",
-        'first_name' => "Wilma",
-        'last_name' => "Flintstone",
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
     ]);
     $recur = civicrm_api3('ContributionRecur', 'create', [
-          'sequential' => 1,
-          'contact_id' => $contact['id'],
-          'frequency_interval' => 1,
-          'amount' => 1,
-          'frequency_unit' => "month",
-          'start_date' => "2016-10-01",
-          'is_test' => 1,
-          'installments' => 7, // <--------------------- installment!
-          'contribution_status_id' => "Pending",
-        ]);
+      'sequential' => 1,
+      'contact_id' => $contact['id'],
+      'frequency_interval' => 1,
+      'amount' => 1,
+      'frequency_unit' => "month",
+      'start_date' => "2016-10-01",
+      'is_test' => 1,
+    // <--------------------- installment!
+      'installments' => 7,
+      'contribution_status_id' => "Pending",
+    ]);
     $contrib = civicrm_api3('Contribution', 'create', [
-        'sequential' => 1,
-        'financial_type_id' => 1, // Donation
-        'total_amount' => 1,
-        'contact_id' => $contact['id'],
-        'contribution_recur_id' => $recur['id'],
-        'contribution_status_id' => "Pending",
-        'is_test' => 1,
-      ]);
+      'sequential' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'total_amount' => 1,
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Pending",
+      'is_test' => 1,
+    ]);
 
     // Mock the GC API.
     $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
@@ -556,15 +569,18 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     $subscription_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\SubscriptionsService');
     $api_prophecy->subscriptions()->willReturn($subscription_service->reveal());
-    $subscription_service->create(['params' => [
-      'amount'        => 100,
-      'currency'      => 'GBP',
-      'interval'      => 1,
-      'name'          => 'test contribution',
-      'interval_unit' => 'monthly',
-      'links'         => ['mandate' => 'MANDATEID'],
-      'count'         => 7, // <-------------------------------- installments
-    ]])
+    $subscription_service->create([
+      'params' => [
+        'amount'        => 100,
+        'currency'      => 'GBP',
+        'interval'      => 1,
+        'name'          => 'test contribution',
+        'interval_unit' => 'monthly',
+        'links'         => ['mandate' => 'MANDATEID'],
+    // <-------------------------------- installments
+        'count'         => 7,
+      ],
+    ])
     //$subscription_service->create(Argument::any())
       /*
     ->will(function($x) {
@@ -574,8 +590,8 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       return json_decode('{"start_date":"2016-10-08","id":"SUBSCRIPTION_ID"}');
     })
        */
-    ->willReturn(json_decode('{"start_date":"2016-10-08","id":"SUBSCRIPTION_ID"}'))
-    ->shouldBeCalled();
+      ->willReturn(json_decode('{"start_date":"2016-10-08","id":"SUBSCRIPTION_ID"}'))
+      ->shouldBeCalled();
     // Params are usually assembled by the civicrm_buildForm hook.
     $params = [
       'test_mode' => TRUE,
@@ -608,6 +624,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $controller = new CRM_GoCardless_Page_Webhook();
     $controller->parseWebhookRequest([], '');
   }
+
   /**
    * Check wrong signature throws InvalidArgumentException.
    *
@@ -618,6 +635,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $controller = new CRM_GoCardless_Page_Webhook();
     $controller->parseWebhookRequest(["Webhook-Signature" => 'foo'], 'bar');
   }
+
   /**
    * Check empty body throws InvalidArgumentException.
    *
@@ -629,6 +647,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $calculated_signature = hash_hmac("sha256", '', 'mock_webhook_key');
     $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], '');
   }
+
   /**
    * Check unparseable body throws InvalidArgumentException.
    *
@@ -641,6 +660,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
     $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
   }
+
   /**
    * Check events extracted from webhook.
    *
@@ -665,64 +685,71 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     }
     $this->assertCount(4, $controller->events);
   }
+
   /**
    * A payment confirmation should update the initial Pending Contribution.
    *
    */
   public function testWebhookPaymentConfirmationFirst() {
 
-    $dt = new DateTimeImmutable();  // when webhook called
+    // when webhook called
+    $dt = new DateTimeImmutable();
     $today = $dt->format("Y-m-d");
-    $setup_date = $dt->modify("-5 days")->format("Y-m-d");  // when DD setup
-    $charge_date = $dt->modify("-2 days")->format("Y-m-d"); // when GC charged
+    // when DD setup
+    $setup_date = $dt->modify("-5 days")->format("Y-m-d");
+    // when GC charged
+    $charge_date = $dt->modify("-2 days")->format("Y-m-d");
 
     $contact = civicrm_api3('Contact', 'create', array(
-        'sequential' => 1,
-        'contact_type' => "Individual",
-        'first_name' => "Wilma",
-        'last_name' => "Flintstone",
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
     ));
 
     $recur = civicrm_api3('ContributionRecur', 'create', array(
-          'sequential' => 1,
-          'contact_id' => $contact['id'],
-          'financial_type_id' => 1, // Donation
-          'frequency_interval' => 1,
-          'amount' => 50,
-          'frequency_unit' => "year",
-          'start_date' => $setup_date,
-          'is_test' => 1,
+      'sequential' => 1,
+      'contact_id' => $contact['id'],
+    // Donation
+      'financial_type_id' => 1,
+      'frequency_interval' => 1,
+      'amount' => 50,
+      'frequency_unit' => "year",
+      'start_date' => $setup_date,
+      'is_test' => 1,
           //'contribution_status_id' => "In Progress",
-          'contribution_status_id' => "Pending",
-          'trxn_id' => 'SUBSCRIPTION_ID'
-        ));
+      'contribution_status_id' => "Pending",
+      'trxn_id' => 'SUBSCRIPTION_ID',
+    ));
     $contrib = civicrm_api3('Contribution', 'create', array(
-        'sequential' => 1,
-        'financial_type_id' => 1, // Donation
-        'total_amount' => 1,
-        'contact_id' => $contact['id'],
-        'contribution_recur_id' => $recur['id'],
-        'contribution_status_id' => "Pending",
-        'receive_date' => $setup_date,
-        'is_test' => 1,
-      ));
+      'sequential' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'total_amount' => 1,
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Pending",
+      'receive_date' => $setup_date,
+      'is_test' => 1,
+    ));
     $membership = civicrm_api3('Membership', 'create', [
-        'sequential' => 1,
-        'membership_type_id' => 'MyMembershipType',
-        'contact_id' => $contact['id'],
-        'contribution_recur_id' => $recur['id'],
-        'status_id' => "Pending",
-        'skipStatusCal' => 1, // Needed to override default status calculation
-        'join_date' => $setup_date,
-        'start_date' => $setup_date,
+      'sequential' => 1,
+      'membership_type_id' => 'MyMembershipType',
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'status_id' => "Pending",
+    // Needed to override default status calculation
+      'skipStatusCal' => 1,
+      'join_date' => $setup_date,
+      'start_date' => $setup_date,
     ]);
     // The dates returned by create and get are formatted differently!
     // So do a get here to make later comparison easier
     $membership = civicrm_api3('Membership', 'getsingle', ['id' => $membership['id']]);
     $membershipPayment = civicrm_api3('MembershipPayment', 'create', [
-        'sequential' => 1,
-        'membership_id' => $membership['id'],
-        'contribution_id' => $contrib['id'],
+      'sequential' => 1,
+      'membership_id' => $membership['id'],
+      'contribution_id' => $contrib['id'],
     ]);
 
     // Mock webhook input data.
@@ -777,6 +804,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $contrib_recur_statuses = array_flip($this->contribution_recur_status_map);
     $this->assertEquals($contrib_recur_statuses[$result['contribution_status_id']], 'In Progress', 'Expected the contrib recur record to have status In Progress after first successful contribution received.');
   }
+
   /**
    * A payment confirmation should create a new contribution.
    *
@@ -786,60 +814,64 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
    *
    */
   public function testWebhookPaymentConfirmationSubsequent() {
-    $dt = new DateTimeImmutable();  // when webhook called
+    // when webhook called
+    $dt = new DateTimeImmutable();
     $first_date_string = $dt->modify('-1 year')->format('Y-m-d');
     $second_charge_date = $dt->format('Y-m-d');
 
     $contact = civicrm_api3('Contact', 'create', array(
-        'sequential' => 1,
-        'contact_type' => "Individual",
-        'first_name' => "Wilma",
-        'last_name' => "Flintstone",
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
     ));
     $recur = civicrm_api3('ContributionRecur', 'create', array(
-          'sequential' => 1,
-          'contact_id' => $contact['id'],
-          'frequency_interval' => 1,
-          'financial_type_id' => 1, // Donation
-          'amount' => 1,
-          'frequency_unit' => "month",
-          'start_date' => $first_date_string,
-          'is_test' => 1,
-          'contribution_status_id' => "In Progress",
-          'trxn_id' => 'SUBSCRIPTION_ID',
-          'payment_processor_id' => $this->test_mode_payment_processor['id'],
-        ));
+      'sequential' => 1,
+      'contact_id' => $contact['id'],
+      'frequency_interval' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'amount' => 1,
+      'frequency_unit' => "month",
+      'start_date' => $first_date_string,
+      'is_test' => 1,
+      'contribution_status_id' => "In Progress",
+      'trxn_id' => 'SUBSCRIPTION_ID',
+      'payment_processor_id' => $this->test_mode_payment_processor['id'],
+    ));
 
     // Mock that we have had one completed payment.
     $contrib = civicrm_api3('Contribution', 'create', array(
-        'sequential' => 1,
-        'total_amount' => 1,
-        'financial_type_id' => 1, // Donation
-        'contact_id' => $contact['id'],
-        'contribution_recur_id' => $recur['id'],
-        'contribution_status_id' => "Completed",
-        'receive_date' => $first_date_string,
-        'is_test' => 1,
-        'trxn_id' => 'PAYMENT_ID',
-      ));
+      'sequential' => 1,
+      'total_amount' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Completed",
+      'receive_date' => $first_date_string,
+      'is_test' => 1,
+      'trxn_id' => 'PAYMENT_ID',
+    ));
 
     // Mock existing membership
     $dt = new DateTimeImmutable();
     $membership = civicrm_api3('Membership', 'create', [
-        'sequential' => 1,
-        'membership_type_id' => 'MyMembershipType',
-        'contact_id' => $contact['id'],
-        'contribution_recur_id' => $recur['id'],
-        'status_id' => "Current",
-        'skipStatusCal' => 1, // Needed to override default status calculation
-        'start_date' => $first_date_string,
-        'join_date' => $first_date_string,
+      'sequential' => 1,
+      'membership_type_id' => 'MyMembershipType',
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'status_id' => "Current",
+    // Needed to override default status calculation
+      'skipStatusCal' => 1,
+      'start_date' => $first_date_string,
+      'join_date' => $first_date_string,
     ]);
 
     $membershipPayment = civicrm_api3('MembershipPayment', 'create', [
-        'sequential' => 1,
-        'membership_id' => $membership['id'],
-        'contribution_id' => $contrib['id'],
+      'sequential' => 1,
+      'membership_id' => $membership['id'],
+      'contribution_id' => $contrib['id'],
     ]);
 
     // The dates returned by create and get are formatted differently!
@@ -867,7 +899,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       ->willReturn(json_decode('{
         "id":"PAYMENT_ID_2",
         "status":"confirmed",
-        "charge_date": "' .$second_charge_date . '",
+        "charge_date": "' . $second_charge_date . '",
         "amount":123,
         "links":{"subscription":"SUBSCRIPTION_ID"}
         }'));
@@ -880,7 +912,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $result = civicrm_api3('Contribution', 'get', [
       'contribution_recur_id' => $recur['id'],
       'is_test' => 1,
-      ]);
+    ]);
     // Should be 2 records now.
     $this->assertEquals(2, $result['count']);
     // Ensure we have the first one.
@@ -906,6 +938,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $this->assertEquals($end_dt->modify("+12 months")->format("Y-m-d"), $result['end_date']);
 
   }
+
   /**
    * A payment confirmation should not change a recur status from Cancelled to In Progress.
    * See Issue 54
@@ -917,57 +950,60 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $second_charge_date = $dt->format('Y-m-d');
 
     $contact = civicrm_api3('Contact', 'create', array(
-        'sequential' => 1,
-        'contact_type' => "Individual",
-        'first_name' => "Wilma",
-        'last_name' => "Flintstone",
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
     ));
     $recur = civicrm_api3('ContributionRecur', 'create', array(
-          'sequential' => 1,
-          'contact_id' => $contact['id'],
-          'frequency_interval' => 1,
-          'financial_type_id' => 1, // Donation
-          'amount' => 1,
-          'frequency_unit' => "month",
-          'start_date' => $first_date_string,
-          'is_test' => 1,
-          'contribution_status_id' => "Cancelled",
-          'trxn_id' => 'SUBSCRIPTION_ID',
-          'payment_processor_id' => $this->test_mode_payment_processor['id'],
-        ));
+      'sequential' => 1,
+      'contact_id' => $contact['id'],
+      'frequency_interval' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'amount' => 1,
+      'frequency_unit' => "month",
+      'start_date' => $first_date_string,
+      'is_test' => 1,
+      'contribution_status_id' => "Cancelled",
+      'trxn_id' => 'SUBSCRIPTION_ID',
+      'payment_processor_id' => $this->test_mode_payment_processor['id'],
+    ));
 
     // Mock that we have had one completed payment.
     $contrib = civicrm_api3('Contribution', 'create', array(
-        'sequential' => 1,
-        'total_amount' => 1,
-        'financial_type_id' => 1, // Donation
-        'contact_id' => $contact['id'],
-        'contribution_recur_id' => $recur['id'],
-        'contribution_status_id' => "Completed",
-        'receive_date' => $first_date_string,
-        'is_test' => 1,
-        'trxn_id' => 'PAYMENT_ID',
-      ));
+      'sequential' => 1,
+      'total_amount' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Completed",
+      'receive_date' => $first_date_string,
+      'is_test' => 1,
+      'trxn_id' => 'PAYMENT_ID',
+    ));
 
     // Mock existing membership
     $dt = new DateTimeImmutable();
     $membership = civicrm_api3('Membership', 'create', [
-        'sequential' => 1,
-        'membership_type_id' => 'MyMembershipType',
-        'contact_id' => $contact['id'],
-        'contribution_recur_id' => $recur['id'],
-        'status_id' => "Current",
-        'skipStatusCal' => 1, // Needed to override default status calculation
-        'start_date' => $dt->modify("-11 months")->format("Y-m-d"),
-        'join_date' => $dt->modify("-23 months")->format("Y-m-d"),
+      'sequential' => 1,
+      'membership_type_id' => 'MyMembershipType',
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'status_id' => "Current",
+    // Needed to override default status calculation
+      'skipStatusCal' => 1,
+      'start_date' => $dt->modify("-11 months")->format("Y-m-d"),
+      'join_date' => $dt->modify("-23 months")->format("Y-m-d"),
     ]);
     // The dates returned by create and get are formatted differently!
     // So do a get here to make later comparison easier
     $membership = civicrm_api3('Membership', 'getsingle', ['id' => $membership['id']]);
     $membershipPayment = civicrm_api3('MembershipPayment', 'create', [
-        'sequential' => 1,
-        'membership_id' => $membership['id'],
-        'contribution_id' => $contrib['id'],
+      'sequential' => 1,
+      'membership_id' => $membership['id'],
+      'contribution_id' => $contrib['id'],
     ]);
 
     // Mock webhook input data.
@@ -988,7 +1024,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
       ->willReturn(json_decode('{
         "id":"PAYMENT_ID_2",
         "status":"confirmed",
-        "charge_date": "' .$second_charge_date . '",
+        "charge_date": "' . $second_charge_date . '",
         "amount":123,
         "links":{"subscription":"SUBSCRIPTION_ID"}
         }'));
@@ -1001,7 +1037,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $result = civicrm_api3('Contribution', 'get', [
       'contribution_recur_id' => $recur['id'],
       'is_test' => 1,
-      ]);
+    ]);
     // Should be 2 records now.
     $this->assertEquals(2, $result['count']);
     // Ensure we have the first one.
@@ -1017,6 +1053,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $this->assertEquals($contrib_recur_statuses[$result['contribution_status_id']], 'Cancelled',
       'Expected the contrib recur record to STILL have status Cancelled after a successful contribution received.');
   }
+
   /**
    * A payment failed should update the initial Pending Contribution.
    *
@@ -1024,33 +1061,35 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
   public function testWebhookPaymentFailedFirst() {
 
     $contact = civicrm_api3('Contact', 'create', array(
-        'sequential' => 1,
-        'contact_type' => "Individual",
-        'first_name' => "Wilma",
-        'last_name' => "Flintstone",
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
     ));
     $recur = civicrm_api3('ContributionRecur', 'create', array(
-          'sequential' => 1,
-          'contact_id' => $contact['id'],
-          'financial_type_id' => 1, // Donation
-          'frequency_interval' => 1,
-          'amount' => 1,
-          'frequency_unit' => "month",
-          'start_date' => "2016-10-01",
-          'is_test' => 1,
-          'contribution_status_id' => "In Progress",
-          'trxn_id' => 'SUBSCRIPTION_ID'
-        ));
+      'sequential' => 1,
+      'contact_id' => $contact['id'],
+    // Donation
+      'financial_type_id' => 1,
+      'frequency_interval' => 1,
+      'amount' => 1,
+      'frequency_unit' => "month",
+      'start_date' => "2016-10-01",
+      'is_test' => 1,
+      'contribution_status_id' => "In Progress",
+      'trxn_id' => 'SUBSCRIPTION_ID',
+    ));
     $contrib = civicrm_api3('Contribution', 'create', array(
-        'sequential' => 1,
-        'financial_type_id' => 1, // Donation
-        'total_amount' => 1,
-        'contact_id' => $contact['id'],
-        'contribution_recur_id' => $recur['id'],
-        'contribution_status_id' => "Pending",
-        'receive_date' => '2016-10-01',
-        'is_test' => 1,
-      ));
+      'sequential' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'total_amount' => 1,
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Pending",
+      'receive_date' => '2016-10-01',
+      'is_test' => 1,
+    ));
 
     // Mock webhook input data.
     $controller = new CRM_GoCardless_Page_Webhook();
@@ -1087,6 +1126,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $this->assertEquals($this->contribution_status_map['Failed'], $result['contribution_status_id']);
 
   }
+
   /**
    * A payment confirmation should create a new contribution.
    *
@@ -1094,37 +1134,39 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
   public function testWebhookPaymentFailedSubsequent() {
 
     $contact = civicrm_api3('Contact', 'create', array(
-        'sequential' => 1,
-        'contact_type' => "Individual",
-        'first_name' => "Wilma",
-        'last_name' => "Flintstone",
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
     ));
     $recur = civicrm_api3('ContributionRecur', 'create', array(
-          'sequential' => 1,
-          'contact_id' => $contact['id'],
-          'frequency_interval' => 1,
-          'financial_type_id' => 1, // Donation
-          'amount' => 1,
-          'frequency_unit' => "month",
-          'start_date' => "2016-10-01",
-          'is_test' => 1,
-          'contribution_status_id' => "In Progress",
-          'trxn_id' => 'SUBSCRIPTION_ID',
-          'payment_processor_id' => $this->test_mode_payment_processor['id'],
-        ));
+      'sequential' => 1,
+      'contact_id' => $contact['id'],
+      'frequency_interval' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'amount' => 1,
+      'frequency_unit' => "month",
+      'start_date' => "2016-10-01",
+      'is_test' => 1,
+      'contribution_status_id' => "In Progress",
+      'trxn_id' => 'SUBSCRIPTION_ID',
+      'payment_processor_id' => $this->test_mode_payment_processor['id'],
+    ));
 
     // Mock that we have had one completed payment.
     $contrib = civicrm_api3('Contribution', 'create', array(
-        'sequential' => 1,
-        'total_amount' => 1,
-        'financial_type_id' => 1, // Donation
-        'contact_id' => $contact['id'],
-        'contribution_recur_id' => $recur['id'],
-        'contribution_status_id' => "Completed",
-        'receive_date' => '2016-10-01',
-        'is_test' => 1,
-        'trxn_id' => 'PAYMENT_ID',
-      ));
+      'sequential' => 1,
+      'total_amount' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Completed",
+      'receive_date' => '2016-10-01',
+      'is_test' => 1,
+      'trxn_id' => 'PAYMENT_ID',
+    ));
 
     // Mock webhook input data.
     $controller = new CRM_GoCardless_Page_Webhook();
@@ -1157,7 +1199,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $result = civicrm_api3('Contribution', 'get', [
       'contribution_recur_id' => $recur['id'],
       'is_test' => 1,
-      ]);
+    ]);
     // Should be 2 records now.
     $this->assertEquals(2, $result['count']);
     // Ensure we have the first one.
@@ -1173,6 +1215,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $this->assertEquals($this->contribution_status_map['Failed'], $contrib['contribution_status_id']);
 
   }
+
   /**
    * Late Payments.
    * See Issue 55
@@ -1181,37 +1224,39 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
   public function testWebhookPaymentFailedLate() {
 
     $contact = civicrm_api3('Contact', 'create', array(
-        'sequential' => 1,
-        'contact_type' => "Individual",
-        'first_name' => "Wilma",
-        'last_name' => "Flintstone",
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
     ));
     $recur = civicrm_api3('ContributionRecur', 'create', array(
-          'sequential' => 1,
-          'contact_id' => $contact['id'],
-          'frequency_interval' => 1,
-          'financial_type_id' => 1, // Donation
-          'amount' => 1,
-          'frequency_unit' => "month",
-          'start_date' => "2016-10-01",
-          'is_test' => 1,
-          'contribution_status_id' => "Cancelled",
-          'trxn_id' => 'SUBSCRIPTION_ID',
-          'payment_processor_id' => $this->test_mode_payment_processor['id'],
-        ));
+      'sequential' => 1,
+      'contact_id' => $contact['id'],
+      'frequency_interval' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'amount' => 1,
+      'frequency_unit' => "month",
+      'start_date' => "2016-10-01",
+      'is_test' => 1,
+      'contribution_status_id' => "Cancelled",
+      'trxn_id' => 'SUBSCRIPTION_ID',
+      'payment_processor_id' => $this->test_mode_payment_processor['id'],
+    ));
 
     // Mock that we have had one completed payment.
     $contrib = civicrm_api3('Contribution', 'create', array(
-        'sequential' => 1,
-        'total_amount' => 1,
-        'financial_type_id' => 1, // Donation
-        'contact_id' => $contact['id'],
-        'contribution_recur_id' => $recur['id'],
-        'contribution_status_id' => "Completed",
-        'receive_date' => '2016-10-01',
-        'is_test' => 1,
-        'trxn_id' => 'PAYMENT_ID',
-      ));
+      'sequential' => 1,
+      'total_amount' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Completed",
+      'receive_date' => '2016-10-01',
+      'is_test' => 1,
+      'trxn_id' => 'PAYMENT_ID',
+    ));
 
     // Mock webhook input data.
     $controller = new CRM_GoCardless_Page_Webhook();
@@ -1245,6 +1290,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $this->assertEquals($this->contribution_status_map['Refunded'], $result['contribution_status_id']);
     $this->assertEquals('PAYMENT_ID', $result['trxn_id']);
   }
+
   /**
    * A payment confirmation webhook that is out of date.
    *
@@ -1272,8 +1318,9 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
         }'));
 
     // Now trigger webhook.
-    $event = json_decode(json_encode([ 'links' => [ 'payment' => 'PAYMENT_ID' ]]));
-    $controller->getAndCheckGoCardlessPayment($event, ['confirmed']); // Calling with different status to that which will be fetched from API.
+    $event = json_decode(json_encode(['links' => ['payment' => 'PAYMENT_ID']]));
+    // Calling with different status to that which will be fetched from API.
+    $controller->getAndCheckGoCardlessPayment($event, ['confirmed']);
   }
 
   /**
@@ -1298,7 +1345,8 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     $event = json_decode('{"links":{"subscription":"SUBSCRIPTION_ID"}}');
     $controller = $this->getWebhookControllerForTestProcessor();
-    $controller->getAndCheckSubscription($event, 'complete'); // Calling with different status to that which will be fetched from API.
+    // Calling with different status to that which will be fetched from API.
+    $controller->getAndCheckSubscription($event, 'complete');
   }
 
   /**
@@ -1330,7 +1378,8 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Now trigger webhook.
     $event = json_decode('{"links":{"payment":"PAYMENT_ID"}}');
-    $controller->getAndCheckGoCardlessPayment($event, ['confirmed']); // Calling with different status to that which will be fetched from API.
+    // Calling with different status to that which will be fetched from API.
+    $controller->getAndCheckGoCardlessPayment($event, ['confirmed']);
   }
 
   /**
@@ -1341,36 +1390,38 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
   public function testWebhookSubscriptionCancelled() {
 
     $contact = civicrm_api3('Contact', 'create', array(
-        'sequential' => 1,
-        'contact_type' => "Individual",
-        'first_name' => "Wilma",
-        'last_name' => "Flintstone",
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
     ));
     $recur = civicrm_api3('ContributionRecur', 'create', array(
-          'sequential' => 1,
-          'contact_id' => $contact['id'],
-          'frequency_interval' => 1,
-          'financial_type_id' => 1, // Donation
-          'amount' => 1,
-          'frequency_unit' => "month",
-          'start_date' => "2016-10-01",
-          'is_test' => 1,
-          'contribution_status_id' => "In Progress",
-          'trxn_id' => 'SUBSCRIPTION_ID'
-        ));
+      'sequential' => 1,
+      'contact_id' => $contact['id'],
+      'frequency_interval' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'amount' => 1,
+      'frequency_unit' => "month",
+      'start_date' => "2016-10-01",
+      'is_test' => 1,
+      'contribution_status_id' => "In Progress",
+      'trxn_id' => 'SUBSCRIPTION_ID',
+    ));
 
     // Mark this contrib as Incomplete - this is the case that the thing's just
     // been set up by a Contribution Page.
     $contrib = civicrm_api3('Contribution', 'create', array(
-        'sequential' => 1,
-        'total_amount' => 1,
-        'financial_type_id' => 1, // Donation
-        'contact_id' => $contact['id'],
-        'contribution_recur_id' => $recur['id'],
-        'contribution_status_id' => "Pending",
-        'receive_date' => '2016-10-01',
-        'is_test' => 1,
-      ));
+      'sequential' => 1,
+      'total_amount' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Pending",
+      'receive_date' => '2016-10-01',
+      'is_test' => 1,
+    ));
 
     // Mock webhook input data.
     $controller = new CRM_GoCardless_Page_Webhook();
@@ -1401,7 +1452,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $contrib = civicrm_api3('Contribution', 'getsingle', [
       'contribution_recur_id' => $recur['id'],
       'is_test' => 1,
-      ]);
+    ]);
     $this->assertEquals($this->contribution_status_map['Cancelled'], $contrib['contribution_status_id']);
 
     // Now check the changes have been made to the recurring contribution.
@@ -1411,6 +1462,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $this->assertEquals($this->contribution_status_map['Cancelled'], $contrib['contribution_status_id']);
 
   }
+
   /**
    * A subscription cancelled should update the recurring contribution record
    * and a Pending Contribution.
@@ -1419,36 +1471,38 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
   public function testWebhookSubscriptionFinished() {
 
     $contact = civicrm_api3('Contact', 'create', array(
-        'sequential' => 1,
-        'contact_type' => "Individual",
-        'first_name' => "Wilma",
-        'last_name' => "Flintstone",
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
     ));
     $recur = civicrm_api3('ContributionRecur', 'create', array(
-          'sequential' => 1,
-          'contact_id' => $contact['id'],
-          'frequency_interval' => 1,
-          'financial_type_id' => 1, // Donation
-          'amount' => 1,
-          'frequency_unit' => "month",
-          'start_date' => "2016-10-01",
-          'is_test' => 1,
-          'contribution_status_id' => "In Progress",
-          'trxn_id' => 'SUBSCRIPTION_ID'
-        ));
+      'sequential' => 1,
+      'contact_id' => $contact['id'],
+      'frequency_interval' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'amount' => 1,
+      'frequency_unit' => "month",
+      'start_date' => "2016-10-01",
+      'is_test' => 1,
+      'contribution_status_id' => "In Progress",
+      'trxn_id' => 'SUBSCRIPTION_ID',
+    ));
 
     // Mark this contrib as Incomplete - this is the case that the thing's just
     // been set up by a Contribution Page.
     $contrib = civicrm_api3('Contribution', 'create', array(
-        'sequential' => 1,
-        'total_amount' => 1,
-        'financial_type_id' => 1, // Donation
-        'contact_id' => $contact['id'],
-        'contribution_recur_id' => $recur['id'],
-        'contribution_status_id' => "Pending",
-        'receive_date' => '2016-10-01',
-        'is_test' => 1,
-      ));
+      'sequential' => 1,
+      'total_amount' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Pending",
+      'receive_date' => '2016-10-01',
+      'is_test' => 1,
+    ));
 
     // Mock webhook input data.
     $controller = new CRM_GoCardless_Page_Webhook();
@@ -1473,14 +1527,14 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
 
     // Now trigger webhook.
     $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
-  $controller->processWebhookEvents(TRUE);
+    $controller->processWebhookEvents(TRUE);
 
     // Now check the changes have been made to the original contribution.
     // This should be Cancelled because the thing finished before it could be taken.
     $contrib = civicrm_api3('Contribution', 'getsingle', [
       'contribution_recur_id' => $recur['id'],
       'is_test' => 1,
-      ]);
+    ]);
     $this->assertEquals($this->contribution_status_map['Cancelled'], $contrib['contribution_status_id']);
 
     // Now check the changes have been made to the recurring contribution.
@@ -1490,6 +1544,7 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     $this->assertEquals($this->contribution_status_map['Completed'], $contrib['contribution_status_id']);
 
   }
+
   /**
    * Return a fake GoCardless payment processor.
    *
@@ -1503,10 +1558,12 @@ class GoCardlessTest extends \PHPUnit_Framework_TestCase implements HeadlessInte
     return $controller;
   }
 
-  /** Helper
+  /**
+   * Helper
    */
   protected function mockGoCardlessApiForTestPaymentProcessor($mock) {
     $obj = new CRM_Core_Payment_GoCardless('test', $this->test_mode_payment_processor);
     $obj->setGoCardlessApi($mock);
   }
+
 }

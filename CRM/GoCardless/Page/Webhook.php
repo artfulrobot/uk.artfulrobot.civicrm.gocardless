@@ -13,20 +13,27 @@ require_once 'CRM/Core/Page.php';
 
 class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
 
-  /** @var array names (string) to values (int) */
+  /**
+   * @var array names (string) to values (int) */
   public $contribution_status_map;
   public static $implemented_webhooks = [
     'payments' => ['confirmed', 'failed'],
     'subscriptions'  => ['cancelled', 'finished'],
   ];
-  /** @var bool */
+  /**
+   * @var bool */
   protected $test_mode;
 
-  /** @var array of webhook events that we can process */
+  /**
+   * @var array of webhook events that we can process */
   public $events;
-  /** @var CRM_Core_Payment_GoCardless payment processor loaded from CiviCRM API paymentProcessor entity */
+  /**
+   * @var CRM_Core_Payment_GoCardless payment processor loaded from CiviCRM API paymentProcessor entity */
   protected $payment_processor;
-  /** Timestamp for logs. */
+  /**
+   * Timestamp for logs.
+   * @var string
+   */
   public $now;
 
   public function run() {
@@ -48,8 +55,8 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
 
     // debugging:
     $this->now = date('Y-m-d:H:i:s');
-    CRM_Core_Error::debug_log_message("Webhook $this->now body:\n".  $raw_payload, FALSE, 'GoCardless', PEAR_LOG_INFO);
-    CRM_Core_Error::debug_log_message("Webhook $this->now headers:\n". json_encode($headers), FALSE, 'GoCardless', PEAR_LOG_INFO);
+    CRM_Core_Error::debug_log_message("Webhook $this->now body:\n" . $raw_payload, FALSE, 'GoCardless', PEAR_LOG_INFO);
+    CRM_Core_Error::debug_log_message("Webhook $this->now headers:\n" . json_encode($headers), FALSE, 'GoCardless', PEAR_LOG_INFO);
 
     try {
       $this->parseWebhookRequest($headers, $raw_payload);
@@ -72,7 +79,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    * @param bool $throw whether to silently log exceptions or chuck them up for
    * someone else to notice. Useful for phpunit tests.
    */
-  public function processWebhookEvents($throw=FALSE) {
+  public function processWebhookEvents($throw = FALSE) {
     foreach ($this->events as $event) {
       try {
         $method = 'do' . ucfirst($event->resource_type) . ucfirst($event->action);
@@ -113,7 +120,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     $candidates = civicrm_api3('PaymentProcessor', 'get', ['payment_processor_type_id' => "GoCardless", 'is_active' => 1]);
     $valid = FALSE;
     foreach ($candidates['values'] as $payment_processor_id => $pp) {
-      $token = isset($pp['signature']) ? $pp['signature']  : '';
+      $token = isset($pp['signature']) ? $pp['signature'] : '';
       $calculated_signature = hash_hmac("sha256", $raw_payload, $token);
       if ($token && $provided_signature === $calculated_signature) {
         $valid = TRUE;
@@ -147,6 +154,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       }
     }
   }
+
   /**
    * Process webhook for 'payments' resource type, action 'confirmed'.
    *
@@ -188,7 +196,8 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       civicrm_api3('ContributionRecur', 'create', [
         'id'                     => $recur['id'],
         'contribution_status_id' => 'In Progress',
-        'failure_count'          => 0, // Reset the failure count.
+      // Reset the failure count.
+        'failure_count'          => 0,
       ]);
     }
 
@@ -205,7 +214,8 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       'financial_type_id'      => $recur['financial_type_id'],
       'contact_id'             => $recur['contact_id'],
       'is_test'                => $this->test_mode ? 1 : 0,
-      'is_email_receipt'       => 0, // Do not send email receipts. This might annoy some people. Be nice if it was a setting.
+    // Do not send email receipts. This might annoy some people. Be nice if it was a setting.
+      'is_email_receipt'       => 0,
     ];
     // Note: the param called 'trxn_date' which is used for membership date
     // calculations. If it's not given, today's date gets used.
@@ -286,7 +296,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
         'contribution_recur_id' => $recur['id'],
         'is_test'               => $this->test_mode ? 1 : 0,
       ]);
-      if ($result['count'] >0) {
+      if ($result['count'] > 0) {
         // Yes, there is one! We'll update it to refunded.
         $contribution['id'] = $result['values'][0]['id'];
 
@@ -312,6 +322,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     // Make the changes.
     civicrm_api3('Contribution', 'create', $contribution);
   }
+
   /**
    * Process webhook for 'mandate' resource type, action 'finished'.
    *
@@ -324,11 +335,12 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     $update = [
       'id' => $recur['id'],
       'contribution_status_id' => 'Completed',
-      'end_date' => !empty($subscription->end_date) ? $subscription->end_date :  date('Y-m-d'),
+      'end_date' => !empty($subscription->end_date) ? $subscription->end_date : date('Y-m-d'),
     ];
     civicrm_api3('ContributionRecur', 'create', $update);
     $this->cancelPendingContributions($recur);
   }
+
   /**
    * Process webhook for 'mandate' resource type, action 'cancelled'.
    *
@@ -340,7 +352,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     $update = [
       'id' => $recur['id'],
       'contribution_status_id' => 'Cancelled',
-      'end_date' => !empty($subscription->end_date) ? $subscription->end_date :  date('Y-m-d'),
+      'end_date' => !empty($subscription->end_date) ? $subscription->end_date : date('Y-m-d'),
     ];
     civicrm_api3('ContributionRecur', 'create', $update);
     $this->cancelPendingContributions($recur);
@@ -377,6 +389,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
 
     return $payment;
   }
+
   /**
    * Looks up the ContributionRecur record for the given GC subscription Id.
    *
@@ -401,6 +414,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     }
     return $recur;
   }
+
   /**
    * See if we have a pending contribution for the given contribution_record record.
    *
@@ -409,7 +423,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    */
   public function getPendingContributionId($recur) {
     // See if there's a Pending contribution we can update. xxx ??? No contribs at all?
-    $incomplete_contribs = civicrm_api3('Contribution', 'get',[
+    $incomplete_contribs = civicrm_api3('Contribution', 'get', [
       'sequential' => 1,
       'contribution_recur_id' => $recur['id'],
       'contribution_status_id' => "Pending",
@@ -420,6 +434,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       return $incomplete_contribs['values'][0]['id'];
     }
   }
+
   /**
    * Get the first payment for this recurring contribution.
    *
@@ -428,7 +443,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    */
   public function getOriginalContributionId($recur) {
     // See if there's a Completed contribution we can update. xxx ??? No contribs at all?
-    $contribs = civicrm_api3('Contribution', 'get',[
+    $contribs = civicrm_api3('Contribution', 'get', [
       'sequential'             => 1,
       'contribution_recur_id'  => $recur['id'],
       'contribution_status_id' => "Completed",
@@ -440,6 +455,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       return $contribs['values'][0]['id'];
     }
   }
+
   /**
    * Helper to load and return GC subscription object.
    *
@@ -461,6 +477,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
 
     return $subscription;
   }
+
   /**
    * Cancel any Pending Contributions from this recurring contribution.
    *
@@ -469,12 +486,13 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
   public function cancelPendingContributions($recur) {
     // There should only be one, but just in case...
     while ($pending_contribution_id = $this->getPendingContributionId($recur)) {
-        civicrm_api3('Contribution', 'create', [
-          'id' => $pending_contribution_id,
-          'contribution_status_id' => "Cancelled",
-        ]);
+      civicrm_api3('Contribution', 'create', [
+        'id' => $pending_contribution_id,
+        'contribution_status_id' => "Cancelled",
+      ]);
     }
   }
+
   /**
    * This is only to help mock things for tests. Do not use!
    *
@@ -483,4 +501,5 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
   public function setPaymentProcessor($pp) {
     $this->payment_processor = $pp;
   }
+
 }

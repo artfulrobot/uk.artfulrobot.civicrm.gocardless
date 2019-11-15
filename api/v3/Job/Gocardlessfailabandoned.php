@@ -1,5 +1,4 @@
 <?php
-use CRM_GoCardless_ExtensionUtil as E;
 
 /**
  * Job.Gocardlessfailabandoned API specification (optional)
@@ -27,16 +26,16 @@ function _civicrm_api3_job_Gocardlessfailabandoned_spec(&$spec) {
 function civicrm_api3_job_Gocardlessfailabandoned($params) {
 
   $hours = (float) ($params['timeout'] ?? 0);
-  if (!($hours >0)) {
+  if (!($hours > 0)) {
     throw new API_Exception("Invalid timeout for Gocardlessfailabandoned. Should be an amount of hours > 0");
   }
-  $too_old = time() - 60*60*$hours;
+  $too_old = time() - 60 * 60 * $hours;
 
   // We need a list of GoCardless payment processors.
-	$result = civicrm_api3('PaymentProcessor', 'get', [
-      'return' => ["id"],
-      'payment_processor_type_id' => "GoCardless",
-    ]);
+  $result = civicrm_api3('PaymentProcessor', 'get', [
+    'return' => ["id"],
+    'payment_processor_type_id' => "GoCardless",
+  ]);
 
   $returnValues = ['contribution_recur_ids' => []];
   if ($result['count']) {
@@ -49,7 +48,7 @@ function civicrm_api3_job_Gocardlessfailabandoned($params) {
     ]);
 
     if ($old_crs['count'] > 0) {
-      foreach ($old_crs['values'] as $contribution_recur_id=>$contribution_recur) {
+      foreach ($old_crs['values'] as $contribution_recur_id => $contribution_recur) {
 
         // Mark the ContributionRecur record as Failed
         civicrm_api3('ContributionRecur', 'create', [

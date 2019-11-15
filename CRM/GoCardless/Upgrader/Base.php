@@ -1,7 +1,6 @@
 <?php
 
 // AUTO-GENERATED FILE -- Civix may overwrite any changes made to this file
-use CRM_GoCardless_ExtensionUtil as E;
 
 /**
  * Base class which provides helpers to execute upgrade logic
@@ -11,7 +10,7 @@ class CRM_GoCardless_Upgrader_Base {
   /**
    * @var varies, subclass of this
    */
-  static $instance;
+  public static $instance;
 
   /**
    * @var CRM_Queue_TaskContext
@@ -42,7 +41,7 @@ class CRM_GoCardless_Upgrader_Base {
   /**
    * Obtain a reference to the active upgrade handler.
    */
-  static public function instance() {
+  public static function instance() {
     if (!self::$instance) {
       // FIXME auto-generate
       self::$instance = new CRM_GoCardless_Upgrader(
@@ -63,7 +62,7 @@ class CRM_GoCardless_Upgrader_Base {
    * CRM_GoCardless_Upgrader_Base::_queueAdapter($ctx, 'methodName', 'arg1', 'arg2');
    * @endcode
    */
-  static public function _queueAdapter() {
+  public static function _queueAdapter() {
     $instance = self::instance();
     $args = func_get_args();
     $instance->ctx = array_shift($args);

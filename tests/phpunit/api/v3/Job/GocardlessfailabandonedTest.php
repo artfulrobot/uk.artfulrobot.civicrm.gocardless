@@ -9,21 +9,29 @@ use Civi\Test\TransactionalInterface;
  * This is a generic test class implemented with PHPUnit.
  * @group headless
  */
-class api_v3_Job_GocardlessfailabandonedTest extends \PHPUnit_Framework_TestCase implements HeadlessInterface, HookInterface, TransactionalInterface {
+class api_v3_Job_GocardlessfailabandonedTest extends PHPUnit\Framework\TestCase implements HeadlessInterface, HookInterface, TransactionalInterface {
   use \Civi\Test\Api3TestTrait;
-  /** Holds test mode payment processor.
+  /**
+   * Holds test mode payment processor.
+   *
+   * @var array
    */
   public $test_mode_payment_processor;
-  /** @var int */
+  /**
+   * @var int */
   public $dummy_payment_processor_id;
-  /** @var array Holds a map of name -> value for contribution statuses */
+  /**
+   * @var array Holds a map of name -> value for contribution statuses */
   protected $contribution_status_map;
-  /** @var int contact id */
+  /**
+   * @var int contact id */
   protected $contact_id;
-  /** @var int contrib recur id */
+  /**
+   * @var int contrib recur id */
   protected $contribution_recur_id;
 
-  /** @var int contrib id */
+  /**
+   * @var int contrib id */
   protected $contribution_id;
 
   /**
@@ -89,10 +97,10 @@ class api_v3_Job_GocardlessfailabandonedTest extends \PHPUnit_Framework_TestCase
     $this->contribution_status_map = array_flip(CRM_Contribute_BAO_ContributionRecur::buildOptions('contribution_status_id', 'validate'));
 
     $contact = civicrm_api3('Contact', 'create', array(
-        'sequential' => 1,
-        'contact_type' => "Individual",
-        'first_name' => "Wilma",
-        'last_name' => "Flintstone",
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
     ));
     $this->contact_id = $contact['id'];
 
@@ -114,7 +122,8 @@ class api_v3_Job_GocardlessfailabandonedTest extends \PHPUnit_Framework_TestCase
     $result = civicrm_api3('Contribution', 'create', [
       'sequential'             => 1,
       'contact_id'             => $this->contact_id,
-      'financial_type_id'      => 1, // Donation
+    // Donation
+      'financial_type_id'      => 1,
       'total_amount'           => 1,
       'contribution_recur_id'  => $this->contribution_recur_id,
       'amount'                 => 1,
@@ -147,6 +156,7 @@ class api_v3_Job_GocardlessfailabandonedTest extends \PHPUnit_Framework_TestCase
     $this->assertCrStatus('Failed', 'Should have set CR to Failed');
     $this->assertCStatus('Cancelled', 'Should have cancelled the Contribution');
   }
+
   /**
    * Test new ones are not.
    */
@@ -161,6 +171,7 @@ class api_v3_Job_GocardlessfailabandonedTest extends \PHPUnit_Framework_TestCase
     $this->assertCrStatus('Pending', 'Should have left a recent record alone');
     $this->assertCStatus('Pending', 'Should have left the Contribution alone');
   }
+
   /**
    * Test that it does not touch things belonging to other payment processors.
    */
@@ -182,6 +193,7 @@ class api_v3_Job_GocardlessfailabandonedTest extends \PHPUnit_Framework_TestCase
     $this->assertCrStatus('Pending', 'Should have left a recent record alone');
     $this->assertCStatus('Pending', 'Should have left the Contribution alone');
   }
+
   /**
    * Test that it does not touch things belonging to other payment processors.
    */
@@ -191,7 +203,9 @@ class api_v3_Job_GocardlessfailabandonedTest extends \PHPUnit_Framework_TestCase
     $this->setModifiedDate('2000-01-01');
 
     foreach ($this->contribution_status_map as $words => $status_id) {
-      if ($words === 'Pending') continue;
+      if ($words === 'Pending') {
+        continue;
+      }
 
       // Change the status
       $result = civicrm_api3('ContributionRecur', 'create', [
@@ -206,23 +220,26 @@ class api_v3_Job_GocardlessfailabandonedTest extends \PHPUnit_Framework_TestCase
     }
 
   }
-  protected function assertCrStatus($status, $message=NULL) {
+
+  protected function assertCrStatus($status, $message = NULL) {
     $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $this->contribution_recur_id]);
     $this->assertEquals($this->contribution_status_map[$status], $result['contribution_status_id'], $message);
   }
-  protected function assertCStatus($status, $message=NULL) {
+
+  protected function assertCStatus($status, $message = NULL) {
     $result = civicrm_api3('Contribution', 'getsingle', ['id' => $this->contribution_id]);
     $sm = array_flip($this->contribution_status_map);
     $this->assertEquals($status, $sm[$result['contribution_status_id']], $message);
   }
+
   /**
    * SQL to update modified date.
    */
   protected function setModifiedDate($date) {
     $sql = 'UPDATE civicrm_contribution_recur SET modified_date = %1 WHERE id = %2';
     $params = [
-      1 => [ date('Y-m-d H:i:s', strtotime($date)), 'String' ],
-      2 => [ $this->contribution_recur_id, 'Integer' ],
+      1 => [date('Y-m-d H:i:s', strtotime($date)), 'String'],
+      2 => [$this->contribution_recur_id, 'Integer'],
     ];
     CRM_Core_DAO::executeQuery($sql, $params);
   }

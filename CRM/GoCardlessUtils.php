@@ -6,18 +6,19 @@
 
 use CRM_GoCardless_ExtensionUtil as E;
 
-require_once (dirname(__DIR__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php' );
+require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
 
 /**
  * Class CRM_GoCardlessUtils
  */
-class CRM_GoCardlessUtils
-{
+class CRM_GoCardlessUtils {
   const GC_TEST_SORT_CODE = '200000';
   const GC_TEST_ACCOUNT   = '55779911';
-  /** @var \GoCardlessPro\Client (or mock) with test credentials. */
+  /**
+   * @var \GoCardlessPro\Client (or mock) with test credentials. */
   protected static $api_test;
-  /** @var \GoCardlessPro\Client (or mock) with live credentials. */
+  /**
+   * @var \GoCardlessPro\Client (or mock) with live credentials. */
   protected static $api_live;
 
   /**
@@ -30,8 +31,7 @@ class CRM_GoCardlessUtils
    * @param bool $test Sandbox or Live API?
    * @return \GoCardlessPro\Client
    */
-  public static function getApi($test=FALSE)
-  {
+  public static function getApi($test = FALSE) {
     trigger_error("Calling CRM_GoCardlessUtils::getApi is deprecated as of v1.8. Instead you should load the CRM_Core_Payment_GoCardless payment processor object and call its getGoCardlessApi() method.", E_USER_DEPRECATED);
     if ($test && isset(static::$api_test)) {
       return static::$api_test;
@@ -44,9 +44,9 @@ class CRM_GoCardlessUtils
     $access_token = $pp['user_name'];
 
     $client = new \GoCardlessPro\Client(array(
-        'access_token' => $access_token,
-        'environment'  => $test ? \GoCardlessPro\Environment::SANDBOX : \GoCardlessPro\Environment::LIVE
-        ));
+      'access_token' => $access_token,
+      'environment'  => $test ? \GoCardlessPro\Environment::SANDBOX : \GoCardlessPro\Environment::LIVE,
+    ));
 
     if ($test) {
       static::$api_test = $client;
@@ -56,6 +56,7 @@ class CRM_GoCardlessUtils
     }
     return $client;
   }
+
   /**
    * Do a PaymentProcessor:getsingle for the GoCardless processor type.
    *
@@ -63,13 +64,14 @@ class CRM_GoCardlessUtils
    *
    * @param bool $test Whether to find a test processor or a live one.
    */
-  public static function getPaymentProcessor($test=FALSE) {
+  public static function getPaymentProcessor($test = FALSE) {
     trigger_error("Calling CRM_GoCardlessUtils::getPaymentProcessor is deprecated as of v1.8. Instead you should load the CRM_Core_Payment_GoCardless payment processor object using other CiviCRM native methods.", E_USER_DEPRECATED);
     // Find the credentials.
     $result = civicrm_api3('PaymentProcessor', 'getsingle',
-      ['payment_processor_type_id' => "GoCardless", 'is_test' => (int)$test]);
+      ['payment_processor_type_id' => "GoCardless", 'is_test' => (int) $test]);
     return $result;
   }
+
   /**
    * Sets the live or test GoCardlessPro API.
    *
@@ -79,8 +81,7 @@ class CRM_GoCardlessUtils
    * @param \GoCardlessPro\Client $api like object.
    * @return void
    */
-  public static function setApi($test, \GoCardlessPro\Client $api)
-  {
+  public static function setApi($test, \GoCardlessPro\Client $api) {
     if (!($api instanceof \GoCardlessPro\Client)) {
       throw new InvalidArgumentException("Object passed to CRM_GoCardlessUtils::setApi does not look like a GoCardlessPro\\Client");
     }
@@ -91,6 +92,7 @@ class CRM_GoCardlessUtils
       static::$api_live = $api;
     }
   }
+
   /**
    * Sets up a redirect flow with GoCardless.
    *
@@ -129,6 +131,7 @@ class CRM_GoCardlessUtils
 
     return $redirect_flow;
   }
+
   /**
    * Complete a GoCardless redirect flow, set up subscription from details given.
    *
@@ -143,10 +146,11 @@ class CRM_GoCardlessUtils
    * - amount (in GBP, e.g. 10.50)
    * - installments (optional positive integer number of payments to take)
    *
-   * @return array with these keys:
-   * - gc_api         GoCardless API object used.
-   * - redirect_flow  RedirectFlow object
-   * - subscription   Subscription object
+   * @return array
+   *   with these keys:
+   *   - gc_api         GoCardless API object used.
+   *   - redirect_flow  RedirectFlow object
+   *   - subscription   Subscription object
    */
   public static function completeRedirectFlowWithGoCardless($deets) {
     // Validate input.
@@ -201,11 +205,13 @@ class CRM_GoCardlessUtils
     // "customer": "CU123",
     // "customer_bank_account": "BA123"
     $params = [
-      'amount'        => (int) (100 * $deets['amount']), // Convert amount to pennies.
+    // Convert amount to pennies.
+      'amount'        => (int) (100 * $deets['amount']),
       'currency'      => 'GBP',
       'name'          => $deets['description'],
       'interval'      => $interval,
-      'interval_unit' => $interval_unit, // yearly etc.
+    // yearly etc.
+      'interval_unit' => $interval_unit,
       'links'         => ['mandate' => $redirect_flow->links->mandate],
       //'metadata' => ['order_no' => 'ABCD1234'],
     ];
@@ -221,11 +227,12 @@ class CRM_GoCardlessUtils
 
     // Return our objects in case that's helpful.
     return [
-        'gc_api' => $gc_api,
-        'redirect_flow' => $redirect_flow,
-        'subscription' => $subscription,
-      ];
+      'gc_api' => $gc_api,
+      'redirect_flow' => $redirect_flow,
+      'subscription' => $subscription,
+    ];
   }
+
   /**
    * Complete the redirect flow as used by the contribution pages.
    *
@@ -234,8 +241,7 @@ class CRM_GoCardlessUtils
    * the thank you page would be displayed.
    *
    */
-  public static function completeRedirectFlowCiviCore($deets)
-  {
+  public static function completeRedirectFlowCiviCore($deets) {
     CRM_Core_Error::debug_log_message(__FUNCTION__ . ": called with details: " . json_encode($deets), FALSE, 'GoCardless', PEAR_LOG_INFO);
     try {
       if (empty($deets['contactID'])) {
@@ -280,9 +286,10 @@ class CRM_GoCardlessUtils
 
       // Now actually do this at GC.
       $params = [
-          'interval' => $interval,
-          'interval_unit' => $interval_unit . 'ly', // year -> yearly
-          'amount' => $amount
+        'interval' => $interval,
+      // year -> yearly
+        'interval_unit' => $interval_unit . 'ly',
+        'amount' => $amount,
       ];
 
       if (isset($installments)) {
@@ -299,13 +306,13 @@ class CRM_GoCardlessUtils
       // Therefore we should cancel things.
       civicrm_api3('Contribution', 'create', [
         'id' => $deets['contributionID'],
-        'contribution_status_id' => 'Failed'
+        'contribution_status_id' => 'Failed',
       ]);
 
       if (!empty($deets['contributionRecurID'])) {
         civicrm_api3('ContributionRecur', 'create', [
           'id' => $deets['contributionRecurID'],
-          'contribution_status_id' => 'Failed'
+          'contribution_status_id' => 'Failed',
         ]);
       }
 
@@ -320,8 +327,8 @@ class CRM_GoCardlessUtils
 
       /* I'm not sure this applies to memberships...
       $cancelURL  = CRM_Utils_System::url( 'civicrm/contribute/transact',
-                                            "_qf_Main_display=1&cancel=1&qfKey={$_GET['qfKey']}",
-                                            true, null, false );
+      "_qf_Main_display=1&cancel=1&qfKey={$_GET['qfKey']}",
+      true, null, false );
        */
 
       // Stop processing at this point.
@@ -356,8 +363,10 @@ class CRM_GoCardlessUtils
       CRM_Core_Session::setStatus(E::ts("Sorry, there was a problem recording the details of your Direct Debit. Please call us."), 'Error', 'error');
     }
   }
+
   /**
    * Placeholder for sugar. Calling this will require this file and thereby the GC libraries.
    */
   public static function loadLibraries() {}
+
 }

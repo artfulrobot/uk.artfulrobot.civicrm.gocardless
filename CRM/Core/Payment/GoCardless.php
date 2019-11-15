@@ -11,19 +11,22 @@ use CRM_GoCardless_ExtensionUtil as E;
  */
 class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
 
-  /** @var bool TRUE if test mode.  */
+  /**
+   * @var bool TRUE if test mode.  */
   protected $test_mode;
 
-  /** @var Array of \GoCardlessPro\Client objects keyed by payment processor id.
-    */
+  /**
+   * @var Array of \GoCardlessPro\Client objects keyed by payment processor id.
+   */
   protected static $gocardless_api;
+
   /**
    * Constructor
    *
    * @param string $mode the mode of operation: live or test
    * @param $paymentProcessor
    */
-  function __construct($mode, &$paymentProcessor) {
+  public function __construct($mode, &$paymentProcessor) {
     $this->test_mode = ($mode === 'test');
     $this->_paymentProcessor = $paymentProcessor;
     // ? $this->_processorName    = E::ts('GoCardless Processor');
@@ -41,18 +44,18 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
    */
   public function checkConfig() {
     if (empty($this->_paymentProcessor['user_name'])) {
-      $errors []= E::ts("Missing %1", [1 => $this->_paymentProcessor['api.payment_processor_type.getsingle']['user_name_label']]);
+      $errors[] = E::ts("Missing %1", [1 => $this->_paymentProcessor['api.payment_processor_type.getsingle']['user_name_label']]);
     }
     if (empty($this->_paymentProcessor['url_api'])) {
-      $errors []= E::ts("Missing URL for API. This sould probably be %1 (for live payments) or %2 (for test/sandbox)",
+      $errors[] = E::ts("Missing URL for API. This sould probably be %1 (for live payments) or %2 (for test/sandbox)",
         [
           1 => $this->_paymentProcessor['api.payment_processor_type.getsingle']['url_api_default'],
           2 => $this->_paymentProcessor['api.payment_processor_type.getsingle']['url_api_test_default'],
         ]);
     }
 
-    if ( !empty( $errors ) ) {
-      $errors = "<ul><li>" . implode( '</li><li>', $errors ) . "</li></ul>";
+    if (!empty($errors)) {
+      $errors = "<ul><li>" . implode('</li><li>', $errors) . "</li></ul>";
       CRM_Core_Session::setStatus($errors, E::ts('Error'), 'error');
       return $errors;
     }
@@ -61,8 +64,8 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
 
     $webhook_url = CRM_Utils_System::url('civicrm/gocardless/webhook', $query=NULL, $absolute=TRUE, $fragment=NULL,  $htmlize=TRUE, $frontend=TRUE);
     CRM_Core_Session::setStatus("Ensure your webhooks are set up at GoCardless. URL is <a href='$webhook_url' >$webhook_url</a>"
-      , 'Set up your webhook');
-    */
+    , 'Set up your webhook');
+     */
   }
 
   /**
@@ -77,7 +80,9 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
   public function buildForm(&$form) {
     //$form->add('select', 'preferred_collection_day', E::ts('Preferred Collection Day'), $collectionDaysArray, FALSE);
   }
-  /** The only implementation is sending people off-site using doTransferCheckout.
+
+  /**
+   * The only implementation is sending people off-site using doTransferCheckout.
    */
   public function doDirectPayment(&$params) {
     CRM_Core_Error::fatal(E::ts('This function is not implemented'));
@@ -91,10 +96,11 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
    *
    * This is called by civicrm_api3_contribution_transact calling doPayment on the payment processor.
    */
-  public function doTransferCheckout( &$params, $component ) {
+  public function doTransferCheckout(&$params, $component) {
     $url = $this->doTransferCheckoutWorker($params, $component);
     CRM_Utils_System::redirect($url);
   }
+
   /**
    * Processes the contribution page submission for doTransferCheckout.
    *
@@ -106,9 +112,12 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
    * - entryURL
    * - contributionRecurID (optional)
    *
-   * @return string URL to redirec to.
+   * @param mixed $component
+   *
+   * @return string
+   *   URL to redirec to.
    */
-  public function doTransferCheckoutWorker( &$params, $component ) {
+  public function doTransferCheckoutWorker(&$params, $component) {
 
     try {
       // Get a GoCardless redirect flow URL.
@@ -147,7 +156,6 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
   /**
    * Create the inputs for creating a GoCardless redirect flow from the CiviCRM provided parameters.
    *
-   *
    * Name, address, phone, email parameters provided by profiles have names like:
    *
    * - email-5 (5 is the LocationType ID)
@@ -165,15 +173,15 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
     // Where should the user come back on our site after completing the GoCardless offsite process?
     $url = CRM_Utils_System::url(
       ($component == 'event') ? 'civicrm/event/register' : 'civicrm/contribute/transact',
-      "_qf_ThankYou_display=1&qfKey={$params['qfKey']}"."&cid={$params['contactID']}",
-      true, null, false );
+      "_qf_ThankYou_display=1&qfKey={$params['qfKey']}" . "&cid={$params['contactID']}",
+      TRUE, NULL, FALSE);
 
     $redirect_params = [
-        "test_mode"            => (bool) $this->_paymentProcessor['is_test'],
-        "session_token"        => $params['qfKey'],
-        "success_redirect_url" => $url,
-        "description"          => isset($params['description']) ? $params['description'] : NULL,
-      ];
+      "test_mode"            => (bool) $this->_paymentProcessor['is_test'],
+      "session_token"        => $params['qfKey'],
+      "success_redirect_url" => $url,
+      "description"          => isset($params['description']) ? $params['description'] : NULL,
+    ];
 
     // Check for things we can pre-fill.
     $customer = [];
@@ -214,7 +222,7 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
       $selected = NULL;
       if ($data) {
         // Fallback preference.
-        $prefs []= array_keys($data)[0];
+        $prefs[] = array_keys($data)[0];
 
         foreach ($prefs as $type) {
           if (isset($data[$type])) {
@@ -286,6 +294,7 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
 
     return $redirect_flow;
   }
+
   /**
    * Returns a GoCardless API object for this payment processor.
    *
@@ -300,9 +309,9 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
       $access_token = $pp['user_name'];
       CRM_GoCardlessUtils::loadLibraries();
       static::$gocardless_api[$pp['id']] = new \GoCardlessPro\Client(array(
-          'access_token' => $access_token,
-          'environment'  => $pp['is_test'] ? \GoCardlessPro\Environment::SANDBOX : \GoCardlessPro\Environment::LIVE
-          ));
+        'access_token' => $access_token,
+        'environment'  => $pp['is_test'] ? \GoCardlessPro\Environment::SANDBOX : \GoCardlessPro\Environment::LIVE,
+      ));
     }
     return static::$gocardless_api[$pp['id']];
   }
@@ -329,4 +338,5 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
     $pp = $this->getPaymentProcessor();
     return $pp['is_test'];
   }
+
 }
