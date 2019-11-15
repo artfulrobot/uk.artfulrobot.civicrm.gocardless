@@ -168,15 +168,20 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     // ...AND check that it has not been cancelled.
     $contrib_recur_statuses = CRM_Contribute_BAO_ContributionRecur::buildOptions('contribution_status_id', 'validate');
     if (in_array($contrib_recur_statuses[$recur['contribution_status_id']], ['Pending', 'Overdue'])) {
-      // It would be Pending if this is the first payment on a new mandate.
       // It would be Overdue if the last payment failed.
+      //
+      // It would be Pending if this is the first payment on a new mandate -
+      // and it was set up before v1.8 of this was in use. We now set the
+      // recurring record to In Progress as soon as the mandate and subscription
+      // are setup, so we should not encounter too many Pending contribution
+      // recur records any longer.
       //
       // In these situations, having just received a successful payment
       // (subject to any "late failures" yet to occur) then the recur record
       // should be set to "In Progress".
       //
       // However we don't do this for other statuses (namely Cancelled, or
-      // Completed). A payment may come in on a Cancelled mandate, if your
+      // Completed or Failed). A payment may come in on a Cancelled mandate, if your
       // timing is unluckly, it does not mean the mandate is In Progress.
       // See https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/54
       //
@@ -194,6 +199,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     $contribution = [
       'total_amount'           => number_format($payment->amount / 100, 2, '.', ''),
       'receive_date'           => $payment->charge_date,
+      'trxn_date'              => $payment->charge_date,
       'trxn_id'                => $payment->id,
       'contribution_recur_id'  => $recur['id'],
       'financial_type_id'      => $recur['financial_type_id'],
@@ -201,13 +207,26 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       'is_test'                => $this->test_mode ? 1 : 0,
       'is_email_receipt'       => 0, // Do not send email receipts. This might annoy some people. Be nice if it was a setting.
     ];
+    // Note: the param called 'trxn_date' which is used for membership date
+    // calculations. If it's not given, today's date gets used.
+
+    // From CiviCRM 5.19.1 (and possibly earlier) we need to specify the
+    // membership_id on the contribution, otherwise the membership does not get
+    // updated. This may/may not be related to the work on implementing Order API etc.
+    $memberships = civicrm_api3('Membership', 'get', [
+      'contribution_recur_id' => $recur['id'],
+      'sequential' => 1,
+    ]);
+    if ($memberships['count'] == 1) {
+      $contribution['membership_id'] = $memberships['values'][0]['id'];
+    }
 
     $pending_contribution_id = $this->getPendingContributionId($recur);
     if ($pending_contribution_id) {
-      // There's an existing pending contribution. Use completetransaction API.
+      // There's an existing pending contribution.
       $contribution['id'] = $pending_contribution_id;
-      // Update the amount. This should not have changed, but there is an edge
-      // case where it does since we're talking about an external system.
+
+      // Update the contribution.
       $result = civicrm_api3('Contribution', 'create', $contribution);
 
       // Now call completetransaction. Note that the only data this updates in
