@@ -208,7 +208,6 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     $contribution = [
       'total_amount'           => number_format($payment->amount / 100, 2, '.', ''),
       'receive_date'           => $payment->charge_date,
-      'trxn_date'              => $payment->charge_date,
       'trxn_id'                => $payment->id,
       'contribution_recur_id'  => $recur['id'],
       'financial_type_id'      => $recur['financial_type_id'],
@@ -216,10 +215,12 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       'is_test'                => $this->test_mode ? 1 : 0,
     // Do not send email receipts. This might annoy some people. Be nice if it was a setting.
       'is_email_receipt'       => 0,
+    // xxx 'trxn_date'              => $payment->charge_date,
     ];
-    // Note: the param called 'trxn_date' which is used for membership date
+    // xxx Note: the param called 'trxn_date' which is used for membership date
     // calculations. If it's not given, today's date gets used.
 
+    /*
     // From CiviCRM 5.19.1 (and possibly earlier) we need to specify the
     // membership_id on the contribution, otherwise the membership does not get
     // updated. This may/may not be related to the work on implementing Order API etc.
@@ -243,16 +244,37 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       // the contribution record is trxn_id and fee_amount (which we don't
       // supply).
       $result = civicrm_api3('Contribution', 'completetransaction', $contribution);
+
+      // @todo this should presumably use Payment.create ?
+
       // We're done here.
       return;
     }
 
     // There is no pending contribution, find the original one.
     $contribution['original_contribution_id'] = $this->getOriginalContributionId($recur);
-    $contribution['contribution_status_id'] = 'Completed';
+    // We set the status to Pending, then call Payment.create
+    $contribution['contribution_status_id'] = 'Pending';
 
     // Create a copy record of the original contribution and send out email receipt
+    print("\nParams:\n" . json_encode($contribution, JSON_PRETTY_PRINT));
     $result = civicrm_api3('Contribution', 'repeattransaction', $contribution);
+
+    // Create payment, which should complete the contribution and update memberships etc.
+    $params = [
+      'contribution_id'                   => $result['id'],
+      'total_amount'                      => $contribution['total_amount'],
+      'is_send_contribution_notification' => '', // Don't send notifications.
+      'payment_instrument_id'             => $this->payment_processor->getPaymentInstrumentID(),
+      'payment_processor_id'              => $this->payment_processor->getPaymentProcessor()['id'],
+      'trxn_id'                           => $payment->id,
+    // trxn_date doesn't come up in API explorer but surely it's needed?
+      'trxn_date'                         => $payment->charge_date,
+    ];
+    $result = civicrm_api3('Payment', 'create', $params);
+
+    // xxx
+    $final_contrib = civicrm_api3('Contribution', 'get', ['id' => $result['id']]);
   }
 
   /**
