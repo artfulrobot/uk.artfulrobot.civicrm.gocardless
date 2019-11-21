@@ -922,8 +922,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     // And the remaining one should be our new one.
     $contrib = reset($result['values']);
 
-    // This test will fail if called a fraction before midnight such that when it gets here it's after midnight. Meh.
-    $this->assertStringStartsWith("$second_charge_date ", $contrib['receive_date'], "Contribution charge date is wrong");
+    $this->assertEquals("$second_charge_date 00:00:00", $contrib['receive_date']);
     $this->assertEquals(1.23, $contrib['total_amount']);
     $this->assertEquals('PAYMENT_ID_2', $contrib['trxn_id']);
     $this->assertEquals($this->contribution_status_map['Completed'], $contrib['contribution_status_id']);
@@ -931,14 +930,12 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     // Check membership
     $result = civicrm_api3('Membership', 'getsingle', ['id' => $membership['id']]);
     $this->assertEquals($this->membership_status_map["Current"], $result['status_id']);
-
-    // join_date and start_date are unchanged (?shouldn't start date be nudged?)
+    // join_date and start_date are unchanged
     $this->assertEquals($membership['join_date'], $result['join_date']);
     $this->assertEquals($membership['start_date'], $result['start_date']);
-
     // end_date is 12 months later
     $end_dt = new DateTimeImmutable($membership['end_date']);
-    $this->assertEquals($end_dt->modify("+12 months")->format("Y-m-d"), $result['end_date'], "Original membership end date ($membership[end_date]) was not updated correctly");
+    $this->assertEquals($end_dt->modify("+12 months")->format("Y-m-d"), $result['end_date']);
 
   }
 
