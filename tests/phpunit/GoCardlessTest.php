@@ -782,9 +782,10 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     // Now check the changes have been made.
     $result = civicrm_api3('Contribution', 'getsingle', ['id' => $contrib['id']]);
     $this->assertEquals($charge_date . ' 00:00:00', $result['receive_date']);
-    $this->assertEquals(50, $result['total_amount']);
     $this->assertEquals('PAYMENT_ID', $result['trxn_id']);
     $this->assertEquals($this->contribution_status_map['Completed'], $result['contribution_status_id']);
+    // Nb. this is an edge case:
+    $this->assertEquals(50, $result['total_amount']);
 
     $result = civicrm_api3('Membership', 'getsingle', ['id' => $membership['id']]);
     // status should be updated to New

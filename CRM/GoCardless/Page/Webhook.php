@@ -195,8 +195,18 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       // There's an existing pending contribution.
       $contribution['id'] = $pending_contribution_id;
 
-      // Update the contribution.
-      civicrm_api3('Contribution', 'create', $contribution);
+      // If the amount received is different, we should update our pending contribution.
+      // This is an edge case, but it's a possibility. e.g. someone sets it up
+      // through CiviCRM then changes it in GoCardless (either themself or by
+      // asking staff to change it)
+      $existing_amount = civicrm_api3('Contribution', 'getvalue', ['id' => $pending_contribution_id, 'return' => 'total_amount']);
+      if ($existing_amount != $contribution['total_amount']) {
+        // Update the contribution.
+        civicrm_api3('Contribution', 'create', [
+          'id'           => $pending_contribution_id,
+          'total_amount' => $contribution['total_amount'],
+        ]);
+      }
 
       // Now call completetransaction. Note that the only data this updates in
       // the contribution record is trxn_id and fee_amount (which we don't
