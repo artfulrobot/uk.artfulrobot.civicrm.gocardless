@@ -189,4 +189,19 @@ class CRM_GoCardless_Upgrader extends CRM_GoCardless_Upgrader_Base {
    * return TRUE;
    * } // */
 
+  /**
+   * We used to store the subscription ID in the trxn_id field, but as this is
+   * not yet (in 5.19.2) passed into the cancelsubscription method, we'll start
+   * using processor_id instead.
+   *
+   * @return TRUE on success
+   * @throws Exception
+   */
+   public function upgrade_0001() {
+     $this->ctx->log->info('Applying update 0001');
+     // this path is relative to the extension base dir
+     $this->executeSqlFile('sql/upgrade_0001.sql');
+     return TRUE;
+   }
+
 }

@@ -129,7 +129,7 @@ their membership is active immediately.
 In the DD world, things happen on different dates:
 
 1. `setup_date` - fill in a membership form, complete a DD mandate
-   - Recurring Contribution created with status Pending
+   - Recurring Contribution created with status In Progress
    - Contribution created with status Pending
    - Membership created with status Pending,  
      `join_date = start_date = setup_date`
@@ -137,8 +137,6 @@ In the DD world, things happen on different dates:
 2. `charge_date` - first payment charged
 
 3. `webhook_date` - GoCardless fires webhook and notifies of `charge_date`
-
-   - Recurring Contribution updated to In Progress
 
    - Contribution updated to status Completed, `receive_date` updated to
      `charge_date`
@@ -194,7 +192,7 @@ The life-cycle would typically be:
    website after the following records are set up in CiviCRM:
 
      - a **pending** contribution
-     - a **pending** recurring contribution
+     - an **pending** recurring contribution
 
    Those records have receive and start date set (by core CiviCRM) to the date
    and time the form was submitted (as you might expect). However, once the user
@@ -204,12 +202,14 @@ The life-cycle would typically be:
    been set to a date **in the future**. This is the date provided by GoCardless
    itself and corresponds to the earliest date they can make a charge.
 
+   Also, the recurring contribution record is now set to *In Progress*.
+
    The completion process sets up the following at GoCardless:
 
      - a **customer**
      - a **mandate**
      - a **subscription** - the ID of this begins with `SB` and is stored in the
-       CiviCRM recurring contribution transaction ID
+       CiviCRM recurring contribution `trxn_id` and `processor_id` fields
      - a lot of scheduled **payments**
 
 
@@ -227,8 +227,9 @@ The life-cycle would typically be:
        this is earlier than the date this payment confirmed webhook fires) and
        setting the transaction ID to the GoCardless payment ID. It also sets
        amount to the amount from GoCardless.
-     - finally it changes the status on the CiviCRM recurring contribution
-       record to 'In Progress'.
+     - check that the status on the CiviCRM recurring contribution
+       record is 'In Progress'. (It should be but the check is there because we
+       previously did things differently.)
 
 Note: After a while the GoCardless payment status is changed from `confirmed` to
 `paid_out`. Normally the confirmed webhook will have processed the payment
@@ -265,6 +266,21 @@ It's not a fully fledged tool but it may help others with one-off import tasks
 to build a tool for their own needs from that.
 
 ## Change log
+
+### 1.9 For CiviCRM 5.19
+
+
+- (NOT in Beta: No longer refuses to send email receipts (Issue 61))
+
+- Supports changing the amount and cancelling a subscription via CiviCRM main user interface (issue 6). It does not support letting supporters themselves change these things.
+
+- One-way-upgrade: we now store the GoCardless subscription ID in *both* `trxn_id` and `processor_id` in the `civicrm_contribution_recur` table. This is because some parts of CiviCRM's UI require us to reference the record via `processor_id` which was unused up to this point. An upgrade task should populate existing data.
+
+- Some membership dates logic was failing in the tests under CiviCRM 5.19. This version passes its tests again.
+
+- Fix issue when setting up a weekly membership (issue 59 - thanks to MJW Consulting for reporting and suggesting fix)
+
+- Improvements to code standards; better support for translation possiblities; move tests to phpunit6.
 
 ### 1.8 Big changes
 

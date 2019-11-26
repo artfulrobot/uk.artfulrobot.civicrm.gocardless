@@ -85,7 +85,8 @@ foreach ($subscriptions->records as $subscription) {
   // Try to find the ContributionRecur record. The GoCardless subscription ID
   // is stored as the recurring contrib's `trxn_id`.
   $recur = civicrm_api3('ContributionRecur', 'get', [
-    'trxn_id' => $subscription->id,
+    'trxn_id'      => $subscription->id,
+    'processor_id' => $subscription->id,
   ]);
 
   if ($recur['count'] == 0) {
@@ -166,6 +167,7 @@ foreach ($subscriptions->records as $subscription) {
       "create_date"            => $subscription->start_date,
       "modified_date"          => $subscription->start_date,
       "end_date"               => $subscription->end_date,
+      "processor_id"           => $subscription->id,
       "trxn_id"                => $subscription->id,
       "contribution_status_id" => STATUS_IN_PROGRESS, // 1:Completed, 2: pending, 3: cancelled, 4: failed, 5: in progress ...)
       "is_test"                => 0,

@@ -720,6 +720,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
           //'contribution_status_id' => "In Progress",
       'contribution_status_id' => "Pending",
       'trxn_id' => 'SUBSCRIPTION_ID',
+      'processor_id' => 'SUBSCRIPTION_ID',
     ));
     $contrib = civicrm_api3('Contribution', 'create', array(
       'sequential' => 1,
@@ -838,6 +839,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
       'is_test' => 1,
       'contribution_status_id' => "In Progress",
       'trxn_id' => 'SUBSCRIPTION_ID',
+      'processor_id' => 'SUBSCRIPTION_ID',
       'payment_processor_id' => $this->test_mode_payment_processor['id'],
     ));
 
@@ -968,6 +970,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
       'is_test' => 1,
       'contribution_status_id' => "Cancelled",
       'trxn_id' => 'SUBSCRIPTION_ID',
+      'processor_id' => 'SUBSCRIPTION_ID',
       'payment_processor_id' => $this->test_mode_payment_processor['id'],
     ));
 
@@ -1079,6 +1082,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
       'is_test' => 1,
       'contribution_status_id' => "In Progress",
       'trxn_id' => 'SUBSCRIPTION_ID',
+      'processor_id' => 'SUBSCRIPTION_ID',
     ));
     $contrib = civicrm_api3('Contribution', 'create', array(
       'sequential' => 1,
@@ -1152,6 +1156,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
       'is_test' => 1,
       'contribution_status_id' => "In Progress",
       'trxn_id' => 'SUBSCRIPTION_ID',
+      'processor_id' => 'SUBSCRIPTION_ID',
       'payment_processor_id' => $this->test_mode_payment_processor['id'],
     ));
 
@@ -1242,6 +1247,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
       'is_test' => 1,
       'contribution_status_id' => "Cancelled",
       'trxn_id' => 'SUBSCRIPTION_ID',
+      'processor_id' => 'SUBSCRIPTION_ID',
       'payment_processor_id' => $this->test_mode_payment_processor['id'],
     ));
 
@@ -1408,6 +1414,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
       'is_test' => 1,
       'contribution_status_id' => "In Progress",
       'trxn_id' => 'SUBSCRIPTION_ID',
+      'processor_id' => 'SUBSCRIPTION_ID',
     ));
 
     // Mark this contrib as Incomplete - this is the case that the thing's just
@@ -1489,6 +1496,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
       'is_test' => 1,
       'contribution_status_id' => "In Progress",
       'trxn_id' => 'SUBSCRIPTION_ID',
+      'processor_id' => 'SUBSCRIPTION_ID',
     ));
 
     // Mark this contrib as Incomplete - this is the case that the thing's just

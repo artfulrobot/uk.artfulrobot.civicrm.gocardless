@@ -489,10 +489,10 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     }
 
     // Find the recurring payment by the given subscription which will be
-    // stored in the trxn_id field.
+    // stored in the processor_id field.
     try {
       $recur = civicrm_api3('ContributionRecur', 'getsingle', [
-        'trxn_id' => $subscription_id,
+        'processor_id' => $subscription_id,
       ]);
     }
     catch (CiviCRM_API3_Exception $e) {
