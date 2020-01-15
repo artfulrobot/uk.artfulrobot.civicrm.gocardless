@@ -267,10 +267,7 @@ to build a tool for their own needs from that.
 
 ## Change log
 
-### 1.9 For CiviCRM 5.19
-
-
-- (NOT in Beta: No longer refuses to send email receipts (Issue 61))
+### 1.9 For CiviCRM 5.19+
 
 - Supports changing the amount and cancelling a subscription via CiviCRM main user interface (issue 6). It does not support letting supporters themselves change these things.
 
