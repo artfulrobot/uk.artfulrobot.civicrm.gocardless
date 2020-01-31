@@ -55,22 +55,23 @@ class CRM_GoCardless_Upgrader extends CRM_GoCardless_Upgrader_Base {
     // Now create the PaymentProcessorType.
     $get_or_create('PaymentProcessorType',
       [
-        'name' => 'GoCardless',
-        'title' => 'GoCardless',
-        'class_name' => 'Payment_GoCardless',
+        'name'         => 'GoCardless',
+        'title'        => 'GoCardless',
+        'class_name'   => 'Payment_GoCardless',
         'billing_mode' => 4,
-        'is_recur' => 1,
+        'is_recur'     => 1,
       ],
       [
-        'is_active' => 1,
-        'is_default' => 0,
-        'user_name_label' => 'API Access Token',
-        'signature_label' => 'Webhook Secret',
-        'url_api_default' => 'https://api.gocardless.com/',
-        'url_api_test_default' => 'https://api-sandbox.gocardless.com/',
-        'billing_mode' => 4,
-        'is_recur' => 1,
-        'payment_type' => $payment_instrument_id,
+        'is_active'             => 1,
+        'is_default'            => 0,
+        'user_name_label'       => 'API Access Token',
+        'signature_label'       => 'Webhook Secret',
+        'url_api_default'       => 'https://api.gocardless.com/',
+        'url_api_test_default'  => 'https://api-sandbox.gocardless.com/',
+        'billing_mode'          => 4,
+        'is_recur'              => 1,
+        'payment_type'          => CRM_Core_Payment::PAYMENT_TYPE_DIRECT_DEBIT,
+        'payment_instrument_id' => $payment_instrument_id,
       ]);
   }
 
@@ -204,4 +205,81 @@ class CRM_GoCardless_Upgrader extends CRM_GoCardless_Upgrader_Base {
      return TRUE;
    }
 
+
+  /**
+   * Correct payment processor types' and payment processors' payment_type and
+   * payment_instrument_id
+   *
+   * @return TRUE on success
+   * @throws Exception
+   */
+   public function upgrade_0002() {
+     $this->ctx->log->info('Applying update 0002');
+
+
+     // We need the payment_instrument_id for GoCardless
+      $payment_instrument = civicrm_api3('OptionValue', 'get', [
+        'option_group_id' => "payment_instrument",
+        'name' => "direct_debit_gc",
+      ]);
+     if (!$payment_instrument['count'] == 1) {
+       Civi::log()->error("GoCardless upgrade_0002 expected to find a payment instrument with name direct_debit_gc but found none. Cannot perform upgrade step.");
+       return FALSE;
+     }
+
+     $processor_types = civicrm_api3('PaymentProcessorType', 'get', [ 'name' => 'GoCardless', 'options' => ['limit' => 0] ]);
+     if ($processor_types['count'] != 1) {
+       Civi::log()->warning("GoCardless upgrade_0002 expected to find one GoCardless payment processor type, but found $processor_types[count]");
+     }
+     foreach ($processor_types['values'] ?? [] as $processor_type) {
+
+       $processor_updates = [];
+
+       // Historically the 'payment_type' may have been set to 1 or the
+       // payment_instrument_id. It should be 2.
+       if ($processor_type['payment_type'] != CRM_Core_Payment::PAYMENT_TYPE_DIRECT_DEBIT) {
+         $processor_updates['payment_type'] = CRM_Core_Payment::PAYMENT_TYPE_DIRECT_DEBIT;
+       }
+
+        // And the payment_instrument_id may have been set to credit card (1)
+       if ($processor_type['payment_instrument_id'] != $payment_instrument_id) {
+         $processor_updates['payment_instrument_id'] = $payment_instrument_id;
+       }
+
+       if ($processor_updates) {
+         $processor_updates['id'] = $processor_type['id'];
+         civicrm_api3('PaymentProcessorType', 'create', $processor_updates);
+         Civi::log()->info("GoCardless upgrade_0002 updated the payment processor type", [
+           'from' => $processor_type, 'with' => $processor_updates]);
+       }
+
+       // Now find payment processors.
+       $processors = civicrm_api3('PaymentProcessor', 'get', [
+         'payment_processor_type_id' => $processor_type['id'],
+         'options' => ['limit' => 0],
+       ]);
+       foreach ($processors['values'] ?? [] as $processor) {
+         $processor_updates = [];
+         if ($processor['payment_type'] != CRM_Core_Payment::PAYMENT_TYPE_DIRECT_DEBIT) {
+           $processor_updates['payment_type'] = CRM_Core_Payment::PAYMENT_TYPE_DIRECT_DEBIT;
+         }
+
+         // And the payment_instrument_id may have been set to credit card (1)
+         if ($processor['payment_instrument_id'] != $payment_instrument_id) {
+           $processor_updates['payment_instrument_id'] = $payment_instrument_id;
+         }
+
+         if ($processor_updates) {
+           $processor_updates['id'] = $processor['id'];
+           civicrm_api3('PaymentProcessor', 'create', $processor_updates);
+           Civi::log()->info("GoCardless upgrade_0002 updated the payment processor", [
+             'from' => $processor_type, 'with' => $processor_updates]);
+         }
+       }
+     }
+
+     // this path is relative to the extension base dir
+     // $this->executeSqlFile('sql/upgrade_0002.sql');
+     return TRUE;
+   }
 }
