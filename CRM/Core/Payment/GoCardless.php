@@ -51,22 +51,26 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
    * Contributions Tab of a contact, for example.
    *
    * @return string the error message if any
+   * @throws \CiviCRM_API3_Exception
    */
   public function checkConfig() {
+    $paymentProcessorType = civicrm_api3('PaymentProcessorType', 'getsingle', [
+      'id' => $this->_paymentProcessor['payment_processor_type_id'],
+    ]);
+
     if (empty($this->_paymentProcessor['user_name'])) {
-      $errors[] = E::ts("Missing %1", [1 => $this->_paymentProcessor['api.payment_processor_type.getsingle']['user_name_label']]);
+      $errors[] = E::ts("Missing %1", [1 => $paymentProcessorType['user_name_label']]);
     }
     if (empty($this->_paymentProcessor['url_api'])) {
       $errors[] = E::ts("Missing URL for API. This sould probably be %1 (for live payments) or %2 (for test/sandbox)",
         [
-          1 => $this->_paymentProcessor['api.payment_processor_type.getsingle']['url_api_default'],
-          2 => $this->_paymentProcessor['api.payment_processor_type.getsingle']['url_api_test_default'],
+          1 => $paymentProcessorType['url_api_default'],
+          2 => $paymentProcessorType['url_api_test_default'],
         ]);
     }
 
     if (!empty($errors)) {
       $errors = "<ul><li>" . implode('</li><li>', $errors) . "</li></ul>";
-      CRM_Core_Session::setStatus($errors, E::ts('Error'), 'error');
       return $errors;
     }
 
