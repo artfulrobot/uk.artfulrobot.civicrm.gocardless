@@ -106,15 +106,27 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    * Alters $this->test_mode, $this->events.
    *
    * @throws InvalidArgumentException if signature does not match.
+   *
+   * @param array $headers
+   * @param string $raw_payload
+   *
    * @return void
    */
   public function parseWebhookRequest($headers, $raw_payload) {
 
     // Check signature and find appropriate Payment Processor.
-    if (empty($headers["Webhook-Signature"])) {
+    // GoCardless announced in Jan 2020 that their headers would now be sent
+    // lowercase and must be treated as case-insensitive.
+    $provided_signature = NULL;
+    foreach ($headers as $key => $value) {
+      if (strtolower($key) === 'webhook-signature') {
+        $provided_signature = $value;
+        break;
+      }
+    }
+    if (empty($provided_signature)) {
       throw new InvalidArgumentException("Unsigned API request.");
     }
-    $provided_signature = $headers["Webhook-Signature"];
 
     // Loop through all GoCardless Payment Processors until we find one for which the signature is valid.
     $candidates = civicrm_api3('PaymentProcessor', 'get', ['payment_processor_type_id' => "GoCardless", 'is_active' => 1]);
