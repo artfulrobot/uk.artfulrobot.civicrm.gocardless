@@ -267,7 +267,17 @@ to build a tool for their own needs from that.
 
 ## Change log
 
+### 1.9.2
+
+- Move to `Payment.create` API instead of older (and deprecated) `Contribution.completetransaction` API.
+
+- Treat HTTP headers sent by GoCardless webhooks as case-insensitive, as now required by GoCardless (they changed the way they sent HTTP/1.1 headers).
+
+- Fix missing/invalid configuration for payment instrument and payment method.
+
 ### 1.9 For CiviCRM 5.19+
+
+- **Do not install v 5.19 from civicrm.org/extensions** - it's missing the important libraries! Use 5.19.1
 
 - Supports changing the amount and cancelling a subscription via CiviCRM main user interface (issue 6). It does not support letting supporters themselves change these things.
 
