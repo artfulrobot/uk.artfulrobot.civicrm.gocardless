@@ -202,6 +202,12 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     // Note: the param called 'trxn_date' which is used for membership date
     // calculations. If it's not given, today's date gets used.
 
+
+    // Shortly we will make a call to Payment.create, but this will not correctly update
+    // several fields in the Contribution record. We'll collect the things that
+    // need correcting in and submit them using Contribution.create at the end.
+    $fixContributionParams = [];
+
     $pending_contribution_id = $this->getPendingContributionId($recur);
     if ($pending_contribution_id) {
       // There's an existing pending contribution.
@@ -232,22 +238,27 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       // is_send_contribution_notification are passed on to the
       // Contribution.completetranscation API.
       //
-      // We want to save the trxn_id and receive_date to the contribution, so
-      // we do this directly now. It would be more efficient if the core API
-      // allowed passing in this data to avoid a 2nd call.
-      $fixContributionParams = [
-        'id'           => $contribution['id'],
-        'trxn_id'      => $payment->id,
-        'receive_date' => $payment->charge_date,
-      ];
-      civicrm_api3('Contribution', 'create', $fixContributionParams);
-
-      // We're done here.
-      return;
+      // trxn_id is not updated on the Contribution record.
+      $fixContributionParams['trxn_id'] = $contribution['trxn_id'];
+    }
+    else {
+      // This is another payment after the first.
+      $contribution = $this->handleRepeatTransaction($contribution, $recur);
     }
 
-    // This is another payment after the first.
-    $this->handleRepeatTransaction($contribution, $recur);
+    $fixContributionParams += [
+      'id'           => $contribution['id'],
+      'receive_date' => $contribution['receive_date']
+    ];
+
+    // Finally, correct any Contribution records entries that are either not
+    // updated or set incorrectly by Payment.create. It would be more efficient
+    // if the core APIs allowed passing in this data to avoid a 2nd call
+    // (or perhaps we're not supposed to do this - but it seems important to me
+    // that the contribution receive_date is the date the payment was made, and
+    // not the date the webhook was fired - since this could be delayed, or a
+    // replay).
+    civicrm_api3('Contribution', 'create', $fixContributionParams);
   }
 
   /**
@@ -295,6 +306,8 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
    *
    * @param Array $contribution
    * @param Array $recur
+   *
+   * @return Array updated $contribution
    */
   public function handleRepeatTransaction($contribution, $recur) {
 
@@ -354,22 +367,28 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
       return;
     }
 
-    // Now complete the transaction.
-    $params = [
-      'id'                   => $contribution['id'],
-      'payment_processor_id' => $this->payment_processor->getPaymentProcessor()['id'],
-      'is_email_receipt'     => (empty($contribution['is_email_receipt']) ? 0 : 1),
-      'trxn_id'              => $contribution['trxn_id'],
-      'receive_date'         => $contribution['receive_date'],
+    // Now complete the new contribution by creating a payment for the same amount.
+    $paymentCreateParams = [
+      'contribution_id'                   => $contribution['id'],
+      'is_send_contribution_notification' => (empty($contribution['is_email_receipt']) ? 0 : 1),
+      'trxn_id'                           => $contribution['trxn_id'],
+      'trxn_date'                         => $contribution['receive_date'],
+      'total_amount'                      => $contribution['total_amount'],
     ];
-    $result = civicrm_api3('Contribution', 'completetransaction', $params);
+    $result = civicrm_api3('Payment', 'create', $paymentCreateParams);
     if ($result['is_error'] ?? NULL) {
       CRM_Core_Error::debug_log_message(
-        "Webhook $this->now Failed event. completetransaction failed.",
-        $params, 'GoCardless', PEAR_LOG_ERR);
+        "Webhook $this->now Failed event. Payment.create API failed\n".
+        json_encode([
+          'API params'   => $paymentCreateParams,
+          'Result'       => $result,
+          'Contribution' => $contribution,
+        ], JSON_PRETTY_PRINT),
+        NULL, 'GoCardless', PEAR_LOG_ERR);
       return;
     }
 
+    return $contribution;
   }
   /**
    * Process webhook for 'payments' resource type, action 'failed'.

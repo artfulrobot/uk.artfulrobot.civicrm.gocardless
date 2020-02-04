@@ -907,11 +907,15 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
         "links":{"subscription":"SUBSCRIPTION_ID"}
         }'));
 
-    // Now trigger webhook.
+    //
+    // Mocks, done, now onto the code we are testing: trigger webhook.
+    //
     $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
     $controller->processWebhookEvents(TRUE);
 
+    //
     // Now check the changes have been made.
+    //
     $result = civicrm_api3('Contribution', 'get', [
       'contribution_recur_id' => $recur['id'],
       'is_test' => 1,
@@ -1033,11 +1037,15 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
         "links":{"subscription":"SUBSCRIPTION_ID"}
         }'));
 
-    // Now trigger webhook.
+    //
+    // Mocks, done, now onto the code we are testing: trigger webhook.
+    //
     $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
     $controller->processWebhookEvents(TRUE);
 
+    //
     // Now check the changes have been made.
+    //
     $result = civicrm_api3('Contribution', 'get', [
       'contribution_recur_id' => $recur['id'],
       'is_test' => 1,
