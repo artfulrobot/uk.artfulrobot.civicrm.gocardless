@@ -222,20 +222,26 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
 
       // Now call Payment.create. This will call Contribution.completetransaction internally
       civicrm_api3('Payment', 'create', [
-        'contribution_id' => $contribution['id'],
-        'total_amount' => $contribution['total_amount'],
-        'trxn_date' => $payment->charge_date,
-        'trxn_id' => $payment->id,
-        'is_send_contribution_notification' => 0,
+        'contribution_id'                   => $contribution['id'],
+        'total_amount'                      => $contribution['total_amount'],
+        'trxn_date'                         => $payment->charge_date,
+        'trxn_id'                           => $payment->id,
+        'is_send_contribution_notification' => $contribution['is_email_receipt'],
       ]);
-      // @todo: At this point we want to save the trxn_id and receive_date to the contribution.
-      //   But Payment.create only passes contribution ID, is_send_contribution_notification and is_post_payment_create
+      // Of these params for Payment.create, only contribution_id and
+      // is_send_contribution_notification are passed on to the
+      // Contribution.completetranscation API.
+      //
+      // We want to save the trxn_id and receive_date to the contribution, so
+      // we do this directly now. It would be more efficient if the core API
+      // allowed passing in this data to avoid a 2nd call.
       $fixContributionParams = [
-        'id' => $contribution['id'],
-        'trxn_id' => $payment->id,
+        'id'           => $contribution['id'],
+        'trxn_id'      => $payment->id,
         'receive_date' => $payment->charge_date,
       ];
       civicrm_api3('Contribution', 'create', $fixContributionParams);
+
       // We're done here.
       return;
     }

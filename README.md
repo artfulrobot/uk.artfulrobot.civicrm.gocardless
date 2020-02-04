@@ -269,7 +269,7 @@ to build a tool for their own needs from that.
 
 ### 1.9.2
 
-- Move to `Payment.create` API instead of older (and deprecated) `Contribution.completetransaction` API. #70 (Thanks @mattwire) xxx not yet merged xxx
+- Move to `Payment.create` API instead of older (and deprecated) `Contribution.completetransaction` API. #70 (Thanks @mattwire). This fixes [issue #63](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/63) on some sites where the first contribution never gets completed.
 
 - Fix some issues with the system checks (#69 thanks @mattwire)
 
