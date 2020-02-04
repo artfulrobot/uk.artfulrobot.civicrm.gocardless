@@ -220,10 +220,22 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
         ]);
       }
 
-      // Now call completetransaction. Note that the only data this updates in
-      // the contribution record is trxn_id and fee_amount (which we don't
-      // supply).
-      civicrm_api3('Contribution', 'completetransaction', $contribution);
+      // Now call Payment.create. This will call Contribution.completetransaction internally
+      civicrm_api3('Payment', 'create', [
+        'contribution_id' => $contribution['id'],
+        'total_amount' => $contribution['total_amount'],
+        'trxn_date' => $payment->charge_date,
+        'trxn_id' => $payment->id,
+        'is_send_contribution_notification' => 0,
+      ]);
+      // @todo: At this point we want to save the trxn_id and receive_date to the contribution.
+      //   But Payment.create only passes contribution ID, is_send_contribution_notification and is_post_payment_create
+      $fixContributionParams = [
+        'id' => $contribution['id'],
+        'trxn_id' => $payment->id,
+        'receive_date' => $payment->charge_date,
+      ];
+      civicrm_api3('Contribution', 'create', $fixContributionParams);
       // We're done here.
       return;
     }
