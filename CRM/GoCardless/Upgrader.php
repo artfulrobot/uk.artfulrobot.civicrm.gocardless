@@ -214,18 +214,22 @@ class CRM_GoCardless_Upgrader extends CRM_GoCardless_Upgrader_Base {
    * @throws Exception
    */
    public function upgrade_0002() {
-     $this->ctx->log->info('Applying update 0002');
+     if ($this->ctx) {
+       $this->ctx->log->info('Applying update 0002');
+     }
 
 
      // We need the payment_instrument_id for GoCardless
       $payment_instrument = civicrm_api3('OptionValue', 'get', [
         'option_group_id' => "payment_instrument",
         'name' => "direct_debit_gc",
+        'sequential' => 1,
       ]);
      if (!$payment_instrument['count'] == 1) {
        Civi::log()->error("GoCardless upgrade_0002 expected to find a payment instrument with name direct_debit_gc but found none. Cannot perform upgrade step.");
        return FALSE;
      }
+     $payment_instrument_id = $payment_instrument['values'][0]['value'];
 
      $processor_types = civicrm_api3('PaymentProcessorType', 'get', [ 'name' => 'GoCardless', 'options' => ['limit' => 0] ]);
      if ($processor_types['count'] != 1) {

@@ -5,6 +5,7 @@ use Civi\Test\HookInterface;
 use Civi\Test\TransactionalInterface;
 use Prophecy\Prophet;
 use Prophecy\Argument;
+use CRM_GoCardless_ExtensionUtil as E;
 
 /**
  * Tests the GoCardless direct debit extension.
@@ -1672,6 +1673,30 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     }
   }
 
+  public function testUpgrade0002() {
+    $payment_instrument = civicrm_api3('OptionValue', 'getsingle', [ 'option_group_id' => "payment_instrument", 'name' => "direct_debit_gc" ])['value'];
+    $processor_type = civicrm_api3('PaymentProcessorType', 'getsingle', [ 'name' => 'GoCardless', 'options' => ['limit' => 0] ])['id'];
+
+    // After an install, our processor should be correctly set up.
+    $proc = civicrm_api3('PaymentProcessor', 'getsingle', ['id' => $this->test_mode_payment_processor['id']]);
+    $this->assertEquals($payment_instrument, $proc['payment_instrument_id']);
+    $this->assertEquals(CRM_Core_Payment::PAYMENT_TYPE_DIRECT_DEBIT, $proc['payment_type']);
+
+    // Now bodge this backwards.
+    CRM_Core_DAO::executeQuery("UPDATE civicrm_payment_processor SET payment_type=1, payment_instrument_id=1 WHERE id = %1", [
+      1 => [$this->test_mode_payment_processor['id'], 'Integer']
+    ]);
+
+    // Now run the upgrade
+    $up = new CRM_GoCardless_Upgrader(E::LONG_NAME, E::path());
+    $up->upgrade_0002();
+
+    // And re-test
+    $proc = civicrm_api3('PaymentProcessor', 'getsingle', ['id' => $this->test_mode_payment_processor['id']]);
+    $this->assertEquals($payment_instrument, $proc['payment_instrument_id']);
+    $this->assertEquals(CRM_Core_Payment::PAYMENT_TYPE_DIRECT_DEBIT, $proc['payment_type']);
+
+  }
   /**
    * Return a fake GoCardless payment processor.
    *
