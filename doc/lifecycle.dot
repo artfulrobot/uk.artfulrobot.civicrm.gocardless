@@ -1,6 +1,7 @@
 digraph A {
   # fffdf3 dawn
   # fef4f6 eggshell
+  # Nb in labels, \n \l and \r are new lines, normal, left and right-aligned respectively.
   graph [fontname="Lato", bgcolor="#f3f4f6", ]
   node [fontname="Lato", shape=rectangle, style="filled", fillcolor="#fbfbfb"]
   edge [fontname="Lato"]
@@ -46,12 +47,12 @@ digraph A {
     statusCrCompleted [label="Completed" color="#0284ea", fontcolor="#0284ea"]
 
     start2 -> statusCrPending [label="User starts flow" , color="#22b022", fontcolor="#22b022"]
-    statusCrPending -> statusCrIP [label="Payment\lConfirmed", color="#22b022", fontcolor="#22b022"]
+    statusCrPending -> statusCrIP [label="Redirect Flow\lCompleted\l", color="#22b022", fontcolor="#22b022"]
+    statusCrPending -> statusCrFailed [label="User\labandons\lprocess,\lcron cleans up\l", color="#b02222", fontcolor="#b02222"]
     statusCrIP -> statusCrOverdue [label="Payment\lfailed", color="#b02222", fontcolor="#b02222"]
     statusCrOverdue -> statusCrIP [label="Payment\lConfirmed", color="#22b022", fontcolor="#22b022"]
     statusCrIP -> statusCrCancelled [label="Mandate/subscription\lcancelled", color="#b02222", fontcolor="#b02222"]
     statusCrIP -> statusCrCompleted [label="Subscription\l Finished" , color="#22b022", fontcolor="#22b022"]
-    statusCrPending -> statusCrFailed [label="User\labandons\lprocess", color="#b02222", fontcolor="#b02222"]
 
   }
 }
