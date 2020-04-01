@@ -10,8 +10,8 @@
  */
 function _civicrm_api3_job_Gocardlessfailabandoned_spec(&$spec) {
   $spec['timeout']['description'] = 'How long (hours) before we consider '
-    . 'Pending ContributionRecur records as abandoned. Default: 24';
-  $spec['timeout']['api.default'] = 24;
+    . 'Pending ContributionRecur records as abandoned. Default: 0.66 (c40 mins)';
+  $spec['timeout']['api.default'] = 0.66;
 }
 
 /**

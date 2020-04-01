@@ -267,6 +267,10 @@ to build a tool for their own needs from that.
 
 ## Change log
 
+### 1.9.3 (unreleased)
+
+- Reduce timeout for changing "Pending" recurring contributions to "Failed" from 24 hours to 0.66 hours. See https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/76 You can still override this as a parameter, should you wish.
+
 ### 1.9.2
 
 - Move to `Payment.create` API instead of older (and deprecated) `Contribution.completetransaction` API.
