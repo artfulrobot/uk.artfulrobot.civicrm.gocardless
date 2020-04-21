@@ -172,7 +172,7 @@ foreach ($subscriptions->records as $subscription) {
       "contribution_status_id" => STATUS_IN_PROGRESS, // 1:Completed, 2: pending, 3: cancelled, 4: failed, 5: in progress ...)
       "is_test"                => 0,
       "cycle_day"              => 1,
-      "payment_processor_id"   => $processor->id,
+      "payment_processor_id"   => $processor->getID(),
       "financial_type_id"      => GC_IMPORT_FINANCIAL_TYPE_ID,
       "payment_instrument_id"  => GC_IMPORT_PAYMENT_INSTRUMENT_ID,
     ];
