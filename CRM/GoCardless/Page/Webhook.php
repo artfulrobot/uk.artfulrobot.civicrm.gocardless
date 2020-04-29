@@ -55,8 +55,8 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
 
     // debugging:
     $this->now = date('Y-m-d:H:i:s');
-    CRM_Core_Error::debug_log_message("Webhook $this->now body:\n" . $raw_payload, FALSE, 'GoCardless', PEAR_LOG_INFO);
-    CRM_Core_Error::debug_log_message("Webhook $this->now headers:\n" . json_encode($headers), FALSE, 'GoCardless', PEAR_LOG_INFO);
+    CRM_Core_Error::debug_log_message("Webhook $this->now body: " . $raw_payload, FALSE, 'GoCardless', PEAR_LOG_INFO);
+    CRM_Core_Error::debug_log_message("Webhook $this->now headers: " . json_encode($headers), FALSE, 'GoCardless', PEAR_LOG_INFO);
 
     try {
       $this->parseWebhookRequest($headers, $raw_payload);
@@ -378,7 +378,7 @@ class CRM_GoCardless_Page_Webhook extends CRM_Core_Page {
     $result = civicrm_api3('Payment', 'create', $paymentCreateParams);
     if ($result['is_error'] ?? NULL) {
       CRM_Core_Error::debug_log_message(
-        "Webhook $this->now Failed event. Payment.create API failed\n".
+        "Webhook $this->now Failed event. Payment.create API failed: ".
         json_encode([
           'API params'   => $paymentCreateParams,
           'Result'       => $result,
