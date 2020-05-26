@@ -242,13 +242,12 @@ function gocardless_civicrm_validateForm($formName, &$fields, &$files, &$form, &
  * See https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/51
  */
 function gocardless_civicrm_check(&$messages) {
-  $result = civicrm_api3('OptionValue', 'getsingle', [
+  try {
+    civicrm_api3('OptionValue', 'getsingle', [
       'option_group_id' => "payment_instrument",
       'name' => "direct_debit_gc",
-  ]);
-  $financial_account_id = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($result['id'], NULL, 'civicrm_option_value');
-
-  if (empty($financial_account_id)) {
+    ]);
+  } catch (\Exception $e) {
     $messages[] = new CRM_Utils_Check_Message(
       'gocardless_missing_financial_account',
       E::ts('Please visit Administer » CiviContribute » Payment Methods and edit '
