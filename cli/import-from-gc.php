@@ -38,11 +38,11 @@
 // You may want to set a suitable limit here, especially while testing.
 // It's set low for testing, but you should increase it to some number in
 // excess of your donors when running for real.
-const GC_SUBSCRIPTIONS_LIMIT = 10; // xxx
+const GC_SUBSCRIPTIONS_LIMIT = 400; // xxx
 
 // What financial type do you want to use?
 define('GC_IMPORT_FINANCIAL_TYPE',  'Donation (regular)');
-
+define('GC_IMPORT_SINCE',  '2019-05-01T00:00:00Z');
 
 // Import Code begins
 // ==================
@@ -75,25 +75,35 @@ $processor = Civi\Payment\System::singleton()->getByProcessor($processor_config)
 $gc_api = $processor->getGoCardlessApi();
 
 $subscriptions = $gc_api->subscriptions()->list(['params' => [
-  'limit' => GC_SUBSCRIPTIONS_LIMIT,
-  'status' => 'active',
+  'limit'           => GC_SUBSCRIPTIONS_LIMIT,
+  'created_at[gte]' => GC_IMPORT_SINCE,
+  'status'          => 'active',
 ]]);
-print count($subscriptions->records) . " active subscriptions\n";
+print count($subscriptions->records) . " active subscriptions loaded (limited to " . GC_SUBSCRIPTIONS_LIMIT . ")\n";
 
 foreach ($subscriptions->records as $subscription) {
 
   // Try to find the ContributionRecur record. The GoCardless subscription ID
   // is stored as the recurring contrib's `trxn_id`.
   $recur = civicrm_api3('ContributionRecur', 'get', [
-    'trxn_id'      => $subscription->id,
+    //'trxn_id'      => $subscription->id,
     'processor_id' => $subscription->id,
   ]);
+  if ($recur['count'] == 0) {
+    // Fall back to checking by trxn_id
+    $recur = civicrm_api3('ContributionRecur', 'get', [
+      'trxn_id'      => $subscription->id,
+    ]);
+    if ($recur['count'] > 0) {
+      print "Warning: subscription $subscription->id found under trxn_id instead of processor_id. Has the upgrader not run?\n";
+    }
+  }
 
   if ($recur['count'] == 0) {
     // CiviCRM does not know this subscription.
     $mandate  = $gc_api->mandates()->get($subscription->links->mandate);
     $customer = $gc_api->customers()->get($mandate->links->customer);
-    print "No recur record for subscription $subscription->id $customer->email $customer->given_name $customer->family_name.\n";
+    print "No recur record for subscription $subscription->id $customer->email $customer->given_name $customer->family_name (subscription created $subscription->created_at, started $subscription->start_date).\n";
 
     // Find Contact in CiviCRM by the email. (See assumptions.)
     $contact_id = 0;
@@ -135,6 +145,7 @@ foreach ($subscriptions->records as $subscription) {
       $yn = strtoupper(trim(fgets(STDIN)));
     }
     if ($yn != 'Y') {
+      echo "Nothing done, skipping.\n";
       continue;
     }
 
@@ -151,6 +162,17 @@ foreach ($subscriptions->records as $subscription) {
           'trxn_id'      => $payment->id,
           'receive_date' => $payment->charge_date,
           'total_amount' => $payment->amount/100,
+          'line_items' => [
+            [
+              'line_item' => [[
+                'financial_type_id' => $recur['financial_type_id'],
+                'line_total' => $payment->amount / 100,
+                'unit_price' => $payment->amount / 100,
+                "price_field_id" => 1,
+                'qty' => 1,
+              ]]
+            ]
+          ],
         ];
       }
       else print "Not importing $payment->status payment $payment->id\n";
@@ -176,11 +198,11 @@ foreach ($subscriptions->records as $subscription) {
       "financial_type_id"      => GC_IMPORT_FINANCIAL_TYPE_ID,
       "payment_instrument_id"  => GC_IMPORT_PAYMENT_INSTRUMENT_ID,
     ];
-    print "creating...with " . json_encode($params, JSON_PRETTY_PRINT);
+    print "creating...\n"; // with " . json_encode($params, JSON_PRETTY_PRINT) . "\n";
     $result = civicrm_api3('ContributionRecur', 'create', $params);
     if ($result['id']) {
       $recur_id = $result['id'];
-      print "✔ Created ContributionRecur $recur_id\n";
+      print "✔ Created ContributionRecur $recur_id for subscription $subscription->id\n";
 
       if (empty($payments_to_copy)) {
         print "Creating initial pending contribution\n";
@@ -194,47 +216,82 @@ foreach ($subscriptions->records as $subscription) {
           'contribution_recur_id'  => $recur_id,
           'is_test'                => 0,
           'contribution_status_id' => STATUS_PENDING,
+          'is_email_receipt'       => 0,
+          'line_items' => [
+            [
+              'line_item' => [[
+                'line_total' => $subscription->amount / 100,
+                'unit_price' => $subscription->amount / 100,
+                "price_field_id" => 1,
+                'financial_type_id' => GC_IMPORT_FINANCIAL_TYPE_ID,
+                'qty' => 1,
+              ]]
+            ]
+          ],
         ];
-        print json_encode($_, JSON_PRETTY_PRINT);
-        $result = civicrm_api3('Contribution', 'create', $_);
+        // print json_encode($_, JSON_PRETTY_PRINT) . "\n";
+        $result = civicrm_api3('Order', 'create', $_);
         if (!$result['is_error']) {
-          print "✔ Created payment $result[id]\n";
+          print "✔ Created initial payment $result[id]\n";
         }
         else {
-          print_r($result);
+          echo "✖ Error:\n" . json_encode($result, JSON_PRETTY_PRINT);
           exit;
         }
       }
       foreach ($payments_to_copy as $_) {
         $_ += [
           'contact_id'             => $contact_id,
+          'contribution_recur_id'  => $recur_id,
           "payment_instrument_id"  => GC_IMPORT_PAYMENT_INSTRUMENT_ID,
           'currency'               => 'GBP',
           "financial_type_id"      => GC_IMPORT_FINANCIAL_TYPE_ID,
-          'contribution_recur_id'  => $recur_id,
+          'contribution_status_id' => STATUS_PENDING,
           'is_test'                => 0,
-          'contribution_status_id' => 1, // 1: Completed.
+          'is_email_receipt'       => 0,
         ];
-        print json_encode($_, JSON_PRETTY_PRINT);
-        $result = civicrm_api3('Contribution', 'create', $_);
-        if (!$result['is_error']) {
-          print "✔ Created payment $result[id]\n";
+        // print json_encode($_, JSON_PRETTY_PRINT) . "\n";
+        $orderCreateResult = civicrm_api3('Order', 'create', $_);
+        if (!$orderCreateResult['is_error']) {
+          print "✔ Created Order for payment $_[trxn_id], contribution ID: $orderCreateResult[id]\n";
         }
         else {
-          print_r($result);
+          print "✖ Error:\n" . json_encode($orderCreateResult, JSON_PRETTY_PRINT);
           exit;
         }
+
+        // Now complete the payment.
+        $paymentCreateParams = [
+          'contribution_id'                   => $orderCreateResult['id'],
+          'total_amount'                      => $_['total_amount'],
+          'trxn_date'                         => $_['receive_date'],
+          'trxn_id'                           => $_['trxn_id'],
+          'is_send_contribution_notification' => 0,
+        ];
+        $paymentCreateResult = civicrm_api3('Payment', 'create', $paymentCreateParams);
+        if (!$paymentCreateResult['is_error']) {
+          print "✔ Created Payment on Order for payment $_[trxn_id], contribution ID: $orderCreateResult[id]\n";
+        }
+        else {
+          print "✖ Error:\n" . json_encode($paymentCreateResult, JSON_PRETTY_PRINT);
+          exit;
+        }
+
+        // correct the contribution date.
+        civicrm_api3('Contribution', 'create', [
+          'id' => $orderCreateResult['id'],
+          'receive_date' => $_['receive_date'],
+        ]);
       }
-
-
     }
     else {
-      print_r($result);
+      print "✖ Error:\n" . json_encode($result, JSON_PRETTY_PRINT);
       exit;
     }
   }
   else {
-    print "Already found: $subscription->id\n";
+    // You may not want this line:
+    print "Already found: $subscription->id, RecurID $recur[id]\n";
     //print json_encode($recur['values'][$recur['id']], JSON_PRETTY_PRINT);
   }
 }
