@@ -118,7 +118,7 @@ class GCImport
 
     'contactsAdded' => [],
   ];
-  public $logFile = '/tmp/';
+  public $logFile = NULL;
   public $lastSave = NULL;
   /**
    * @param String $financialTypeName
@@ -131,7 +131,13 @@ class GCImport
       if (!is_dir($logDir)) {
         throw new InvalidArgumentException("Invalid logdir $logDir");
       }
-      $this->logFile = rtrim($logDir, '/') . 'gc-import-log-' . date('Y-m-d:H:i:s') . ".json";
+      $this->logFile = rtrim($logDir, '/') . '/gc-import-log-' . date('Y-m-d:H:i:s') . ".json";
+      if (file_exists($this->logFile)) {
+        throw new InvalidArgumentException("log file $this->logFile exists.");
+      }
+      if (!file_put_contents("testing", $this->logFile)) {
+        throw new InvalidArgumentException("failed to write to log file $this->logFile");
+      }
     }
 
     $this->financialTypeID = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'financial_type_id', $financialTypeName);
@@ -278,9 +284,8 @@ class GCImport
       $this->log['subscriptionsFound']++;
       $this->log['subscriptions'][$subscription->id]['contactID'] = $contactID;
       $this->log['subscriptions'][$subscription->id]['wasFound'] = TRUE;
-      print "...Found subscription $subscription->id on recur $contribRecurID belonging to contact $contactID\n";
-
       $contribRecurID = (int) $recur['id'];
+      print "...Found subscription $subscription->id on recur $contribRecurID belonging to contact $contactID\n";
       $this->log['subscriptions'][$subscription->id]['recurID'] = $contribRecurID;
 
       $expectedStatus = $this->getMapSubscriptionStatusToContribRecurStatus($subscription);
