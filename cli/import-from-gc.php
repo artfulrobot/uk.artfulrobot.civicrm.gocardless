@@ -37,13 +37,20 @@
 
 // You may want to set a suitable limit here, especially while testing.
 // It's set low for testing, but you should increase it or set to NULL (no limit).
-const GC_SUBSCRIPTIONS_LIMIT = 10; // @todo
+const GC_SUBSCRIPTIONS_LIMIT = 10;
+//const GC_SUBSCRIPTIONS_LIMIT = NULL;
 
 // What financial type do you want to use?
 define('GC_IMPORT_FINANCIAL_TYPE_NAME',  'Donation (regular)');
-define('GC_IMPORT_SINCE',  '2019-05-01T00:00:00Z');
-// Where do you want summary output files saved?
+
+// You can set a date here, or use NULL
+// define('GC_IMPORT_SINCE',  '2019-05-01T00:00:00Z');
+define('GC_IMPORT_SINCE',  NULL);
+
+// Where do you want summary output file saved?
 define('GC_PRIVATE_OUTPUT_DIR',  '/tmp/');
+// Do you want the process to stop and ask whether to create a subscription that can't be found?
+define('GC_CONFIRM_BEFORE_CREATING_RECUR',  FALSE);
 
 // Import Code begins
 // ==================
@@ -60,6 +67,10 @@ class GCImport
   /** @var null|string date. */
   public $importSince;
 
+  /**
+   * @var bool
+   */
+  public $confirmCreateRecur = TRUE;
   /** @var int. */
   public $paymentInstrumentID;
 
@@ -80,6 +91,8 @@ class GCImport
 
   /** $var int */
   public $contribRecurStatusCompleted;
+  /** $var int */
+  public $contribRecurStatusCancelled;
 
   /** $var int */
   public $contribRecurStatusFailed;
@@ -90,19 +103,36 @@ class GCImport
   /** @var CRM_Core_Payment_GoCardless */
   public $processor;
 
+  public $log = [
+    'subscriptions' => [],
+    'contactsEncountered' => [],
+    'contactsWithAdded' => [],
+    'subscriptionsFound' => 0,
+    'subscriptionsAdded' => 0,
+    'subscriptionsSkipped' => 0,
+    'subscriptionsStatusUpdated' => 0,
+
+    'paymentsFound' => 0,
+    'paymentsAdded' => 0,
+    'paymentsAddedAmount' => 0,
+
+    'contactsAdded' => [],
+  ];
   public $affectedContacts = [];
   public $affectedContributions = [];
   /**
    * @param String $financialTypeName
    * @param null|String $importSince (date)
    */
-  public function __construct($financialTypeName, $importSince = NULL) {
+  public function __construct($financialTypeName, $importSince = NULL, $confirmCreateRecur=TRUE) {
     civicrm_initialize();
 
     $this->financialTypeID = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'financial_type_id', $financialTypeName);
     if (!$this->financialTypeID) {
       throw new InvalidArgumentException("Failed to find financial type '$financialTypeName'");
     }
+
+    $this->confirmCreateRecur = (bool) $confirmCreateRecur;
 
     if ($importSince) {
       $_ = strtotime($importSince);
@@ -124,6 +154,7 @@ class GCImport
     $this->contribRecurStatusInProgress = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_ContributionRecur', 'contribution_status_id', 'In Progress');
     $this->contribRecurStatusCompleted = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_ContributionRecur', 'contribution_status_id', 'Completed');
     $this->contribRecurStatusFailed = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_ContributionRecur', 'contribution_status_id', 'Failed');
+    $this->contribRecurStatusCancelled = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_ContributionRecur', 'contribution_status_id', 'Cancelled');
 
     // Get a GoCardless API for the live endpoint.
     $processorConfig = civicrm_api3(
@@ -139,6 +170,8 @@ class GCImport
    */
   public function run($limit=NULL) {
 
+    // Load all subscriptions (possibly using created_at filter).
+    // This gives us an iterator which handles paging transparently.
     $params = [];
     if ($this->importSince) {
       $params['created_at[gte]'] = $this->importSince;
@@ -154,11 +187,14 @@ class GCImport
       $count++;
 
       print "Subscription: $subscription->id\n";
+      $this->log['subscriptions'][$subscription->id] = ['status' => $subscription->status];
       try {
         $payments = $this->getPaymentsToImport($subscription);
         $this->importSubscription($subscription, $payments);
       }
       catch (SkipSubscriptionImportException $e) {
+        $this->log['subscriptions'][$subscription->id]['skipped'] = TRUE;
+        $this->log['subscriptionsSkipped']++;
         echo "Warning: Skipping subscription $subscription->id\n";
       }
     }
@@ -183,21 +219,35 @@ class GCImport
         'trxn_id'      => $subscription->id,
       ]);
       if ($recur['count'] > 0) {
-        print "...Warning: subscription $subscription->id found under trxn_id instead of processor_id. Has the upgrader not run?\n";
+        print "...Warning: subscription $subscription->id found under trxn_id instead of processor_id. Has the upgrader not run? Try using sql/upgrade_0001.sql \n";
+        $this->log['subscriptions'][$subscription->id]['trxnIdWarning'] = TRUE;
       }
     }
 
     if ($recur['count'] == 0) {
       // CiviCRM does not know this subscription.
       $contactID = $this->getContact($subscription);
+      $this->log['contactsEncountered'][$contactID] = TRUE;
+      $this->log['subscriptions'][$subscription->id]['contactID'] = $contactID;
+      $this->log['subscriptions'][$subscription->id]['wasFound'] = FALSE;
 
-      print "...Create recurring contribution? (N)";
-      $yn = strtoupper(trim(fgets(STDIN)));
+      if ($this->confirmCreateRecur) {
+        print "...Create recurring contribution? (N)";
+        $yn = strtoupper(trim(fgets(STDIN)));
+      }
+      else {
+        // no need to confirm, get on with it.
+        $yn = 'Y';
+      }
       if ($yn != 'Y') {
+        $this->log['subscriptions'][$subscription->id]['skipped'] = TRUE;
+        $this->log['subscriptionsSkipped']++;
         throw new SkipSubscriptionImportException("...Nothing done, skipping subscription.");
       }
       $contribRecurID = $this->createContribRecur($subscription, $contactID);
-      $this->affectedContacts[$contactID][] = $contribRecurID;
+      $this->log['subscriptionsAdded']++;
+      $this->log['subscriptions'][$subscription->id]['recurID'] = $contribRecurID;
+      $this->log['contactsWithAdded'][$contactID] = TRUE;
 
       if (empty($payments_to_copy)) {
         $this->createInitialPendingContrib($subscription, $contactID, $contribRecurID);
@@ -205,9 +255,28 @@ class GCImport
       }
     }
     else {
-      $contribRecurID = (int) $recur['id'];
       $contactID = $recur['values'][0]['contact_id'];
+      $this->log['contactsEncountered'][$contactID] = TRUE;
+      $this->log['subscriptionsFound']++;
+      $this->log['subscriptions'][$subscription->id]['contactID'] = $contactID;
+      $this->log['subscriptions'][$subscription->id]['wasFound'] = TRUE;
       print "...Found subscription $subscription->id on recur $contribRecurID belonging to contact $contactID\n";
+
+      $contribRecurID = (int) $recur['id'];
+      $this->log['subscriptions'][$subscription->id]['recurID'] = $contribRecurID;
+
+      $expectedStatus = $this->getMapSubscriptionStatusToContribRecurStatus($subscription);
+      if ($expectedStatus != $recur['values'][0]['contribution_status_id']) {
+        print "...! Status was {$recur['values'][0]['contribution_status_id']} expected $expectedStatus. Updated.\n";
+        civicrm_api3('ContributionRecur', 'create', [
+          'id' => $contribRecurID,
+          'contribution_status_id' => $expectedStatus
+        ]);
+        $this->log['subscriptionsStatusUpdated']++;
+        $this->log['subscriptions'][$subscription->id]['statusChange'] =
+          ['old' => $recur['values'][0]['contribution_status_id'], 'new' => $expectedStatus];
+      }
+
     }
 
     $this->importPayments($subscription, $payments, $contribRecurID, $contactID);
@@ -274,6 +343,8 @@ class GCImport
         'email'                  => $customer->email,
       ]);
       print "Created contact $customer->given_name $customer->family_name id: $contact[id]\n";
+      $this->log['contactsAdded'][$contact['id']] = TRUE;
+      $this->log['subscriptions'][$subscription->id]['newContactID'] = $contact['id'];
       // Create address.
       $address = civicrm_api3('Address', 'create', [
           'contact_id'             => $contact['id'],
@@ -299,6 +370,44 @@ class GCImport
     return $contactID;
   }
   /**
+   *
+   *
+   * @param \GoCardlessPro\Services\SubscriptionsService $subscription
+   * @return int
+   */
+  public function getMapSubscriptionStatusToContribRecurStatus($subscription) {
+    switch ($subscription->status) {
+
+    case 'pending_customer_approval':
+      // the subscription is waiting for customer approval before becoming active
+      // I *think* this is right...
+      return $this->contribRecurStatusInProgress;
+
+    case 'customer_approval_denied':
+      // the customer did not approve the subscription
+      return $this->contribRecurStatusFailed;
+
+    case 'active':
+      // the subscription is currently active and will continue to create payments
+      return $this->contribRecurStatusInProgress;
+
+    case 'finished':
+      // all of the payments scheduled for creation under this subscription have been created
+      return $this->contribRecurStatusCompleted;
+
+    case 'cancelled':
+      // the subscription has been cancelled and will no longer create payments
+      return $this->contribRecurStatusCancelled;
+
+    case 'paused':
+      // the subscription has been paused and will not create payments
+      // I *think* this makes sense...
+      return $this->contribRecurStatusInProgress;
+
+    }
+    throw new \Exception("Unknown subscription status: '$subscription->status'");
+  }
+  /**
    * @return int ContributionRecur ID
    */
   public function createContribRecur($subscription, $contactID) {
@@ -315,7 +424,7 @@ class GCImport
       "end_date"               => $subscription->end_date,
       "processor_id"           => $subscription->id,
       "trxn_id"                => $subscription->id,
-      "contribution_status_id" => $this->contribRecurStatusInProgress, // 1:Completed, 2: pending, 3: cancelled, 4: failed, 5: in progress ...)
+      "contribution_status_id" => $this->contribRecurStatusInProgress,
       "is_test"                => 0,
       "cycle_day"              => 1,
       "payment_processor_id"   => $this->processor->getID(),
@@ -386,6 +495,7 @@ class GCImport
         throw new Exception("Invalid trxn_id: $payment[trxn_id]");
       }
       $trxn_ids[] = '"' . $payment['trxn_id'] . '"';
+      $this->log['subscriptions'][$subscription->id]['payments'][$payment['trxn_id']] = [];
     }
 
     if ($trxn_ids) {
@@ -396,10 +506,16 @@ class GCImport
 
     $skips = 0;
     foreach ($payments as $payment) {
+      $log = & $this->log['subscriptions'][$subscription->id]['payments'][$payment['trxn_id']];
+
       if (isset($trxn_ids[$payment['trxn_id']])) {
+        $log['wasFound'] = TRUE;
+        $this->log['paymentsFound']++;
         $skips++;
         continue;
       }
+
+      $log['wasFound'] = FALSE;
       $payment += [
         'contact_id'             => $contactID,
         'contribution_recur_id'  => $contribRecurID,
@@ -415,7 +531,11 @@ class GCImport
       $orderCreateResult = civicrm_api3('Order', 'create', $payment);
       if (!$orderCreateResult['is_error']) {
         print "...+ Created Order for payment $payment[trxn_id], contribution ID: $orderCreateResult[id] on $payment[receive_date]\n";
-        $this->affectedContributions[$orderCreateResult['id']][] = ['amount' => $payment['total_amount'], 'date' => $payment['receive_date'], 'cr' => $contribRecurID, 'contact_id' => $contactID];
+        $log['newContribID'] = $orderCreateResult['id'];
+        $log['amount'] = $payment['total_amount'];
+        $log['date'] = $payment['receive_date'];
+        $this->log['paymentsAdded']++;
+        $this->log['paymentsAddedAmount'] += $payment['total_amount'];
       }
       else {
         throw new RuntimeException("Error creating order: " . json_encode($orderCreateResult, JSON_PRETTY_PRINT));
@@ -451,23 +571,37 @@ class GCImport
    */
   public function saveAffectedSummary($dir) {
     $ts = date('Y-m-d:H:i:s');
-    $f = "$dir/$ts-affected.json";
-    file_put_contents($f, json_encode([
-      'contacts' => $this->affectedContacts,
-      'contributions' => $this->affectedContributions,
-    ]));
+    $f = rtrim($dir, '/') . "/$ts-affected.json";
+
+    // Do some summary counts.
+    $log = $this->log + ['stats' => []];
+    foreach(['contactsEncountered', 'contactsWithAdded', 'contactsAdded'] as $_) {
+      $log['stats'][$_] = count($log[$_]);
+      $log[$_] = array_keys($log[$_]);
+    }
+
+    foreach(['subscriptionsFound', 'subscriptionsAdded', 'subscriptionsSkipped',
+      'subscriptionsStatusUpdated', 'paymentsFound', 'paymentsAdded', 'paymentsAddedAmount',
+    ] as $_) {
+      $log['stats'][$_] = $log[$_];
+      unset($log[$_]);
+    }
+    $log['stats']['subscriptionsFoundPercent'] = number_format($log['stats']['subscriptionsFound'] * 100 / ($log['stats']['subscriptionsFound'] + $log['stats']['subscriptionsAdded'] + $log['stats']['subscriptionsSkipped']), 1) . '%';
+    $log['stats']['paymentsFoundPercent'] = number_format($log['stats']['paymentsFound'] * 100 / ($log['stats']['paymentsFound'] + $log['stats']['paymentsAdded']), 1) . '%';
+
+    file_put_contents($f, json_encode($log));
     print "Affected entities saved to $f\n";
+    print json_encode($log['stats'], JSON_PRETTY_PRINT) . "\n";
   }
 }
 
 
 try {
-  $importer = new GCImport(GC_IMPORT_FINANCIAL_TYPE_NAME);
+  $importer = new GCImport(GC_IMPORT_FINANCIAL_TYPE_NAME, GC_IMPORT_SINCE, GC_CONFIRM_BEFORE_CREATING_RECUR);
   $importer->run(GC_SUBSCRIPTIONS_LIMIT);
   if (GC_PRIVATE_OUTPUT_DIR) {
     $importer->saveAffectedSummary(GC_PRIVATE_OUTPUT_DIR);
   }
-  print count($importer->affectedContacts) . " contacts and " . count($importer->affectedContributions) . " contributions affected.\n";
 }
 catch (\Exception $e) {
   print "Error: " . $e->getMessage() . "\n\n" . $e->getTraceAsString();
