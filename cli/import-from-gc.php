@@ -118,14 +118,21 @@ class GCImport
 
     'contactsAdded' => [],
   ];
-  public $affectedContacts = [];
-  public $affectedContributions = [];
+  public $logFile = '/tmp/';
+  public $lastSave = NULL;
   /**
    * @param String $financialTypeName
    * @param null|String $importSince (date)
    */
-  public function __construct($financialTypeName, $importSince = NULL, $confirmCreateRecur=TRUE) {
+  public function __construct($financialTypeName, $importSince = NULL, $confirmCreateRecur=TRUE, $logDir=NULL) {
     civicrm_initialize();
+
+    if ($logDir !== NULL) {
+      if (!is_dir($logDir)) {
+        throw new InvalidArgumentException("Invalid logdir $logDir");
+      }
+      $this->logFile = rtrim($logDir, '/') . 'gc-import-log-' . date('Y-m-d:H:i:s') . ".json";
+    }
 
     $this->financialTypeID = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'financial_type_id', $financialTypeName);
     if (!$this->financialTypeID) {
@@ -170,6 +177,9 @@ class GCImport
    */
   public function run($limit=NULL) {
 
+    // Write the first log after 5s by pretending we started 55s ago.
+    $this->lastSave = time() - 55;
+
     // Load all subscriptions (possibly using created_at filter).
     // This gives us an iterator which handles paging transparently.
     // Note: you can limit by customer like this:
@@ -199,8 +209,14 @@ class GCImport
         $this->log['subscriptionsSkipped']++;
         echo "Warning: Skipping subscription $subscription->id\n";
       }
+
+      if ((time() - $this->lastSave) >= 60) {
+        $this->saveAffectedSummary();
+        $this->lastSave = time();
+      }
     }
     echo "Completed $count subscriptions.\n";
+    $this->saveAffectedSummary();
   }
 
   /**
@@ -571,12 +587,10 @@ class GCImport
   }
   /**
    */
-  public function saveAffectedSummary($dir) {
-    $ts = date('Y-m-d:H:i:s');
-    $f = rtrim($dir, '/') . "/$ts-affected.json";
+  public function saveAffectedSummary() {
 
     // Do some summary counts.
-    $log = $this->log + ['stats' => []];
+    $log = ['logCreated' => date('Y-m-d H:i:s'), 'stats' => []] + $this->log;
     foreach(['contactsEncountered', 'contactsWithAdded', 'contactsAdded'] as $_) {
       $log['stats'][$_] = count($log[$_]);
       $log[$_] = array_keys($log[$_]);
@@ -591,19 +605,23 @@ class GCImport
     $log['stats']['subscriptionsFoundPercent'] = number_format($log['stats']['subscriptionsFound'] * 100 / ($log['stats']['subscriptionsFound'] + $log['stats']['subscriptionsAdded'] + $log['stats']['subscriptionsSkipped']), 1) . '%';
     $log['stats']['paymentsFoundPercent'] = number_format($log['stats']['paymentsFound'] * 100 / ($log['stats']['paymentsFound'] + $log['stats']['paymentsAdded']), 1) . '%';
 
-    file_put_contents($f, json_encode($log));
-    print "Affected entities saved to $f\n";
     print json_encode($log['stats'], JSON_PRETTY_PRINT) . "\n";
+    if ($this->logFile) {
+      file_put_contents($this->logFile, json_encode($log));
+      print "Log saved to $this->logFile\n";
+    }
   }
 }
 
 
 try {
-  $importer = new GCImport(GC_IMPORT_FINANCIAL_TYPE_NAME, GC_IMPORT_SINCE, GC_CONFIRM_BEFORE_CREATING_RECUR);
+  $importer = new GCImport(
+    GC_IMPORT_FINANCIAL_TYPE_NAME,
+    GC_IMPORT_SINCE,
+    GC_CONFIRM_BEFORE_CREATING_RECUR,
+    GC_PRIVATE_OUTPUT_DIR
+  );
   $importer->run(GC_SUBSCRIPTIONS_LIMIT);
-  if (GC_PRIVATE_OUTPUT_DIR) {
-    $importer->saveAffectedSummary(GC_PRIVATE_OUTPUT_DIR);
-  }
 }
 catch (\Exception $e) {
   print "Error: " . $e->getMessage() . "\n\n" . $e->getTraceAsString();
