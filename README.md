@@ -271,7 +271,7 @@ to build a tool for their own needs from that.
 
 - Reduce timeout for changing "Pending" recurring contributions to "Failed" from 24 hours to 0.66 hours. See https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/76 You can still override this as a parameter, should you wish.
 
-- developers: fixed problem getting and setting the processor ID in import script. Thanks @jmdh for this.
+- developers: fixed problem getting and setting the processor ID in import script. Thanks @jmdh for this. Also, there's been a massive refactor of the import script.
 
 ### 1.9.2
 
