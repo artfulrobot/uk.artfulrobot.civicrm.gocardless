@@ -172,6 +172,8 @@ class GCImport
 
     // Load all subscriptions (possibly using created_at filter).
     // This gives us an iterator which handles paging transparently.
+    // Note: you can limit by customer like this:
+    // $params = ['customer' => 'CU000AWWATZGTB'];
     $params = [];
     if ($this->importSince) {
       $params['created_at[gte]'] = $this->importSince;
@@ -249,7 +251,7 @@ class GCImport
       $this->log['subscriptions'][$subscription->id]['recurID'] = $contribRecurID;
       $this->log['contactsWithAdded'][$contactID] = TRUE;
 
-      if (empty($payments_to_copy)) {
+      if (empty($payments)) {
         $this->createInitialPendingContrib($subscription, $contactID, $contribRecurID);
         return;
       }
