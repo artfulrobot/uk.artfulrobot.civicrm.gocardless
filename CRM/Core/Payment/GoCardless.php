@@ -573,7 +573,14 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
 
     switch ($context) {
       case 'cancelRecurDetailText':
-        $text .= ' <br/><strong>' . E::ts('GoCardless will be automatically notified and the subscription will be cancelled.') . '</strong>';
+        // $params['selfService'] added via https://github.com/civicrm/civicrm-core/pull/17687
+        $params['selfService'] = $params['selfService'] ?? TRUE;
+        if ($params['selfService']) {
+          $text .= ' <br/><strong>' . E::ts('GoCardless will be automatically notified and the subscription will be cancelled.') . '</strong>';
+        }
+        else {
+          $text .= ' <br/><strong>' . E::ts("If you select 'Send cancellation request..' then GoCardless will be automatically notified and the subscription will be cancelled.") . '</strong>';
+        }
     }
     return $text;
   }
