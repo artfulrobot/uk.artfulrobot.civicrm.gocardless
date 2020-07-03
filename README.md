@@ -43,7 +43,11 @@ You'll need to come back to the GoCardless control panel later on to set up your
 
 ### 1a. Install it the Simple way
 
-Visit the [Releases page](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/releases) and download the code from there. Unzip it in your extensions directory, then follow instructions for [step 2 below](#createpp).
+This extension can be installed directly from within the CiviCRM user interface. See the user manual for details: [Installing extensions](https://docs.civicrm.org/user/en/latest/introduction/extensions/#installing-extensions).
+
+Alternatively, visit the [Releases page](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/releases) and download the code from there. Unzip it in your extensions directory and install in the CiviCRM Extensions screen in the usual way.
+
+After you have installed it follow instructions from [step 2 below](#createpp).
 
 ### 1b. Install it the Difficult way (developers)
 
@@ -63,9 +67,7 @@ from the \*nix command line. You need
 That should then bring in the GoCardlessPro dependency and you should be good to
 go.
 
-### <a name="createpp" id="createpp"></a> 2. Install the extension and create a payment processor
-
-Install it through the CiviCRM Extensions screen as usual (you may need to click Refresh).
+### <a name="createpp" id="createpp"></a> 2. Create a payment processor
 
 Set up the payment processor:
 
@@ -79,7 +81,7 @@ Set up the payment processor:
 
 **Note: for testing purposes you may put your test/sandbox credentials (excluding webhook secret - see below) in the Live fields, but you must use CiviCRM's 'test drive' mode for trying payments; live mode will NOT work with test credentials since they are authenticated against different GoCardless API end points.** So your live testing will need to be with real-world live data.
 
-### 3. Install your webhook at GoCardless
+### 3. Set up your webhook at GoCardless
 
 GoCardless has full separation of its test (sandbox) and live account management pages, so **you'll do this twice**. Be sure to supply the webhook secret appropriate to the test/live environments - you **must** choose a different secret for live/test.
 
@@ -97,7 +99,12 @@ Note: the webhook will check the key twice; once against the test and once again
 
 Create a contribution page and set up a regular donation using the "test-drive" page. Check things at CiviCRM's end and at GoCardless' end. Note that GoCardless keeps a log of whether webhooks were successful and gives you the chance to resubmit them, too, if I remember correctly.
 
-Note: if you're running a "test-drive" contribution page you can use GoCardless's test bank account: `20-00-00` `55779911`.
+Note: if you're running a "test-drive" contribution page you should use [GoCardless' test bank details](https://developer.gocardless.com/getting-started/developer-tools/test-bank-details/).
+
+BACS details for UK:
+
+* Sort code:`20-00-00` 
+* Account number: `55779911`
 
 Having set up a Direct Debit you should see that in the Contributions tab for your contact's record on CiviCRM, showing as a recurring payment, and also a pending contribution record. The date will be about a week in the future. Check your database several days after that date (GoCardless only knows something's been successful after the time for problems to be raised has expired, which is several working days) and the contribution should have been completed. Check your record next week/month/year and there should be another contribution automatically created.
 
