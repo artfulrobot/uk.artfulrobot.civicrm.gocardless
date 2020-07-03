@@ -293,7 +293,7 @@ to build a tool for their own needs from that.
 
 ### 1.9 For CiviCRM 5.19+
 
-- **Do not install v 5.19 from civicrm.org/extensions** - it's missing the important libraries! Use 5.19.1
+- **Do not install v 1.9 from civicrm.org/extensions** - it's missing the important libraries! Use 1.9.1
 
 - Supports changing the amount and cancelling a subscription via CiviCRM main user interface (issue 6). It does not support letting supporters themselves change these things.
 
