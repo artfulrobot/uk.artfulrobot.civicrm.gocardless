@@ -13,6 +13,8 @@ Other things to note
 
 - Taking one offs is [not supported/implemented yet](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/12).
 
+- Membership organisations should be aware that there isn't currently a way to change subscriptions in bulk - this may cause an issue if you need to increase/decrease your membership fee at any point in future - [see issue #87](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/87).
+
 - Generally worth scanning the titles of the [Issue Queue](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/)
 
 - Developers can drive it from a non-CiviCRM form, e.g. if you have a highly custom donate form that does not use CiviCRM's payment pages.
