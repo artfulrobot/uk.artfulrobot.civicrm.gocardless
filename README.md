@@ -198,7 +198,7 @@ The life-cycle would typically be:
    website after the following records are set up in CiviCRM:
 
      - a **pending** contribution
-     - an **pending** recurring contribution
+     - a **pending** recurring contribution
 
    Those records have receive and start date set (by core CiviCRM) to the date
    and time the form was submitted (as you might expect). However, once the user
@@ -220,7 +220,7 @@ The life-cycle would typically be:
 
 
 2. GoCardless submits the charge for a payment to the customer's bank and
-   eventually (seems to be 3 working days after submission) this is confirmed.
+   eventually (4-5 working days after creation) this is confirmed.
    It sends a webhook for `resource_type` `payments`, action `confirmed`. At
    this point the extension will:
 
@@ -237,7 +237,7 @@ The life-cycle would typically be:
        record is 'In Progress'. (It should be but the check is there because we
        previously did things differently.)
 
-Note: After a while the GoCardless payment status is changed from `confirmed` to
+Note: the following working day the GoCardless payment status is changed from `confirmed` to
 `paid_out`. Normally the confirmed webhook will have processed the payment
 before this happens, but the extension will allow processing of payment
 confirmed webhooks if the payment's status is `paid_out` too. This can be
