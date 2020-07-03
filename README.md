@@ -23,7 +23,7 @@ Other things to note
 
 - You can pay me to fix/implement a feature you need [contact me](https://artfulrobot.uk/contact)
 
-- If you use this, it may help us all if you drop a comment on [Issue 20](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/20)
+- If you use this, consider joining the friendly [chat channel](https://chat.civicrm.org/civicrm/channels/gocardless) for announcements and support.
 
 
 ## How to install
