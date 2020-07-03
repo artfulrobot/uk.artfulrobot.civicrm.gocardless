@@ -131,24 +131,25 @@ preference:
 In a simple world, someone fills in a membership form, pays by credit card and
 their membership is active immediately.
 
-In the DD world, things happen on different dates:
+In the direct debit world, things happen on different dates:
 
-1. `setup_date` - fill in a membership form, complete a DD mandate
-   - Recurring Contribution created with status In Progress
-   - Contribution created with status Pending
-   - Membership created with status Pending,  
-     `join_date = start_date = setup_date`
+1. `setup_date` - fill in a membership form, complete a direct debit mandate
+   - Recurring Contribution created with status In Progress  
+     `start_date = charge_date`
+   - Contribution created with status Pending  
+     `receive_date = charge_date`
+   - Membership created with status Pending  
+     `join_date`, `start_date`, `end_date` are blank
 
-2. `charge_date` - first payment charged
+2. `charge_date` - first payment charged (4-5 working days later)
 
-3. `webhook_date` - GoCardless fires webhook and notifies of `charge_date`
+3. `webhook_date` - GoCardless fires webhook (one working day after the `charge_date`)
 
-   - Contribution updated to status Completed, `receive_date` updated to
-     `charge_date`
+   - Contribution updated to status Completed
 
-   - Membership updated to status New, `join_date` unchanged, `start_date`
-     updated to `webhook_date`, `end_date` updated to `start_date` +
-     membership_length
+   - Membership updated to status New  
+     `join_date = start_date = webhook_date`  
+     `end_date = start_date + membership_length`
 
 This appears to be identical date behaviour to creating a membership with a
 pending cheque payment and then later recording the cheque as being received.
