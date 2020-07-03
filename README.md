@@ -275,7 +275,7 @@ to build a tool for their own needs from that.
 
 ### 1.9.3 (unreleased)
 
-- Reduce timeout for changing "Pending" recurring contributions to "Failed" from 24 hours to 0.66 hours. See https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/76 You can still override this as a parameter, should you wish.
+- Reduce timeout for changing "Pending" recurring contributions to "Failed" from 24 hours to 0.66 hours. See [issue #76](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/76) You can still override this as a parameter, should you wish.
 
 - developers: fixed problem getting and setting the processor ID in import script. Thanks @jmdh for this. Also, there's been a massive refactor of the import script.
 
@@ -285,7 +285,7 @@ to build a tool for their own needs from that.
    - This is from PR #70 (Thanks @mattwire) which fixes [issue #63](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/63) on some sites where the first contribution never gets completed.
    - Also this method is now used for repeat payments.
 
-- Fix some issues with the system checks (#69 thanks @mattwire)
+- Fix some issues with the system checks (PR #69 thanks @mattwire)
 
 - Treat HTTP headers sent by GoCardless webhooks as case-insensitive, as now required by GoCardless (they changed the way they sent HTTP/1.1 headers).
 
@@ -295,13 +295,13 @@ to build a tool for their own needs from that.
 
 - **Do not install v 1.9 from civicrm.org/extensions** - it's missing the important libraries! Use 1.9.1
 
-- Supports changing the amount and cancelling a subscription via CiviCRM main user interface (issue 6). It does not support letting supporters themselves change these things.
+- Supports changing the amount and cancelling a subscription via CiviCRM main user interface ([issue #6](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/6)). It does not support letting supporters themselves change these things.
 
 - One-way-upgrade: we now store the GoCardless subscription ID in *both* `trxn_id` and `processor_id` in the `civicrm_contribution_recur` table. This is because some parts of CiviCRM's UI require us to reference the record via `processor_id` which was unused up to this point. An upgrade task should populate existing data.
 
 - Some membership dates logic was failing in the tests under CiviCRM 5.19. This version passes its tests again.
 
-- Fix issue when setting up a weekly membership (issue 59 - thanks to MJW Consulting for reporting and suggesting fix)
+- Fix issue when setting up a weekly membership ([issue #59](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/59) - thanks to MJW Consulting for reporting and suggesting fix)
 
 - Improvements to code standards; better support for translation possiblities; move tests to phpunit6.
 
@@ -384,11 +384,11 @@ to build a tool for their own needs from that.
 ### 1.7
 
 - Fixed issue in certain use cases that resulted in the First Name field not
- being pre-populated (#45). Also further thanks to Aidan for knotty
+ being pre-populated ([issue #45](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/45)). Also further thanks to Aidan for knotty
  discussions on membership.
 
 - Fixed issue that caused *other* payment processors' configuration forms to
- not save. (#49)
+ not save. ([issue #49](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/49))
 
 ###  1.6 "stable"!
 
