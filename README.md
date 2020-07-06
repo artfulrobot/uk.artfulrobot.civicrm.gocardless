@@ -9,11 +9,11 @@ This extension is working well for collecting regular weekly, monthly or yearly 
 
 Other things to note
 
-- Although "Beta", this has been in production use since November 2016. The usual disclaimers apply :-)
-
-- Daily recurring is not supported by GoCardless so you should not enable this option when configuring your forms. If you do users will get an error message: "Error Sorry, we are unable to set up your Direct Debit. Please call us."
+- Daily recurring is not supported by GoCardless, so you should not enable this option when configuring your forms. If you do users will get an error message: "Error Sorry, we are unable to set up your Direct Debit. Please call us."
 
 - Taking one offs is [not supported/implemented yet](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/12).
+
+- Membership organisations should be aware that there isn't currently a way to change subscriptions in bulk - this may cause an issue if you need to increase/decrease your membership fee at any point in future - [see issue #87](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/87).
 
 - Generally worth scanning the titles of the [Issue Queue](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/)
 
@@ -25,7 +25,7 @@ Other things to note
 
 - You can pay me to fix/implement a feature you need [contact me](https://artfulrobot.uk/contact)
 
-- If you use this, it may help us all if you drop a comment on [Issue 20](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/20)
+- If you use this, consider joining the friendly [chat channel](https://chat.civicrm.org/civicrm/channels/gocardless) for announcements and support.
 
 
 ## How to install
@@ -45,7 +45,11 @@ You'll need to come back to the GoCardless control panel later on to set up your
 
 ### 1a. Install it the Simple way
 
-Visit the [Releases page](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/releases) and download the code from there. Unzip it in your extensions directory, then follow instructions for [step 2 below](#createpp).
+This extension can be installed directly from within the CiviCRM user interface. See the user manual for details: [Installing extensions](https://docs.civicrm.org/user/en/latest/introduction/extensions/#installing-extensions).
+
+Alternatively, visit the [Releases page](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/releases) and download the code from there. Unzip it in your extensions directory and install in the CiviCRM Extensions screen in the usual way.
+
+After you have installed it, follow instructions from [step 2 below](#createpp).
 
 ### 1b. Install it the Difficult way (developers)
 
@@ -55,7 +59,7 @@ directories.
 
 This extension requires the GoCardlessPro PHP library. Here's how to install
 from the \*nix command line. You need
-[composer](https://getcomposer.org/download/)
+[composer](https://getcomposer.org/download/).
 
     $ cd /path/to/your/extensions/dir
     $ git clone https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless.git
@@ -65,9 +69,7 @@ from the \*nix command line. You need
 That should then bring in the GoCardlessPro dependency and you should be good to
 go.
 
-### <a name="createpp" id="createpp"></a> 2. Install the extension and create a payment processor
-
-Install it through the CiviCRM Extensions screen as usual (you may need to click Refresh).
+### <a name="createpp" id="createpp"></a> 2. Create a payment processor
 
 Set up the payment processor:
 
@@ -81,7 +83,7 @@ Set up the payment processor:
 
 **Note: for testing purposes you may put your test/sandbox credentials (excluding webhook secret - see below) in the Live fields, but you must use CiviCRM's 'test drive' mode for trying payments; live mode will NOT work with test credentials since they are authenticated against different GoCardless API end points.** So your live testing will need to be with real-world live data.
 
-### 3. Install your webhook at GoCardless
+### 3. Set up your webhook at GoCardless
 
 GoCardless has full separation of its test (sandbox) and live account management pages, so **you'll do this twice**. Be sure to supply the webhook secret appropriate to the test/live environments - you **must** choose a different secret for live/test.
 
@@ -93,13 +95,18 @@ The webhook URL is at:
 
 Note: the webhook will check the key twice; once against the test and once against the live payment processors' webhook secrets. From that information it determines whether it's a test or not. That's one reason you need different secrets.
 
-**Note: a webohok is a web page; it's not something for you to view in your browser**. i.e. if you enter the webhook URL in your browser you *should* see a blank page. To find out whether it's working you'll need GoCardless to send it some data.
+**Note: a webhook is a web page; it's not something for you to view in your browser**. i.e. if you enter the webhook URL in your browser you *should* see a blank page. To find out whether it's working you'll need GoCardless to send it some data.
 
 ### 4. Use it and test it!
 
 Create a contribution page and set up a regular donation using the "test-drive" page. Check things at CiviCRM's end and at GoCardless' end. Note that GoCardless keeps a log of whether webhooks were successful and gives you the chance to resubmit them, too, if I remember correctly.
 
-Note: if you're running a "test-drive" contribution page you can use GoCardless's test bank account: `20-00-00` `55779911`.
+Note: if you're running a "test-drive" contribution page you should use [GoCardless' test bank details](https://developer.gocardless.com/getting-started/developer-tools/test-bank-details/).
+
+BACS details for UK:
+
+* Sort code:`20-00-00` 
+* Account number: `55779911`
 
 Having set up a Direct Debit you should see that in the Contributions tab for your contact's record on CiviCRM, showing as a recurring payment, and also a pending contribution record. The date will be about a week in the future. Check your database several days after that date (GoCardless only knows something's been successful after the time for problems to be raised has expired, which is several working days) and the contribution should have been completed. Check your record next week/month/year and there should be another contribution automatically created.
 
@@ -126,24 +133,25 @@ preference:
 In a simple world, someone fills in a membership form, pays by credit card and
 their membership is active immediately.
 
-In the DD world, things happen on different dates:
+In the direct debit world, things happen on different dates:
 
-1. `setup_date` - fill in a membership form, complete a DD mandate
-   - Recurring Contribution created with status In Progress
-   - Contribution created with status Pending
-   - Membership created with status Pending,  
-     `join_date = start_date = setup_date`
+1. `setup_date` - fill in a membership form, complete a direct debit mandate
+   - Recurring Contribution created with status In Progress  
+     `start_date = charge_date`
+   - Contribution created with status Pending  
+     `receive_date = charge_date`
+   - Membership created with status Pending  
+     `join_date`, `start_date`, `end_date` are blank
 
-2. `charge_date` - first payment charged
+2. `charge_date` - first payment charged (4-5 working days later)
 
-3. `webhook_date` - GoCardless fires webhook and notifies of `charge_date`
+3. `webhook_date` - GoCardless fires webhook (one working day after the `charge_date`)
 
-   - Contribution updated to status Completed, `receive_date` updated to
-     `charge_date`
+   - Contribution updated to status Completed
 
-   - Membership updated to status New, `join_date` unchanged, `start_date`
-     updated to `webhook_date`, `end_date` updated to `start_date` +
-     membership_length
+   - Membership updated to status New  
+     `join_date = start_date = webhook_date`  
+     `end_date = start_date + membership_length`
 
 This appears to be identical date behaviour to creating a membership with a
 pending cheque payment and then later recording the cheque as being received.
@@ -153,13 +161,13 @@ membership length) from the start date so that members get a full year of
 benefit.
 
 However... some might want the membership to start as soon as the mandate is
-setup, before waiting for the first payment. The current date logic is handled
+set up, before waiting for the first payment. The current date logic is handled
 by core so this extension would need to override that in a couple of places to
 implement a different scheme.  Since that is not specific to this payment
 processor, it might be better to do this as an enhancement to core, or a
 separate extension.
 
-## Note on setting up memberships.
+## Note on setting up memberships
 
 The "Auto-renew" option is required for the GoCardless payment processor to
 handle memberships.
@@ -173,7 +181,7 @@ Technical people might like to know that without this, CiviCRM creates a single
 contribution and a membership record, but no `contribution_recur` record. This
 causes a crash completing the redirect flow because it can't figure out the
 interval (i.e. 1/year or such). It is possible to look that up from the
-membership ID however that leads to the situation described above and it's then
+membership ID however that leads to the situation described above, and it's then
 not clear what happens when the next payment comes in as it will not match up
 with a `contribution_recur` record.
 
@@ -192,7 +200,7 @@ The life-cycle would typically be:
    website after the following records are set up in CiviCRM:
 
      - a **pending** contribution
-     - an **pending** recurring contribution
+     - a **pending** recurring contribution
 
    Those records have receive and start date set (by core CiviCRM) to the date
    and time the form was submitted (as you might expect). However, once the user
@@ -214,7 +222,7 @@ The life-cycle would typically be:
 
 
 2. GoCardless submits the charge for a payment to the customer's bank and
-   eventually (seems to be 3 working days after submission) this is confirmed.
+   eventually (4-5 working days after creation) this is confirmed.
    It sends a webhook for `resource_type` `payments`, action `confirmed`. At
    this point the extension will:
 
@@ -228,10 +236,10 @@ The life-cycle would typically be:
        setting the transaction ID to the GoCardless payment ID. It also sets
        amount to the amount from GoCardless.
      - check that the status on the CiviCRM recurring contribution
-       record is 'In Progress'. (It should be but the check is there because we
+       record is 'In Progress'. (It should be, but the check is there because we
        previously did things differently.)
 
-Note: After a while the GoCardless payment status is changed from `confirmed` to
+Note: the following working day the GoCardless payment status is changed from `confirmed` to
 `paid_out`. Normally the confirmed webhook will have processed the payment
 before this happens, but the extension will allow processing of payment
 confirmed webhooks if the payment's status is `paid_out` too. This can be
@@ -262,14 +270,14 @@ some.
 
 If you clone from the github repo, you'll see a cli directory. This contains a
 script I used as a one-off to import some pre-existing GoCardless subscriptions.
-It's not a fully fledged tool but it may help others with one-off import tasks
+It's not a fully fledged tool, but it may help others with one-off import tasks
 to build a tool for their own needs from that.
 
 ## Change log
 
 ### 1.9.3 (unreleased)
 
-- Reduce timeout for changing "Pending" recurring contributions to "Failed" from 24 hours to 0.66 hours. See https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/76 You can still override this as a parameter, should you wish.
+- Reduce timeout for changing "Pending" recurring contributions to "Failed" from 24 hours to 0.66 hours. See [issue #76](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/76) You can still override this as a parameter, should you wish.
 
 - developers: fixed problem getting and setting the processor ID in import script. Thanks @jmdh for this. Also, there's been a massive refactor of the import script.
 
@@ -279,7 +287,7 @@ to build a tool for their own needs from that.
    - This is from PR #70 (Thanks @mattwire) which fixes [issue #63](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/63) on some sites where the first contribution never gets completed.
    - Also this method is now used for repeat payments.
 
-- Fix some issues with the system checks (#69 thanks @mattwire)
+- Fix some issues with the system checks (PR #69 thanks @mattwire)
 
 - Treat HTTP headers sent by GoCardless webhooks as case-insensitive, as now required by GoCardless (they changed the way they sent HTTP/1.1 headers).
 
@@ -287,17 +295,17 @@ to build a tool for their own needs from that.
 
 ### 1.9 For CiviCRM 5.19+
 
-- **Do not install v 5.19 from civicrm.org/extensions** - it's missing the important libraries! Use 5.19.1
+- **Do not install v 1.9 from civicrm.org/extensions** - it's missing the important libraries! Use 1.9.1
 
-- Supports changing the amount and cancelling a subscription via CiviCRM main user interface (issue 6). It does not support letting supporters themselves change these things.
+- Supports changing the amount and cancelling a subscription via CiviCRM main user interface ([issue #6](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/6)). It does not support letting supporters themselves change these things.
 
 - One-way-upgrade: we now store the GoCardless subscription ID in *both* `trxn_id` and `processor_id` in the `civicrm_contribution_recur` table. This is because some parts of CiviCRM's UI require us to reference the record via `processor_id` which was unused up to this point. An upgrade task should populate existing data.
 
 - Some membership dates logic was failing in the tests under CiviCRM 5.19. This version passes its tests again.
 
-- Fix issue when setting up a weekly membership (issue 59 - thanks to MJW Consulting for reporting and suggesting fix)
+- Fix issue when setting up a weekly membership ([issue #59](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/59) - thanks to MJW Consulting for reporting and suggesting fix)
 
-- Improvements to code standards; better support for translation possiblities; move tests to phpunit6.
+- Improvements to code standards; better support for translation possibilities; move tests to phpunit6.
 
 ### 1.8 Big changes
 
@@ -307,7 +315,7 @@ to build a tool for their own needs from that.
 
 - **Major change, possibly breaking**: multiple GoCardless payment processors
   now allowed. Previous versions had assumed a single GoCardless payment
-  processor, and that's fine for most organisations. However some organisations
+  processor, and that's fine for most organisations. However, some organisations
   have cause to use multiple GoCardless accounts with one CiviCRM instance.
 
   **This change should hopefully be invisible to you and existing sites should
@@ -344,7 +352,7 @@ to build a tool for their own needs from that.
 
 - **Now handles "Late Failures"**
 
-  With BACS (and SEPA, although that's not yet suppoorted here) payments can
+  With BACS (and SEPA, although that's not yet supported here) payments can
   apparently be "Confirmed" one day, then next day they can still fail. This
   is just to keep you on your toes.
 
@@ -378,11 +386,11 @@ to build a tool for their own needs from that.
 ### 1.7
 
 - Fixed issue in certain use cases that resulted in the First Name field not
- being pre-populated (#45). Also further thanks to Aidan for knotty
+ being pre-populated ([issue #45](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/45)). Also further thanks to Aidan for knotty
  discussions on membership.
 
 - Fixed issue that caused *other* payment processors' configuration forms to
- not save. (#49)
+ not save. ([issue #49](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/49))
 
 ###  1.6 "stable"!
 
@@ -392,7 +400,7 @@ to build a tool for their own needs from that.
 
 - GoCardless forms are now pre-filled with address, email, phone numbers if
  you have collected those details before passing on to GoCardless. Thanks to
- [Vitilgo Society](https://vitiligosociety.org.uk/) for funding this work.
+ [Vitiligo Society](https://vitiligosociety.org.uk/) for funding this work.
 
 - Updated GoCardlessPro library to 1.7.0 just to keep up-to-date.
 
