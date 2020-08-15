@@ -168,7 +168,7 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
   public function cancelSubscription(&$message = '', $params = []) {
     $propertyBag = \Civi\Payment\PropertyBag::cast($params);
     if (!$propertyBag->has('recurProcessorID')) {
-      throw new PaymentProcessorException("cancelSubscription requires the recurProcessorID");
+      throw new \Civi\Payment\Exception\PaymentProcessorException("cancelSubscription requires the recurProcessorID");
     }
 
     // contributionRecurID is set when doCancelRecurring is called directly (from 5.25)
