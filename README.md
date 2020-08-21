@@ -90,7 +90,8 @@ GoCardless has full separation of its test (sandbox) and live account management
 The webhook URL is at:
 
 - Drupal: `/civicrm/gocardless/webhook`
-- Wordpress `/?page=CiviCRM&q=civicrm/gocardless/webhook`
+- Wordpress version 5.5+ `/?civiwp=CiviCRM&q=civicrm/gocardless/webhook`
+- Wordpress older than version 5.5 `/?page=CiviCRM&q=civicrm/gocardless/webhook`
 - Joomla: `/index.php?option=com_civicrm&task=civicrm/gocardless/webhook`
 
 Note: the webhook will check the key twice; once against the test and once against the live payment processors' webhook secrets. From that information it determines whether it's a test or not. That's one reason you need different secrets.
