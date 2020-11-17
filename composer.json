@@ -1,5 +1,8 @@
 {
     "require": {
         "gocardless/gocardless-pro": "^1.2.0"
+    },
+    "replace": {
+      "guzzlehttp/guzzle": "^6.0"
     }
 }
