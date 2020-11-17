@@ -428,9 +428,12 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
       if (isset($_['street_address'])) {
         $customer['address_line1'] = $_['street_address'];
       }
-      $supplemental_address_lines = [$_['supplemental_address_1'],$_['supplemental_address_2']];
-      if (isset($supplemental_address_lines)) {
-    		$customer['address_line2'] = implode(", ", array_filter($supplemental_address_lines));
+      $supplemental_address_lines = array_filter([
+        $_['supplemental_address_1'] ?? NULL,
+        $_['supplemental_address_2'] ?? NULL
+        ]);
+      if ($supplemental_address_lines) {
+    		$customer['address_line2'] = implode(", ", $supplemental_address_lines);
 		  }
       if (isset($_['city'])) {
         $customer['city'] = $_['city'];
