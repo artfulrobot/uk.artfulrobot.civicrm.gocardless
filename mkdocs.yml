@@ -1,0 +1,44 @@
+site_name: GoCardless Direct Debit Payment Processor Extension
+repo_url: https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless
+site_description: 'How to use the GoCardless payment processor'
+site_author: 'Rich Lott / Artful Robot'
+theme:
+  name:
+    material
+
+nav:
+- Home: index.md
+- Tutorial:
+    - "Tutorial": tutorial/index.md
+    - "Get GoCardless Account": tutorial/setup-sandbox-account.md
+    - "Install extension": tutorial/install.md
+    - "Setup webhooks": tutorial/webhook.md
+    - "Setup Contribution Page": tutorial/contribution-page.md
+    - "Extra": tutorial/extra-marks.md
+- "How To":
+    - "Alternative installation": howto/alternative-installs.md
+    - "Pre-fill address details": howto/prefill.md
+    - "Set up for memberships": howto/membership.md
+- Discussion:
+    - "Membership dates": discussion/membership.md
+    - "Importing": reference/import.md
+- Reference:
+    - "Technical": reference/technical.md
+
+markdown_extensions:
+  - attr_list
+  - admonition
+  - def_list
+  - pymdownx.highlight:
+      guess_lang: false
+  - toc:
+      permalink: True
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.tilde
+  - pymdownx.betterem
+  - pymdownx.mark
+
+plugins:
+  - search:
+      lang: en

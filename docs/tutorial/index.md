@@ -2,11 +2,11 @@
 
 This will take you through setting up a GoCardless test account, setting
 this up in CiviCRM, and making your first test contribution. It is easy to
-set up a sanbox account and much better to do this than to use a real
+set up a sandbox account and much better to do this than to use a real
 account for testing/learning.
 
-After completing the tutorial you can pretty much follow it through again
-for a live account.
+**After completing the tutorial you can pretty much follow it through
+again for a live account.**
 
 Pages:
 
@@ -21,6 +21,7 @@ Pages:
 
 5. [Make a contribution](/tutorial/make-contribution.md)
 
+6. [Extra](/tutorial/extra.md)
 
 
 

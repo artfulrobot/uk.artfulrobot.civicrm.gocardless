@@ -9,7 +9,7 @@ This extension can be installed from within CiviCRM itself (assuming your
 implementation allows that, some do not for security reasons). 
 
 !!! info Alternatives
-    You can install manually or from the git repo (developers) but see notes.
+    You can install manually or from the git repo (developers) but [see notes](howto/alternative-installs/)
 
 In your CiviCRM site, go to **Administer » System Settings » Extensions**
 then visit the **Add New** tab. You can ee the CiviCRM user manual for details: [Installing
