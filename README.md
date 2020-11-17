@@ -72,7 +72,7 @@ Note: the webhook will check the key twice; once against the test and once again
 
 Create a contribution page and set up a regular donation using the "test-drive" page. Check things at CiviCRM's end and at GoCardless' end. Note that GoCardless keeps a log of whether webhooks were successful and gives you the chance to resubmit them, too, if I remember correctly.
 
-Note: if you're running a "test-drive" contribution page you should use [GoCardless' test bank details](https://developer.gocardless.com/getting-started/developer-tools/test-bank-details/).
+Note: if you're running a "test-drive" contribution page you should use [GoCardless' test bank details].
 
 BACS details for UK:
 

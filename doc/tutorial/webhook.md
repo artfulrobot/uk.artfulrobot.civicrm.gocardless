@@ -31,10 +31,17 @@ button and choose **Webhook endpoint**.
 
 - Webhook client certificate: leave that un-checked.
 
-Then click **Create webhook endpoint**
+Then click the final **Create webhook endpoint** button.
 
-## All set! Now let's test!
+You should now see your webhook listed with a green dot and "enabled" in the
+Status column.
 
-@todo link to contribution page
+!!! note
+    You can't setup a webhook to a private URL. e.g. if you have
+    a development/staging server that's not publicly available, this is not
+    going to work. GoCardless needs to be able to reach the webhook URL.
 
 
+## All set! Now let's test it...
+
+Next step: [Set up a Contribution Page](/tutorial/contribution-page.md)
