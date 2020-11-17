@@ -28,24 +28,7 @@ Other things to note
 - If you use this, consider joining the friendly [chat channel](https://chat.civicrm.org/civicrm/channels/gocardless) for announcements and support.
 
 
-## How to install
-
-Choose option 1a (everyone) or 1b (developers only), then proceed with step 2.
-
-### 0. Set up a GoCardless account
-
-You'll need at least a *sandbox* (i.e. testing) account, so [register a sandbox account at GoCardless](https://manage-sandbox.gocardless.com/signup).
-
-From within GoCardless's dashboard you'll need to **Create an access token**. Once you're logged in at GoCardless, go to Developers » Create » Access Token.
-
-You want to choose **Read/Write**. Name it whatever you like.  Once you've created an access token a pop-up box will display the token. **You can never get to this again!** So make sure you copy it and store it safely somewhere for later use in your CiviCRM payment processor configuration.
-
-You'll need to come back to the GoCardless control panel later on to set up your webhook.
-
-
 ### 1a. Install it the Simple way
-
-This extension can be installed directly from within the CiviCRM user interface. See the user manual for details: [Installing extensions](https://docs.civicrm.org/user/en/latest/introduction/extensions/#installing-extensions).
 
 Alternatively, visit the [Releases page](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/releases) and download the code from there. Unzip it in your extensions directory and install in the CiviCRM Extensions screen in the usual way.
 
@@ -69,19 +52,6 @@ from the \*nix command line. You need
 That should then bring in the GoCardlessPro dependency and you should be good to
 go.
 
-### <a name="createpp" id="createpp"></a> 2. Create a payment processor
-
-Set up the payment processor:
-
-- go to Administer » CiviContribute » Payment Processors then click **Add New**
-- select **GoCardless** from the *Payment Processor Type*
-- give it a name
-- select **GoCardless Direct Debit** from the *Payment Method*
-- add your access tokens (you obviously need a GoCardless account to do this)
-- make up unique and secure webhook secrets
-- click *Save*.
-
-**Note: for testing purposes you may put your test/sandbox credentials (excluding webhook secret - see below) in the Live fields, but you must use CiviCRM's 'test drive' mode for trying payments; live mode will NOT work with test credentials since they are authenticated against different GoCardless API end points.** So your live testing will need to be with real-world live data.
 
 ### 3. Set up your webhook at GoCardless
 
@@ -281,6 +251,12 @@ to build a tool for their own needs from that.
 - Reduce timeout for changing "Pending" recurring contributions to "Failed" from 24 hours to 0.66 hours. See [issue #76](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/76) You can still override this as a parameter, should you wish.
 
 - developers: fixed problem getting and setting the processor ID in import script. Thanks @jmdh for this. Also, there's been a massive refactor of the import script.
+
+- Use `supplemental_address_1` and 2 when prefilling GC address fields. Thanks @TomCranshaw
+
+- Implement new doCancelRecurring and support payment propertyBag, needed in recent core versions. Thanks @mattwire
+
+- Exclude guzzle dependency of the GoCardless library: CiviCRM core already provides guzzle 6, so this extension bringing it in as well is not needed or helpful.
 
 ### 1.9.2
 
