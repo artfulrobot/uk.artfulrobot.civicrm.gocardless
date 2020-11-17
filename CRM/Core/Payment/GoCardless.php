@@ -342,6 +342,12 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
   }
 
   /**
+   * This will be called by CiviCRM Core's IPN handler.
+   */
+  public function handlePaymentNotification() {
+    CRM_Core_Payment_GoCardlessIPN::run($this);
+  }
+  /**
    * Create the inputs for creating a GoCardless redirect flow from the CiviCRM provided parameters.
    *
    * Name, address, phone, email parameters provided by profiles have names like:
