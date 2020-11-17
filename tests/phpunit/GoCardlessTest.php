@@ -622,7 +622,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
    * @expectedExceptionMessage Unsigned API request.
    */
   public function testWebhookMissingSignature() {
-    $controller = new CRM_GoCardless_Page_Webhook();
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
     $controller->parseWebhookRequest([], '');
   }
 
@@ -633,7 +633,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
    * @expectedExceptionMessage Invalid signature in request.
    */
   public function testWebhookWrongSignature() {
-    $controller = new CRM_GoCardless_Page_Webhook();
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
     $controller->parseWebhookRequest(["Webhook-Signature" => 'foo'], 'bar');
   }
 
@@ -644,7 +644,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
    * @expectedExceptionMessage Invalid or missing data in request.
    */
   public function testWebhookMissingBody() {
-    $controller = new CRM_GoCardless_Page_Webhook();
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
     $calculated_signature = hash_hmac("sha256", '', 'mock_webhook_key');
     $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], '');
   }
@@ -656,7 +656,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
    * @expectedExceptionMessage Invalid or missing data in request.
    */
   public function testWebhookInvalidBody() {
-    $controller = new CRM_GoCardless_Page_Webhook();
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
     $body = 'This is not json.';
     $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
     $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
@@ -667,7 +667,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
    *
    */
   public function testWebhookParse() {
-    $controller = new CRM_GoCardless_Page_Webhook();
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
     $body = '{"events":[
       {"id":"EV1","resource_type":"payments","action":"confirmed"},
       {"id":"EV2","resource_type":"payments","action":"failed"},
@@ -755,7 +755,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     ]);
 
     // Mock webhook input data.
-    $controller = new CRM_GoCardless_Page_Webhook();
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
     $body = '{"events":[
       {"id":"EV1","resource_type":"payments","action":"confirmed","links":{"payment":"PAYMENT_ID"}}
       ]}';
@@ -886,7 +886,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     $this->assertEquals((new DateTimeImmutable($first_date_string))->modify("+1 year")->modify("-1 day")->format("Y-m-d"), $membership['end_date']);
 
     // Mock webhook input data.
-    $controller = new CRM_GoCardless_Page_Webhook();
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
     $body = '{"events":[
       {"id":"EV1","resource_type":"payments","action":"confirmed","links":{"payment":"PAYMENT_ID_2"}}
       ]}';
@@ -1016,7 +1016,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     ]);
 
     // Mock webhook input data.
-    $controller = new CRM_GoCardless_Page_Webhook();
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
     $body = '{"events":[
       {"id":"EV1","resource_type":"payments","action":"confirmed","links":{"payment":"PAYMENT_ID_2"}}
       ]}';
@@ -1106,7 +1106,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     ));
 
     // Mock webhook input data.
-    $controller = new CRM_GoCardless_Page_Webhook();
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
     $body = '{"events":[
       {"id":"EV1","resource_type":"payments","action":"failed","links":{"payment":"PAYMENT_ID"}}
       ]}';
@@ -1184,7 +1184,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     ));
 
     // Mock webhook input data.
-    $controller = new CRM_GoCardless_Page_Webhook();
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
     $body = '{"events":[
       {"id":"EV1","resource_type":"payments","action":"failed","links":{"payment":"PAYMENT_ID_2"}}
       ]}';
@@ -1275,7 +1275,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     ));
 
     // Mock webhook input data.
-    $controller = new CRM_GoCardless_Page_Webhook();
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
     $body = '{"events":[
       {"id":"EV1","resource_type":"payments","action":"failed","links":{"payment":"PAYMENT_ID"}}
       ]}';
@@ -1441,7 +1441,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     ));
 
     // Mock webhook input data.
-    $controller = new CRM_GoCardless_Page_Webhook();
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
     $body = '{"events":[
       {"id":"EV1","resource_type":"subscriptions","action":"cancelled","links":{"subscription":"SUBSCRIPTION_ID"}}
       ]}';
@@ -1523,7 +1523,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     ));
 
     // Mock webhook input data.
-    $controller = new CRM_GoCardless_Page_Webhook();
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
     $body = '{"events":[
       {"id":"EV1","resource_type":"subscriptions","action":"finished","links":{"subscription":"SUBSCRIPTION_ID"}}
       ]}';
@@ -1698,15 +1698,14 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
 
   }
   /**
-   * Return a fake GoCardless payment processor.
+   * Return a fake GoCardless IPN processor.
    *
    * Helper function for other tests.
    */
   protected function getWebhookControllerForTestProcessor() {
-    $controller = new CRM_GoCardless_Page_Webhook();
     $pp_config = $this->test_mode_payment_processor;
     $pp = Civi\Payment\System::singleton()->getByProcessor($pp_config);
-    $controller->setPaymentProcessor($pp);
+    $controller = new CRM_Core_Payment_GoCardlessIPN($pp);
     return $controller;
   }
 

@@ -52,13 +52,14 @@ class CRM_Core_Payment_GoCardlessIPN {
    * Constructor.
    *
    * @param NULL|CRM_Core_Payment_GoCardless $paymentClass
+   *    NULL is for legacy use only.
    */
-  public function __construct($paymentClass) {
+  public function __construct($paymentClass = NULL) {
     if ($paymentClass !== NULL && !($paymentClass instanceof CRM_Core_Payment_GoCardless)) {
       // This would be a coding error.
       throw new Exception(__CLASS__ . " constructor requires CRM_Core_Payment_GoCardless object (or NULL for legacy use).");
     }
-    $this->paymentClass = $paymentClass;
+    $this->paymentProcessorObject = $paymentClass;
   }
 
   /**
