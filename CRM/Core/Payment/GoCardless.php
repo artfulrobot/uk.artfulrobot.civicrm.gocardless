@@ -98,29 +98,38 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
   /**
    * Attempt to cancel the subscription at GoCardless.
    *
-   * @see supportsCancelRecurring()
+   * @param \Civi\Payment\PropertyBag $propertyBag
    *
-   * @param string $message
-   * @param array $params
-   * which refers to 'subscriptionId'
-   *
-   * @return bool
+   * @return array|null[]
    * @throws \Civi\Payment\Exception\PaymentProcessorException
    */
-  public function cancelSubscription(&$message = '', $params = []) {
-    if (empty($params['subscriptionId'])) {
-      throw new PaymentProcessorException("cancelSubscription requires a subscriptionId");
+  public function doCancelRecurring(\Civi\Payment\PropertyBag $propertyBag) {
+    // By default we always notify the processor and we don't give the user the option
+    // because supportsCancelRecurringNotifyOptional() = FALSE
+    // @fixme setIsNotifyProcessorOnCancelRecur was added in 5.27 - remove method_exists once minVer is 5.27
+    if (method_exists($propertyBag, 'setIsNotifyProcessorOnCancelRecur')) {
+      if (!$propertyBag->has('isNotifyProcessorOnCancelRecur')) {
+        // If isNotifyProcessorOnCancelRecur is NOT set then we set our default
+        $propertyBag->setIsNotifyProcessorOnCancelRecur(TRUE);
+      }
+      $notifyProcessor = $propertyBag->getIsNotifyProcessorOnCancelRecur();
     }
-    // Get the GoCardless subscription ID, stored in processor_id
-    $contrib_recur = civicrm_api3('ContributionRecur', 'getsingle', ['processor_id' => $params['subscriptionId']]);
-    $subscription_id = $contrib_recur['processor_id'];
+    else {
+      // CiviCRM < 5.27
+      $notifyProcessor = (boolean) CRM_Utils_Request::retrieveValue('send_cancel_request', 'Boolean', TRUE, FALSE, 'POST');
+    }
+
+    if (!$notifyProcessor) {
+      return ['message' => ts('Successfully cancelled the subscription in CiviCRM ONLY.')];
+    }
 
     $log_message = __FUNCTION__ . ": "
-    . json_encode(['subscription_id' => $subscription_id, 'contribution_recur_id' => $params['id']])
-    . ' ';
+      . json_encode(['subscription_id' => $propertyBag->getRecurProcessorID(), 'contribution_recur_id' => $propertyBag->getContributionRecurID()])
+      . ' ';
     try {
       $gc_api = $this->getGoCardlessApi();
-      $gc_api->subscriptions()->cancel($subscription_id);
+      // The GoCardless subscription ID is stored in processor_id
+      $gc_api->subscriptions()->cancel($propertyBag->getRecurProcessorID());
       CRM_Core_Error::debug_log_message("$log_message SUCCESS", FALSE, 'GoCardless', PEAR_LOG_INFO);
     }
     catch (\GoCardlessPro\Core\Exception\ApiException $e) {
@@ -128,13 +137,11 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
       $this->logGoCardlessException("$log_message FAILED", $e);
       // repackage as PaymentProcessorException
       throw new PaymentProcessorException($e->getMessage());
-
     }
     catch (\GoCardlessPro\Core\Exception\MalformedResponseException $e) {
       // Unexpected non-JSON response
       $this->logGoCardlessException("$log_message FAILED", $e);
       throw new PaymentProcessorException('Unexpected response type from GoCardless');
-
     }
     catch (\GoCardlessPro\Core\Exception\ApiConnectionException $e) {
       // Network error
@@ -142,7 +149,35 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
       throw new PaymentProcessorException('Network error, please try later.');
     }
 
-    $message = "Successfully cancelled the subscription at GoCardless.";
+    return ['message' => ts('Successfully cancelled the subscription at GoCardless.')];
+  }
+
+  /**
+   * Attempt to cancel the subscription at GoCardless.
+   * @deprecated Remove when min CiviCRM version is 5.25
+   *
+   * @see supportsCancelRecurring()
+   *
+   * @param string $message
+   * @param array|\Civi\Payment\PropertyBag $params
+   *
+   * @return bool
+   * @throws \CiviCRM_API3_Exception
+   * @throws \Civi\Payment\Exception\PaymentProcessorException
+   */
+  public function cancelSubscription(&$message = '', $params = []) {
+    $propertyBag = \Civi\Payment\PropertyBag::cast($params);
+    if (!$propertyBag->has('recurProcessorID')) {
+      throw new \Civi\Payment\Exception\PaymentProcessorException("cancelSubscription requires the recurProcessorID");
+    }
+
+    // contributionRecurID is set when doCancelRecurring is called directly (from 5.25)
+    if (!$propertyBag->has('contributionRecurID')) {
+      $contrib_recur = civicrm_api3('ContributionRecur', 'getsingle', ['processor_id' => $propertyBag->getRecurProcessorID()]);
+      $propertyBag->setContributionRecurID($contrib_recur['id']);
+    }
+
+    $message = $this->doCancelRecurring($propertyBag)['message'];
     return TRUE;
   }
 
@@ -515,11 +550,39 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
   }
 
   /**
+   * Does the processor support the user having a choice as to whether to cancel the recurring with the processor?
+   *
+   * If this returns TRUE then there will be an option to send a cancellation request in the cancellation form.
+   *
+   * @return bool
+   */
+  protected function supportsCancelRecurringNotifyOptional() {
+    return TRUE;
+  }
+
+  /**
    * Shorthand method to determine if this processor is a test one.
    */
   public function isTestMode() {
     $pp = $this->getPaymentProcessor();
     return $pp['is_test'];
+  }
+
+  public function getText($context, $params) {
+    $text = parent::getText($context, $params);
+
+    switch ($context) {
+      case 'cancelRecurDetailText':
+        // $params['selfService'] added via https://github.com/civicrm/civicrm-core/pull/17687
+        $params['selfService'] = $params['selfService'] ?? TRUE;
+        if ($params['selfService']) {
+          $text .= ' <br/><strong>' . E::ts('GoCardless will be automatically notified and the subscription will be cancelled.') . '</strong>';
+        }
+        else {
+          $text .= ' <br/><strong>' . E::ts("If you select 'Send cancellation request..' then GoCardless will be automatically notified and the subscription will be cancelled.") . '</strong>';
+        }
+    }
+    return $text;
   }
 
 }
