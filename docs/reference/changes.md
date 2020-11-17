@@ -14,6 +14,8 @@
 
 - New docs!
 
+- Move to standard webhook URLs (old one still supported for now) and new helper page (Administer » CiviContribute » GoCardless Webhooks) to spell out the correct URLs to use.
+
 ## 1.9.2
 
 - Move to `Payment.create` API instead of older (and deprecated) `Contribution.completetransaction` API.
