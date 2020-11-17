@@ -385,7 +385,7 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
       elseif (preg_match('/^email-(\d)+$/', $civi_prop, $matches)) {
         $emails[$matches[1]] = $value;
       }
-      elseif (preg_match('/^(street_address|city|postal_code|country|state_province)-(\d|\w+)+$/', $civi_prop, $matches)) {
+      elseif (preg_match('/^(street_address|supplemental_address_1|supplemental_address_2|city|postal_code|country|state_province)-(\d|\w+)+$/', $civi_prop, $matches)) {
         $addresses[$matches[2]][$matches[1]] = $value;
       }
     }
@@ -428,6 +428,10 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
       if (isset($_['street_address'])) {
         $customer['address_line1'] = $_['street_address'];
       }
+      $supplemental_address_lines = [$_['supplemental_address_1'],$_['supplemental_address_2']];
+      if (isset($supplemental_address_lines)) {
+    		$customer['address_line2'] = implode(", ", array_filter($supplemental_address_lines));
+		  }
       if (isset($_['city'])) {
         $customer['city'] = $_['city'];
       }
