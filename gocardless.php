@@ -197,18 +197,18 @@ function gocardless_civicrm_preProcess($formName, &$form) {
  * Implements hook_civicrm_navigationMenu().
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_navigationMenu
- *
+ */
 function gocardless_civicrm_navigationMenu(&$menu) {
-  _gocardless_civix_insert_navigation_menu($menu, NULL, array(
-    'label' => E::ts('The Page', array('domain' => 'uk.artfulrobot.civicrm.gocardless')),
-    'name' => 'the_page',
-    'url' => 'civicrm/the-page',
-    'permission' => 'access CiviReport,access CiviContribute',
+  _gocardless_civix_insert_navigation_menu($menu, 'Administer/CiviContribute', array(
+    'label' => E::ts('GoCardless Webhooks', array('domain' => 'uk.artfulrobot.civicrm.gocardless')),
+    'name' => 'gocardless_webhook_helper',
+    'url' => 'civicrm/gocardless',
+    'permission' => 'access CiviCRM',
     'operator' => 'OR',
     'separator' => 0,
   ));
   _gocardless_civix_navigationMenu($menu);
-} // */
+}
 /**
  * Implements hook_civicrm_validateForm().
  *

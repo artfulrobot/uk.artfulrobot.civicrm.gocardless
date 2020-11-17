@@ -1,6 +1,12 @@
 <?xml version="1.0"?>
 <menu>
   <item>
+    <path>civicrm/gocardless</path>
+    <page_callback>CRM_GoCardless_Page_WebhookHelper</page_callback>
+    <title>Your GoCardless Webhook endpoint URLs</title>
+    <access_arguments>access CiviCRM</access_arguments>
+  </item>
+  <item>
     <path>civicrm/gocardless/webhook</path>
     <page_callback>CRM_GoCardless_Page_Webhook</page_callback>
     <title>Webhook</title>
