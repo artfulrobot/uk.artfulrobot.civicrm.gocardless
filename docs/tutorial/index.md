@@ -11,7 +11,7 @@ again for a live account.**
 Pages:
 
 1. [Set up a GoCardless sandbox (test) account at
-   GoCardless](tutorial/setup-sandbox-account.md)
+   GoCardless](tutorial/setup-sandbox-account)
 
 2. [Install this extension in CiviCRM](tutorial/install.md)
 
