@@ -37,5 +37,5 @@ implement a different scheme.  Since that is not specific to this payment
 processor, it might be better to do this as an enhancement to core, or a
 separate extension.
 
-See also: [How to set up for membership](/howto/membership.md)
+See also: [How to set up for membership](../howto/membership.md)
 
