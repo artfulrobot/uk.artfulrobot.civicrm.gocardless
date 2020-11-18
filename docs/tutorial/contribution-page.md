@@ -136,6 +136,6 @@ those events. This is all good. We don't need to know about those things
 because we already know.
 
 If you're geeky you might like to [continue the
-tutorial](/tutorial/extra-marks.md) which will simulate the payment being
+tutorial](extra-marks.md) which will simulate the payment being
 made and updating CiviCRM; and cancelling the subscription.
 

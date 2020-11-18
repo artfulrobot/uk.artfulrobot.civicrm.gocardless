@@ -44,4 +44,4 @@ Status column.
 
 ## All set! Now let's test it...
 
-Next step: [Set up a Contribution Page](/tutorial/contribution-page.md)
+Next step: [Set up a Contribution Page](contribution-page.md)

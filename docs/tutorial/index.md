@@ -19,9 +19,7 @@ Pages:
 
 4. [Set up a Contribution Page](contribution-page.md)
 
-5. [Make a contribution](make-contribution.md)
-
-6. [Extra](extra.md)
+6. [Extra](extra-marks.md)
 
 
 
