@@ -1,0 +1,58 @@
+<div class="crm-container">
+  <h1 crm-page-title>{{ts('GoCardless settings')}}</h1>
+
+  <form name="myForm" crm-ui-id-scope>
+<!--
+    <div class="help">
+      <p>{{ts('This is an auto-generated skeletal page.')}}</p>
+
+      <p>{{ts('To view more debugging information, edit the URL and include "?angularDebug=1".')}}</p>
+    </div>
+
+    <div crm-ui-accordion="{title: ts('Greeting')}">
+      <p ng-show="$ctrl.myContact.first_name">{{ ts('Hello, %1.', {1: $ctrl.myContact.first_name}) }}</p>
+
+      <p ng-show="!$ctrl.myContact.first_name">{{ ts('Hello, stranger.') }}</p>
+    </div>
+
+-->
+      <div class="crm-block">
+        <div class="crm-group">
+          <label>
+            <input
+              type="checkbox"
+              crm-ui-id="myForm.forceRecurring"
+              name="forceRecurring"
+              ng-model="gcSettings.forceRecurring"
+              class="crm-form-checkbox"
+              />
+            &nbsp; {{ts('Force recurring contributions when a GoCardless payment processor is chosen')}}
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <button ng-click="$ctrl.save()">{{ts('Save')}}</button>
+      </div>
+      <h2>Active Payment processors</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Test Webhook endpoint URL</th>
+            <th>Live Webhook endpoint URL</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="pp in ppTable" >
+            <td>{{pp.name}}</td>
+            <td><input type="text" value="{{pp.urlTest}}"/></td>
+            <td><input type="text" value="{{pp.urlLive}}"/></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </form>
+
+</div>
