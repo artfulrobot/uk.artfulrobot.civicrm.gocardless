@@ -1,10 +1,9 @@
 # CiviCRM GoCardless integration
 
 
-
 ## Structure of documentation
 
-1. learning-oriented tutorial
+1. learning-oriented [tutorial](tutorial/index.md) « **Start here!**
 
 2. goal-oriented how-to guides
 
