@@ -9,7 +9,7 @@ your CRM about payments.
     A webhook endpoint URL won't do anything if you visit it; it is
     not a web page.
 
-In CiviCRM, visit **Administer » CiviContribute » GoCardless Webhooks**.
+In CiviCRM, visit **Administer » CiviContribute » GoCardless Settings**.
 This page will show you the URLs that you need.
 
 ## Set up the webhooks at GoCardless
