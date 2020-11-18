@@ -65,10 +65,7 @@ Click the **Links** link next to your new contribution page and click
 
     Remember earlier we said GoCardless doesn't do one-offs? Well this is
     important here because if a user does not check the "I want to
-    contribute every month" option then it will simply crash(!). This is
-    not great UX, but solutions are annoyingly awkward. Often people will
-    write a bit of Javascript to check that box automatically, and hide
-    it.
+    contribute every month" option then it will simply crash(!).
 
 You should now be on GoCardless' website, seeing one of their forms.
 

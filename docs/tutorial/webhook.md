@@ -12,6 +12,20 @@ your CRM about payments.
 In CiviCRM, visit **Administer » CiviContribute » GoCardless Settings**.
 This page will show you the URLs that you need.
 
+## Fix Contribution Pages problem with non-recurring
+
+While we're on this settings page...
+
+This GoCardless extension cannot handle one-offs; only recurring
+contributions are allowed. CiviContribute's pages offer the user
+a checkbox asking if they want to make it regular. If they don't check
+that, and they're using a GoCardless payment processor, it will crash.
+
+We can fix this by forcing contributions to use recurring payments if
+a GoCardless processor is selected, which is what that Force Recurring
+checkbox is about. **Check the force recurring checkbox and then click
+Save**.
+
 ## Set up the webhooks at GoCardless
 
 Login to your GoCardless sandbox account again (it's at
