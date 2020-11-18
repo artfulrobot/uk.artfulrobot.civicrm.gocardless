@@ -11,17 +11,17 @@ again for a live account.**
 Pages:
 
 1. [Set up a GoCardless sandbox (test) account at
-   GoCardless](tutorial/setup-sandbox-account)
+   GoCardless](/gocardless/en/latest/tutorial/setup-sandbox-account)
 
-2. [Install this extension in CiviCRM](tutorial/install.md)
+2. [Install this extension in CiviCRM](/gocardless/en/latest/tutorial/install)
 
-3. [Set up your webhook](tutorial/webhook.md)
+3. [Set up your webhook](/gocardless/en/latest/tutorial/webhook)
 
-4. [Set up a Contribution Page](tutorial/contribution-page.md)
+4. [Set up a Contribution Page](/gocardless/en/latest/tutorial/contribution-page)
 
-5. [Make a contribution](tutorial/make-contribution.md)
+5. [Make a contribution](/gocardless/en/latest/tutorial/contribution-page/#make-a-contribution)
 
-6. [Extra](tutorial/extra.md)
+6. [Extra](/gocardless/en/latest/tutorial/extra-marks)
 
 
 
