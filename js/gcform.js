@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var goCardlessProcessorIDs = [];
 
   var isRecurInput = document.getElementById('is_recur');
-  var ppRadios = document.querySelectorAll('input[name="payment_processor_id"]');
+  var ppRadios = document.querySelectorAll('input[type="radio"][name="payment_processor_id"]');
   var goCardlessProcessorSelected;
   var selectedProcessorName;
 
@@ -20,13 +20,18 @@ document.addEventListener('DOMContentLoaded', function () {
     isRecurInput.checked = true;
 
     if (withAlert) {
-      alert("Contributions made with " + selectedProcessorName + " must be recurring.");
+      if (selectedProcessorName) {
+        alert("Contributions made with " + selectedProcessorName + " must be recurring.");
+      }
+      else {
+        alert("Contributions must be recurring.");
+      }
     }
     var fakeEvent = new Event('change');
     isRecurInput.dispatchEvent(fakeEvent);
   }
 
-  function gcFixRecur() {
+  function gcFixRecurFromRadios() {
     var ppID;
     [].forEach.call(ppRadios, function(r) {
       if (r.checked) {
@@ -40,13 +45,26 @@ document.addEventListener('DOMContentLoaded', function () {
     if (goCardlessProcessorSelected) {
       forceRecurring();
     }
-
   }
 
-  [].forEach.call(ppRadios, function(r) {
-    r.addEventListener('click', gcFixRecur);
-  });
+  if (ppRadios.length > 1) {
+    // We have radio inputs to select the processor.
+    [].forEach.call(ppRadios, function(r) {
+      r.addEventListener('click', gcFixRecurFromRadios);
+    });
 
-  gcFixRecur();
-
+    gcFixRecurFromRadios();
+  }
+  else {
+    var ppInput = document.querySelectorAll('input[type="hidden"][name="payment_processor_id"]');
+    if (ppInput.length === 1) {
+      // We have a single payment processor involved that won't be changing.
+      var ppID = parseInt(ppInput[0].value);
+      goCardlessProcessorSelected = (goCardlessProcessorIDs.indexOf(ppID) > -1);
+      if (goCardlessProcessorSelected) {
+        forceRecurring();
+      }
+    }
+    // else: no idea, let's do nothing.
+  }
 });
