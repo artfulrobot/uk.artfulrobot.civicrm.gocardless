@@ -8,10 +8,10 @@ following:
 
 The life-cycle would typically be:
 
-![Lifecycle image](/lifecycle.svg)
+![Lifecycle image](../lifecycle.svg)
 
 It may be more helpful to view the image full size:
-[lifecycle.svg](/lifecycle.svg) (nb. it is created from lifecycle.dot
+[lifecycle.svg](../lifecycle.svg) (nb. it is created from lifecycle.dot
 using graphviz)
 
 1. User interacts with a CiviCRM Contribution form to set up regular
