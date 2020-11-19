@@ -146,6 +146,9 @@ class CRM_GoCardlessUtils {
    * - amount (in GBP, e.g. 10.50)
    * - installments (optional positive integer number of payments to take)
    *
+   * The following keys are optional but useful: 'contactID', 'contributionID', 'contributionRecurID'
+   * they will be bundled into a 'civicrm' metadata package.
+   *
    * @return array
    *   with these keys:
    *   - gc_api         GoCardless API object used.
@@ -204,8 +207,8 @@ class CRM_GoCardlessUtils {
     // "mandate": "MD123",
     // "customer": "CU123",
     // "customer_bank_account": "BA123"
-    // Add some of our data as metadata
-    $metadata = array_intersect_key($deets, array_flip(['contactID', 'contributionID', 'contributionRecurID'], NULL));
+    // Add some of our data as metadata. Use JSON as it's fairly human-readable. See issue #79
+    $metadata = json_encode(array_intersect_key($deets, array_flip(['contactID', 'contributionID', 'contributionRecurID'])));
     $params = [
     // Convert amount to pennies.
       'amount'        => (int) (100 * $deets['amount']),
@@ -306,13 +309,6 @@ class CRM_GoCardlessUtils {
 
       if (isset($installments)) {
         $params['installments'] = $installments;
-      }
-
-      // Pass some metadata along to GoCardless
-      $params['contactID'] = $deets['contactID'];
-      $params['contributionID'] = $deets['contributionID'];
-      if (!empty($params['contributionRecurID'])) {
-        $params['contributionRecurID'] = $deets['contributionRecurID'];
       }
 
       $result = static::completeRedirectFlowWithGoCardless($deets + $params);

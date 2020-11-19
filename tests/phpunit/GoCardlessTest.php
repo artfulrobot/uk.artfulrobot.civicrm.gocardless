@@ -209,8 +209,8 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
       'test_mode' => TRUE,
       'redirect_flow_id' => 'RE1234',
       'session_token' => 'aabbccdd',
-      'contactID' => $contact['id'],
       'description' => 'test contribution',
+      'contactID' => $contact['id'],
       'contributionID' => $contrib['id'],
       'contributionRecurID' => $recur['id'],
       'payment_processor_id' => $this->test_mode_payment_processor['id'],
@@ -220,6 +220,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
 
     // Now test the contributions were updated.
     $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $recur['id']]);
+    // check In Progress (5)
     $this->assertEquals(5, $result['contribution_status_id']);
     $this->assertEquals('SUBSCRIPTION_ID', $result['trxn_id']);
     $this->assertEquals('2016-10-08 00:00:00', $result['start_date']);
@@ -578,6 +579,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
         'name'          => 'test contribution',
         'interval_unit' => 'monthly',
         'links'         => ['mandate' => 'MANDATEID'],
+        'metadata'      => ['civicrm' => json_encode(['contactID' => $contact['id'], 'contributionID' => $contrib['id'], 'contributionRecurID' => $recur['id']])],
     // <-------------------------------- installments
         'count'         => 7,
       ],
