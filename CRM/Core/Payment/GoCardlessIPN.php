@@ -355,7 +355,11 @@ class CRM_Core_Payment_GoCardlessIPN {
   public function handleRepeatTransaction($contribution, $recur) {
 
     // There is no pending contribution, find the original one.
-    $contribution['original_contribution_id'] = $this->getOriginalContributionId($recur);
+    $orig = $this->getOriginalContribution($recur);
+    if ($orig['_was'] == 'found_completed') {
+      // Normal case: we found a Completed Contribution
+      $contribution['original_contribution_id'] = $orig['id'];
+    }
 
     // From CiviCRM 5.19.1 (and possibly earlier) we need to specify the
     // membership_id on the contribution, otherwise the membership does not get
@@ -369,6 +373,7 @@ class CRM_Core_Payment_GoCardlessIPN {
     }
     // Contributions need a unique invoice_id. We won't have this yet, so we use trxn_id.
     $contribution['invoice_id'] = $contribution['trxn_id'];
+
     // We'll copy various fields from the original, needed apparently.
     if (!empty($contribution['original_contribution_id'])) {
       $orig = civicrm_api3('Contribution', 'getsingle', ['id' => $contribution['original_contribution_id']]);
@@ -380,11 +385,26 @@ class CRM_Core_Payment_GoCardlessIPN {
 
     // Create a copy record of the original contribution.
     $contribution['contribution_status_id'] = 'Pending';
-    $result = civicrm_api3('Contribution', 'repeattransaction', $contribution);
 
-    if (!$result['id']) {
+    if ($orig['_was'] == 'found_completed') {
+      // Normal case.
+      $result = civicrm_api3('Contribution', 'repeattransaction', $contribution);
+      if (!$result['id']) {
+        CRM_Core_Error::debug_log_message(
+          "Webhook $this->now Failed event. repeattransaction did not result in a new contribution.",
+          FALSE, 'GoCardless', PEAR_LOG_ERR);
+        return;
+      }
+    }
+    elseif ($orig['_was'] == 'found_not_completed') {
+      // Special case (Issue #82): If the initial contrib Failed, we have to do
+      // a whole lotta extra work because repeattransaction does not handle that.
+      $result = $this->repeattransactionFromFailed($contribution, $orig, $recur);
+    }
+    else {
+      // We could not find any contribution related to this recur record. This is wrong.
       CRM_Core_Error::debug_log_message(
-        "Webhook $this->now Failed event. repeattransaction did not result in a new contribution.",
+        "Webhook $this->now Failed event. Could not find ANY contribution record for recur $recur[id]",
         FALSE, 'GoCardless', PEAR_LOG_ERR);
       return;
     }
@@ -493,7 +513,8 @@ class CRM_Core_Payment_GoCardlessIPN {
         // There is no pending contribution, nor one that relates to this GC payment.
         // So we'll be creating a new Contribution.
         // For this we need to note the original_contribution_id, where possible.
-        $contribution['original_contribution_id'] = $this->getOriginalContributionId($recur);
+        $orig = $this->getOriginalContribution($recur);
+        $contribution['original_contribution_id'] = $orig['id'] ?? NULL;
       }
     }
 
@@ -617,10 +638,13 @@ class CRM_Core_Payment_GoCardlessIPN {
    * Get the first payment for this recurring contribution.
    *
    * @param array $recur (only the 'id' key is used)
-   * @return null|int Either the contribution id of the original contribution, or NULL
+   * @return array The original contribution, if found. Plus key _was which can be:
+   *    not_found
+   *    found_completed
+   *    found_not_completed
    */
-  public function getOriginalContributionId($recur) {
-    // See if there's a Completed contribution we can update. xxx ??? No contribs at all?
+  public function getOriginalContribution($recur) {
+    // See if there's a Completed contribution we can update.
     $contribs = civicrm_api3('Contribution', 'get', [
       'sequential'             => 1,
       'contribution_recur_id'  => $recur['id'],
@@ -630,8 +654,19 @@ class CRM_Core_Payment_GoCardlessIPN {
     ]);
     if ($contribs['count'] > 0) {
       // Found one (possibly more than one, edge case - ignore and take first).
-      return $contribs['values'][0]['id'];
+      return $contribs['values'][0]['id'] + ['_was' => 'found_completed'];
     }
+    // We failed to find a Completed one, check for any.
+    $contribs = civicrm_api3('Contribution', 'get', [
+      'sequential'             => 1,
+      'contribution_recur_id'  => $recur['id'],
+      'is_test'                => $this->test_mode ? 1 : 0,
+      'options'                => ['sort' => 'receive_date', 'limit' => 1],
+    ]);
+    if ($contribs['count'] > 0) {
+      return $contribs['values'][0]  + ['_was' => 'found_not_completed'];
+    }
+    return ['_was' => 'not_found'];
   }
 
   /**
@@ -671,4 +706,51 @@ class CRM_Core_Payment_GoCardlessIPN {
     }
   }
 
+  /**
+   * Handle the case where the original Contribution failed,
+   * but then a successful one comes in. (Issue #82)
+   *
+   * @param Array $params the record we will create.
+   * @param Array $orig the latest other Contribution record.
+   * @param Array $recur the contribution_recur record.
+   *
+   * @return the updated $contribution
+   */
+  protected function repeattransactionFromFailed($params, $orig, $recur) {
+
+    $input = $ids = [];
+
+    // Set the payment procesor ID
+    $input['payment_processor_id'] = $recur['payment_processor_id'];
+
+    // Load the contribution dao
+    $contribution = new CRM_Contribute_BAO_Contribution();
+    $contribution->id = $orig['id'];
+    $contribution->find(TRUE);
+
+    try {
+      if (!$contribution->loadRelatedObjects($input, $ids, TRUE)) {
+        throw new API_Exception('failed to load related objects');
+      }
+
+      unset($contribution->id, $contribution->receive_date, $contribution->invoice_id);
+      $contribution->receive_date = $params['receive_date'];
+
+      $passThroughParams = [
+        'trxn_id',
+        'total_amount',
+        'campaign_id',
+        'fee_amount',
+        'financial_type_id',
+        'contribution_status_id',
+        'membership_id',
+      ];
+      $input = array_intersect_key($params, array_fill_keys($passThroughParams, NULL));
+
+      return _ipn_process_transaction($params, $contribution, $input, $ids);
+    }
+    catch (Exception $e) {
+      throw new API_Exception('failed to load related objects' . $e->getMessage() . "\n" . $e->getTraceAsString());
+    }
+  }
 }
