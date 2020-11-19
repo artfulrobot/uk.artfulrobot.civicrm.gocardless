@@ -130,53 +130,19 @@ function gocardless_civicrm_alterSettingsFolders(&$metaDataFolders = NULL) {
 }
 
 /**
- * Complete a GoCardless redirect flow before we present the thank you page.
- *
- * - call GC API to complete the mandate.
- * - find details of the contribution: how much, how often, day of month, 'name'
- * - set up a GC Subscription.
- * - set trxn_id to the subscription ID in the contribution table.
- * - if recurring: set trxn_id, "In Progress", start date in contribution_recur table.
- * - if membership: set membership end date to start date + interval.
+ * Various intercepts.
  *
  */
 function gocardless_civicrm_buildForm( $formName, &$form ) {
-  if ($formName != 'CRM_Contribute_Form_Contribution_ThankYou' || empty($_GET['redirect_flow_id'])) {
-    // This form build has nothing to do with us.
-    return;
-  }
 
-  // We have a redirect_flow_id.
-  $redirect_flow_id = $_GET['redirect_flow_id'];
-  $sesh = CRM_Core_Session::singleton();
-  $sesh_store = $sesh->get('redirect_flows', 'GoCardless');
-  if (empty($sesh_store[$redirect_flow_id])) {
-    // When would this happen?
-    // - Back button.
-    // - Hacks?
-    // - Something else that lost the session.
-    //
-    // Anyway, in all cases let's assume that we are unable to proceed.
-    CRM_Core_Error::fatal('Sorry there was an error setting up your Direct Debit. This could be caused by your browser not allowing cookies.');
-    return;
+  if ($formName === 'CRM_Contribute_Form_Contribution_ThankYou') {
+    if (!empty($_GET['redirect_flow_id'])) {
+      // Looks like a GoCardless thank you page. Complete redirect flow.
+      CRM_GoCardlessUtils::handleContributeFormThanks($form);
+    }
   }
-
-  // Validate the session_token.
-  if (empty($_GET['qfKey']) || empty($sesh_store[$redirect_flow_id]['session_token'])
-    || $_GET['qfKey'] != $sesh_store[$redirect_flow_id]['session_token']) {
-
-    // @todo throw something that generates a server error 500 page.
-    CRM_Core_Error::fatal('Sorry, the session tokens did not match. This should not happen.');
-    return;
-  }
-
-  // Complete the redirect flow with GC.
-  try {
-    $params = [ 'redirect_flow_id' => $redirect_flow_id ] + $sesh_store[$redirect_flow_id];
-    $result = CRM_GoCardlessUtils::completeRedirectFlowCiviCore($params);
-  }
-  catch (Exception $e) {
-    CRM_Core_Error::fatal('Sorry there was an error setting up your Direct Debit. Please contact us so we can look into what went wrong.');
+  elseif ($formName === 'CRM_Contribute_Form_Contribution_Main') {
+    CRM_GoCardlessUtils::handleContributeFormHacks($form);
   }
 }
 
@@ -200,10 +166,10 @@ function gocardless_civicrm_preProcess($formName, &$form) {
  */
 function gocardless_civicrm_navigationMenu(&$menu) {
   _gocardless_civix_insert_navigation_menu($menu, 'Administer/CiviContribute', array(
-    'label' => E::ts('GoCardless Webhooks', array('domain' => 'uk.artfulrobot.civicrm.gocardless')),
+    'label' => E::ts('GoCardless Settings', array('domain' => 'uk.artfulrobot.civicrm.gocardless')),
     'name' => 'gocardless_webhook_helper',
-    'url' => 'civicrm/gocardless',
-    'permission' => 'access CiviCRM',
+    'url' => 'civicrm/a#/gocardless',
+    'permission' => 'administer payment processors',
     'operator' => 'OR',
     'separator' => 0,
   ));

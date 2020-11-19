@@ -1,0 +1,67 @@
+<div class="crm-container">
+  <h1 crm-page-title>{{ts('GoCardless settings')}}</h1>
+
+  <form name="myForm" crm-ui-id-scope>
+      <div class="messages help">
+        <p ng-bind-html="ts('Please see <a %1>reference documentation</a> for these settings',
+          {1: 'href=&quot;https://docs.civicrm.org/gocardless/en/reference/settings/&quot; target=&quot;_blank&quot; rel=&quot;noopener noreferrer&quot;'})"></p>
+      </div>
+
+      <div class="crm-block">
+        <div class="crm-section">
+          <div class="label"><label crm-ui-for="myForm.forceRecurring">Force Recurring</label></div>
+          <div class="content">
+            <label>
+              <input
+                type="checkbox"
+                crm-ui-id="myForm.forceRecurring"
+                name="forceRecurring"
+                ng-model="gcSettings.forceRecurring"
+                class="crm-form-checkbox"
+                />
+              &nbsp; {{ts('Force recurring contributions when a GoCardless payment processor is chosen')}}
+            </label>
+          </div>
+        </div>
+
+        <div crm-ui-field="{name: 'myForm.sendReceiptsForCustomPayments', title: ts('Receipts')}">
+          <select
+            crm-ui-id="myForm.sendReceiptsForCustomPayments"
+            ng-model="gcSettings.sendReceiptsForCustomPayments"
+            name="sendReceiptsForCustomPayments"
+            class="crm-form-select"
+            >
+            <option value="never" >{{ts('Never send receipts')}}</option>
+            <option value="always" >{{ts('Always send receipts')}}</option>
+            <option value="recur" >{{ts('Defer to Contribution Recur record’s <code>is_email_receipt</code> field')}}</option>
+          </select>
+          <p>Whether to send receipts for non-Contribution-Page-created recurring contributions</p>
+        </div>
+
+      </div>
+
+      <div>
+        <button ng-click="$ctrl.save()">{{ts('Save')}}</button>
+      </div>
+      <h2>Active Payment processors</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Test Webhook endpoint URL</th>
+            <th>Live Webhook endpoint URL</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="pp in ppTable" >
+            <td>{{pp.name}}</td>
+            <td><input type="text" value="{{pp.urlTest}}"/></td>
+            <td><input type="text" value="{{pp.urlLive}}"/></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </form>
+
+</div>

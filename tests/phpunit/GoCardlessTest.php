@@ -582,15 +582,6 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
         'count'         => 7,
       ],
     ])
-    //$subscription_service->create(Argument::any())
-      /*
-    ->will(function($x) {
-      print "\n\n-----------------------";
-      print_r($x);
-      print "\n\n";
-      return json_decode('{"start_date":"2016-10-08","id":"SUBSCRIPTION_ID"}');
-    })
-       */
       ->willReturn(json_decode('{"start_date":"2016-10-08","id":"SUBSCRIPTION_ID"}'))
       ->shouldBeCalled();
     // Params are usually assembled by the civicrm_buildForm hook.
@@ -1070,6 +1061,8 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
   /**
    * A payment failed should update the initial Pending Contribution.
    *
+   * Also, if a successful payment comes in at a later date, that should work normally.
+   *
    */
   public function testWebhookPaymentFailedFirst() {
 
@@ -1092,6 +1085,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
       'contribution_status_id' => "In Progress",
       'trxn_id' => 'SUBSCRIPTION_ID',
       'processor_id' => 'SUBSCRIPTION_ID',
+      'payment_processor_id' => $this->test_mode_payment_processor['id'],
     ));
     $contrib = civicrm_api3('Contribution', 'create', array(
       'sequential' => 1,
@@ -1106,38 +1100,122 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     ));
 
     // Mock webhook input data.
-    $controller = new CRM_Core_Payment_GoCardlessIPN();
     $body = '{"events":[
       {"id":"EV1","resource_type":"payments","action":"failed","links":{"payment":"PAYMENT_ID"}}
       ]}';
     $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
 
-    // Mock GC API.
-    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
-    $this->mockGoCardlessApiForTestPaymentProcessor($api_prophecy->reveal());
-    // First the webhook will load the payment, so mock this.
-    $payments_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
-    $api_prophecy->payments()->willReturn($payments_service->reveal());
-    $payments_service->get('PAYMENT_ID')
-      ->shouldBeCalled()
-      ->willReturn(json_decode('{
+    // Mock API
+    $this->mockPaymentGet('{
         "id":"PAYMENT_ID",
           "status":"failed",
           "charge_date":"2016-10-02",
           "amount":123,
           "links":{"subscription":"SUBSCRIPTION_ID"}
-        }'));
+        }'
+    );
 
-    // Now trigger webhook.
+    // -------------------------------------------------------
+    // What we're testing: Trigger webhook.
+    // -------------------------------------------------------
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
     $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
     $controller->processWebhookEvents(TRUE);
 
-    // Now check the changes have been made.
+    // -------------------------------------------------------
+    // Test: the initial contrib should show as failed.
     $result = civicrm_api3('Contribution', 'getsingle', ['id' => $contrib['id']]);
     $this->assertEquals('2016-10-02 00:00:00', $result['receive_date']);
     $this->assertEquals(1.23, $result['total_amount']);
     $this->assertEquals('PAYMENT_ID', $result['trxn_id']);
     $this->assertEquals($this->contribution_status_map['Failed'], $result['contribution_status_id']);
+
+    // Test: the contrib recur should be 'overdue'
+    $recur = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $recur['id']]);
+    $contrib_recur_statuses = array_flip($this->contribution_recur_status_map);
+    $this->assertEquals('Overdue', $contrib_recur_statuses[$recur['contribution_status_id']]);
+
+    // -------------------------------------------------------
+    // Mock a second, failed contribution.
+    // -------------------------------------------------------
+    $body = '{"events":[
+      {"id":"EV2","resource_type":"payments","action":"failed","links":{"payment":"PAYMENT_ID_2"}}
+      ]}';
+    $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
+
+    // Mock API
+    $this->mockPaymentGet('{
+        "id":"PAYMENT_ID_2",
+          "status":"failed",
+          "charge_date":"2016-11-02",
+          "amount":123,
+          "links":{"subscription":"SUBSCRIPTION_ID"}
+        }'
+    );
+
+    // -------------------------------------------------------
+    // What we're testing: Trigger webhook.
+    // -------------------------------------------------------
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
+    $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
+    $controller->processWebhookEvents(TRUE);
+
+    // -------------------------------------------------------
+    // Test: Original (now failed) payment is unaffected
+    $result = civicrm_api3('Contribution', 'getsingle', ['id' => $contrib['id']]);
+    $this->assertEquals('2016-10-02 00:00:00', $result['receive_date']);
+    $this->assertEquals(1.23, $result['total_amount']);
+    $this->assertEquals('PAYMENT_ID', $result['trxn_id']);
+    $this->assertEquals($this->contribution_status_map['Failed'], $result['contribution_status_id']);
+
+    // -------------------------------------------------------
+    // Test: Should be a new, failed payment
+    $result = $this->getLatestContribution($recur['id']);
+    $this->assertEquals('2016-11-02 00:00:00', $result['receive_date']);
+    $this->assertEquals(1.23, $result['total_amount']);
+    $this->assertEquals('PAYMENT_ID_2', $result['trxn_id']);
+    $this->assertEquals($this->contribution_status_map['Failed'], $result['contribution_status_id']);
+
+
+    // -------------------------------------------------------
+    // Mock a third, and our first successful ('confirmed'), contribution.
+    // @see https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/82
+    // -------------------------------------------------------
+    $body = '{"events":[
+      {"id":"EV3","resource_type":"payments","action":"confirmed","links":{"payment":"PAYMENT_ID_3"}}
+      ]}';
+    $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
+
+    // Mock API
+    $this->mockPaymentGet('{
+        "id":"PAYMENT_ID_3",
+        "status":"confirmed",
+        "charge_date":"2016-12-02",
+        "amount":123,
+        "links":{"subscription":"SUBSCRIPTION_ID"}
+      }'
+    );
+
+    // -------------------------------------------------------
+    // What we're testing: Trigger webhook.
+    // -------------------------------------------------------
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
+    $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
+    $controller->processWebhookEvents(TRUE);
+
+    // -------------------------------------------------------
+    // Test: Should be a new, successful payment
+    $result = $this->getLatestContribution($recur['id']);
+    $this->assertEquals('2016-12-02 00:00:00', $result['receive_date']);
+    $this->assertEquals(1.23, $result['total_amount']);
+    $this->assertEquals('PAYMENT_ID_3', $result['trxn_id']);
+    $this->assertEquals($this->contribution_status_map['Completed'], $result['contribution_status_id']);
+
+    // -------------------------------------------------------
+    // Test: the contrib recur should be In Progress again.
+    $recur = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $recur['id']]);
+    $contrib_recur_statuses = array_flip($this->contribution_recur_status_map);
+    $this->assertEquals('In Progress', $contrib_recur_statuses[$recur['contribution_status_id']]);
 
   }
 
@@ -1698,6 +1776,107 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
 
   }
   /**
+   * check sending receipts.
+   *
+   * Variables: contrib recur, contrib API, sendReceiptsForCustomPayments
+   *
+   * @dataProvider dataForTestSendReceipts
+   */
+  public function testSendReceipts($policy, $recur_is_email_receipt, $expected) {
+    $mut = new CiviMailUtils($this, TRUE);
+
+    $settings = CRM_GoCardlessUtils::getSettings();
+    $settings['sendReceiptsForCustomPayments'] = $policy;
+    Civi::settings()->set('gocardless', json_encode($settings));
+
+    $contact = civicrm_api3('Contact', 'create', array(
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
+      'email' => 'wilma@example.org'
+    ));
+
+    // when DD setup
+    $setup_date = '2016-10-02';
+    $recur = civicrm_api3('ContributionRecur', 'create', array(
+      'sequential' => 1,
+      'is_email_receipt' => $recur_is_email_receipt,
+      'contact_id' => $contact['id'],
+      'financial_type_id' => 1,
+      'frequency_interval' => 1,
+      'amount' => 50,
+      'frequency_unit' => "year",
+      'start_date' => $setup_date,
+      'is_test' => 1,
+      'contribution_status_id' => "In Progress",
+      'trxn_id' => 'SUBSCRIPTION_ID',
+      'processor_id' => 'SUBSCRIPTION_ID',
+    ));
+
+    // Create pending contrib.
+    $contribution = civicrm_api3('Contribution', 'create', array(
+      'sequential' => 1,
+      'financial_type_id' => 1,
+      'total_amount' => 1,
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Pending",
+      'receive_date' => $setup_date,
+      'is_test' => 1,
+    ));
+
+
+    // Mock webhook input data.
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
+    $body = '{"events":[
+      {"id":"EV1","resource_type":"payments","action":"confirmed","links":{"payment":"PAYMENT_ID"}}
+      ]}';
+    $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
+
+    // Mock API
+    $this->mockPaymentGet('{
+        "id":"PAYMENT_ID",
+        "status":"confirmed",
+        "charge_date": "2016-10-02",
+        "amount":5000,
+        "links":{"subscription":"SUBSCRIPTION_ID"}
+      }'
+    );
+
+    // Trigger webhook
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
+    $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
+    $controller->processWebhookEvents(TRUE);
+
+    $receipt_date = civicrm_api3('Contribution', 'getvalue', ['id' => $contribution['id'], 'return' => 'receipt_date']);
+
+    if ($expected) {
+      // Check that a receipt WAS sent.
+      $this->assertNotEmpty($receipt_date);
+      $mut->checkMailLog(['Contribution Information']);
+    }
+    else {
+      // Check it was NOT sent.
+      $this->assertEmpty($receipt_date);
+      $mut->checkMailLog([], ['Contribution Information']);
+    }
+    $mut->stop();
+  }
+  /**
+   * Data provider for testSendReceipts
+   */
+  public function dataForTestSendReceipts() {
+    return [
+      [ 'always', 0, 1 ],
+      [ 'always', 1, 1 ],
+      [ 'never', 0, 0 ],
+      [ 'never', 1, 0 ],
+      [ 'defer', 0, 0 ],
+      [ 'defer', 1, 1 ],
+    ];
+  }
+  /**
    * Return a fake GoCardless IPN processor.
    *
    * Helper function for other tests.
@@ -1717,4 +1896,46 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     $obj->setGoCardlessApi($mock);
   }
 
+  /**
+   * DRY code.
+   *
+   * @param string $paymentJSON
+   *
+   * @return prophecy
+   */
+  protected function mockPaymentGet($paymentJSON) {
+    $payment = json_decode($paymentJSON);
+    if (!$payment) {
+      throw new \InvalidArgumentException("test code error: \$paymentJSON must be valid json but wasn't");
+    }
+
+    // First the webhook will load the payment, so mock this.
+    $api_prophecy = $this->prophet->prophesize('\\GoCardlessPro\\Client');
+    $this->mockGoCardlessApiForTestPaymentProcessor($api_prophecy->reveal());
+    $payments_service = $this->prophet->prophesize('\\GoCardlessPro\\Services\\PaymentsService');
+    $api_prophecy->payments()->willReturn($payments_service->reveal());
+    $payments_service->get($payment->id)
+      ->shouldBeCalled()
+      ->willReturn($payment);
+
+    return $payments_service;
+  }
+  /**
+   * Fetch the last contribution (by ID) for the given recurID.
+   *
+   * @param int $recurID
+   *
+   * @return array
+   */
+  protected function getLatestContribution($recurID) {
+    $r = civicrm_api3('Contribution', 'get', [
+      'contribution_recur_id' => $recurID,
+      'sequential' => 1,
+      'is_test' => 1,
+      'options' => ['limit' => 0, 'sort' => "id ASC"],
+    ])['values'] ?? [];
+    if ($r) {
+      return end($r);
+    }
+  }
 }
