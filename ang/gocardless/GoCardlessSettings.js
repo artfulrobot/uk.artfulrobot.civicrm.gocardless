@@ -49,8 +49,10 @@
       }
     }
     // Check settings have defaults.
+    // Annoyingly this is duplicated from CRM_GoCardlessUtils::getSettings()
     const defaults = {
-      forceRecurring: false
+      forceRecurring: false,
+      sendReceiptsForCustomPayments: 'never'
     };
     Object.keys(defaults).forEach(k => {
       if (!(k in gcSettings)) {

@@ -1776,6 +1776,107 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
 
   }
   /**
+   * check sending receipts.
+   *
+   * Variables: contrib recur, contrib API, sendReceiptsForCustomPayments
+   *
+   * @dataProvider dataForTestSendReceipts
+   */
+  public function testSendReceipts($policy, $recur_is_email_receipt, $expected) {
+    $mut = new CiviMailUtils($this, TRUE);
+
+    $settings = CRM_GoCardlessUtils::getSettings();
+    $settings['sendReceiptsForCustomPayments'] = $policy;
+    Civi::settings()->set('gocardless', json_encode($settings));
+
+    $contact = civicrm_api3('Contact', 'create', array(
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
+      'email' => 'wilma@example.org'
+    ));
+
+    // when DD setup
+    $setup_date = '2016-10-02';
+    $recur = civicrm_api3('ContributionRecur', 'create', array(
+      'sequential' => 1,
+      'is_email_receipt' => $recur_is_email_receipt,
+      'contact_id' => $contact['id'],
+      'financial_type_id' => 1,
+      'frequency_interval' => 1,
+      'amount' => 50,
+      'frequency_unit' => "year",
+      'start_date' => $setup_date,
+      'is_test' => 1,
+      'contribution_status_id' => "In Progress",
+      'trxn_id' => 'SUBSCRIPTION_ID',
+      'processor_id' => 'SUBSCRIPTION_ID',
+    ));
+
+    // Create pending contrib.
+    $contribution = civicrm_api3('Contribution', 'create', array(
+      'sequential' => 1,
+      'financial_type_id' => 1,
+      'total_amount' => 1,
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Pending",
+      'receive_date' => $setup_date,
+      'is_test' => 1,
+    ));
+
+
+    // Mock webhook input data.
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
+    $body = '{"events":[
+      {"id":"EV1","resource_type":"payments","action":"confirmed","links":{"payment":"PAYMENT_ID"}}
+      ]}';
+    $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
+
+    // Mock API
+    $this->mockPaymentGet('{
+        "id":"PAYMENT_ID",
+        "status":"confirmed",
+        "charge_date": "2016-10-02",
+        "amount":5000,
+        "links":{"subscription":"SUBSCRIPTION_ID"}
+      }'
+    );
+
+    // Trigger webhook
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
+    $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
+    $controller->processWebhookEvents(TRUE);
+
+    $receipt_date = civicrm_api3('Contribution', 'getvalue', ['id' => $contribution['id'], 'return' => 'receipt_date']);
+
+    if ($expected) {
+      // Check that a receipt WAS sent.
+      $this->assertNotEmpty($receipt_date);
+      $mut->checkMailLog(['Contribution Information']);
+    }
+    else {
+      // Check it was NOT sent.
+      $this->assertEmpty($receipt_date);
+      $mut->checkMailLog([], ['Contribution Information']);
+    }
+    $mut->stop();
+  }
+  /**
+   * Data provider for testSendReceipts
+   */
+  public function dataForTestSendReceipts() {
+    return [
+      [ 'always', 0, 1 ],
+      [ 'always', 1, 1 ],
+      [ 'never', 0, 0 ],
+      [ 'never', 1, 0 ],
+      [ 'defer', 0, 0 ],
+      [ 'defer', 1, 1 ],
+    ];
+  }
+  /**
    * Return a fake GoCardless IPN processor.
    *
    * Helper function for other tests.

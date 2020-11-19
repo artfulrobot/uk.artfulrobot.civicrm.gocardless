@@ -394,9 +394,11 @@ class CRM_GoCardlessUtils {
     if (empty($settings)) {
       $settings = [];
     }
+    // Nb. annoyingly these need to be copied to the ang/gocardless/GoCardlessSettings.js too
     $defaults = [
-        'forceRecurring' => FALSE,
-      ];
+      'sendReceiptsForCustomPayments' => 'never',
+      'forceRecurring' => FALSE,
+    ];
     // Ensure defaults
     $settings += $defaults;
 
@@ -468,5 +470,27 @@ class CRM_GoCardlessUtils {
       $js = str_replace('var goCardlessProcessorIDs = [];', 'var goCardlessProcessorIDs = ' . json_encode($paymentProcessorsIDs) . ';', $js);
       CRM_Core_Region::instance('page-body')->add(['markup' => "<script>$js</script>"]);
     }
+  }
+  /**
+   * Apply receipting policy.
+   *
+   * @param array $contributionApiParams
+   * @param null|array $recur
+   *
+   * @return 0|1
+   */
+  public static function getReceiptPolicy($recur = NULL) {
+    $config = static::getSettings()['sendReceiptsForCustomPayments'];
+
+    if ($config === 'always') {
+      return 1;
+    }
+    elseif ($config === 'defer' && $recur && isset($recur['is_email_receipt'])) {
+      // Use the recur record's setting
+      return $recur['is_email_receipt'] ? 1 : 0;
+    }
+
+    // Default config is 'never'
+    return 0;
   }
 }

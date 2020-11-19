@@ -73,6 +73,10 @@ class CRM_GoCardless_Upgrader extends CRM_GoCardless_Upgrader_Base {
         'payment_type'          => CRM_Core_Payment::PAYMENT_TYPE_DIRECT_DEBIT,
         'payment_instrument_id' => $payment_instrument_id,
       ]);
+
+    // Ensure default settings.
+    $settings = CRM_GoCardlessUtils::getSettings();
+    Civi::settings()->set('gocardless', json_encode($settings));
   }
 
   /**
@@ -284,6 +288,21 @@ class CRM_GoCardless_Upgrader extends CRM_GoCardless_Upgrader_Base {
 
      // this path is relative to the extension base dir
      // $this->executeSqlFile('sql/upgrade_0002.sql');
+     return TRUE;
+   }
+  /**
+   * Ensure settings.
+   *
+   * @return TRUE on success
+   * @throws Exception
+   */
+   public function upgrade_0003() {
+     if ($this->ctx) {
+       $this->ctx->log->info('Applying update 0003: ensure new settings');
+     }
+
+     $settings = CRM_GoCardlessUtils::getSettings();
+     Civi::settings()->set('gocardless', json_encode($settings));
      return TRUE;
    }
 }

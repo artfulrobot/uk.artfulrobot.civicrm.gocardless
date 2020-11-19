@@ -239,12 +239,10 @@ class CRM_Core_Payment_GoCardlessIPN {
       'financial_type_id'      => $recur['financial_type_id'],
       'contact_id'             => $recur['contact_id'],
       'is_test'                => $this->test_mode ? 1 : 0,
-    // Do not send email receipts. This might annoy some people. Be nice if it was a setting.
-      'is_email_receipt'       => 0,
+      'is_email_receipt'       => CRM_GoCardlessUtils::getReceiptPolicy($recur),
     ];
     // Note: the param called 'trxn_date' which is used for membership date
     // calculations. If it's not given, today's date gets used.
-
 
     // Shortly we will make a call to Payment.create, but this will not correctly update
     // several fields in the Contribution record. We'll collect the things that
