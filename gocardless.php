@@ -166,7 +166,7 @@ function gocardless_civicrm_preProcess($formName, &$form) {
  */
 function gocardless_civicrm_navigationMenu(&$menu) {
   _gocardless_civix_insert_navigation_menu($menu, 'Administer/CiviContribute', array(
-    'label' => E::ts('GoCardless Webhooks', array('domain' => 'uk.artfulrobot.civicrm.gocardless')),
+    'label' => E::ts('GoCardless Settings', array('domain' => 'uk.artfulrobot.civicrm.gocardless')),
     'name' => 'gocardless_webhook_helper',
     'url' => 'civicrm/a#/gocardless',
     'permission' => 'administer payment processors',
