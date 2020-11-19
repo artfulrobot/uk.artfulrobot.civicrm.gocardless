@@ -1,5 +1,7 @@
 # Settings Page
 
+![Screnshot of settings page](../gc-settings.jpg)
+
 ## Force Recurring
 
 - Default setting: `false` (off)
