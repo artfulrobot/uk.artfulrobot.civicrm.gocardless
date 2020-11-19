@@ -204,6 +204,8 @@ class CRM_GoCardlessUtils {
     // "mandate": "MD123",
     // "customer": "CU123",
     // "customer_bank_account": "BA123"
+    // Add some of our data as metadata
+    $metadata = array_intersect_key($deets, array_flip(['contactID', 'contributionID', 'contributionRecurID'], NULL));
     $params = [
     // Convert amount to pennies.
       'amount'        => (int) (100 * $deets['amount']),
@@ -213,7 +215,7 @@ class CRM_GoCardlessUtils {
     // yearly etc.
       'interval_unit' => $interval_unit,
       'links'         => ['mandate' => $redirect_flow->links->mandate],
-      //'metadata' => ['order_no' => 'ABCD1234'],
+      'metadata'      => ['civicrm' => $metadata],
     ];
 
     if (isset($installments)) {
@@ -304,6 +306,13 @@ class CRM_GoCardlessUtils {
 
       if (isset($installments)) {
         $params['installments'] = $installments;
+      }
+
+      // Pass some metadata along to GoCardless
+      $params['contactID'] = $deets['contactID'];
+      $params['contributionID'] = $deets['contributionID'];
+      if (!empty($params['contributionRecurID'])) {
+        $params['contributionRecurID'] = $deets['contributionRecurID'];
       }
 
       $result = static::completeRedirectFlowWithGoCardless($deets + $params);
