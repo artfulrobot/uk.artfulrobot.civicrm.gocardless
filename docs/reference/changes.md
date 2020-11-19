@@ -1,5 +1,13 @@
 # Change log
 
+## 1.10.0beta
+
+- New settings form.
+
+- Option to send receipts (previously it just didn’t) (fix [#61](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/61))
+
+- Option to prevent users from forgetting to tick the Recurring box. (fix [#72](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/72))
+
 ## 1.9.3
 
 - Reduce timeout for changing "Pending" recurring contributions to "Failed" from 24 hours to 0.66 hours. See [issue #76](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/76) You can still override this as a parameter, should you wish.
