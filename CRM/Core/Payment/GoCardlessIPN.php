@@ -375,9 +375,6 @@ class CRM_Core_Payment_GoCardlessIPN {
     $contribution['invoice_id'] = $contribution['trxn_id'];
 
     // We'll copy various fields from the original, needed apparently.
-    if (!empty($contribution['original_contribution_id'])) {
-      $orig = civicrm_api3('Contribution', 'getsingle', ['id' => $contribution['original_contribution_id']]);
-    }
     $contribution['source'] = $orig['source'] ?? '';
 
     // Apparently we might need to correct this.
@@ -654,7 +651,7 @@ class CRM_Core_Payment_GoCardlessIPN {
     ]);
     if ($contribs['count'] > 0) {
       // Found one (possibly more than one, edge case - ignore and take first).
-      return $contribs['values'][0]['id'] + ['_was' => 'found_completed'];
+      return $contribs['values'][0] + ['_was' => 'found_completed'];
     }
     // We failed to find a Completed one, check for any.
     $contribs = civicrm_api3('Contribution', 'get', [
@@ -664,7 +661,7 @@ class CRM_Core_Payment_GoCardlessIPN {
       'options'                => ['sort' => 'receive_date', 'limit' => 1],
     ]);
     if ($contribs['count'] > 0) {
-      return $contribs['values'][0]  + ['_was' => 'found_not_completed'];
+      return $contribs['values'][0] + ['_was' => 'found_not_completed'];
     }
     return ['_was' => 'not_found'];
   }
