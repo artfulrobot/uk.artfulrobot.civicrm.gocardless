@@ -8,10 +8,10 @@ following:
 
 The life-cycle would typically be:
 
-![Lifecycle image](/lifecycle.svg)
+![Lifecycle image](../lifecycle.svg)
 
 It may be more helpful to view the image full size:
-[lifecycle.svg](/lifecycle.svg) (nb. it is created from lifecycle.dot
+[lifecycle.svg](../lifecycle.svg) (nb. it is created from lifecycle.dot
 using graphviz)
 
 1. User interacts with a CiviCRM Contribution form to set up regular
@@ -33,11 +33,11 @@ using graphviz)
 
    The completion process sets up the following at GoCardless:
 
-     - a **customer**
-     - a **mandate**
-     - a **subscription** - the ID of this begins with `SB` and is stored in the
-       CiviCRM recurring contribution `trxn_id` and `processor_id` fields
-     - a lot of scheduled **payments**
+      - a **customer**
+      - a **mandate**
+      - a **subscription** - the ID of this begins with `SB` and is stored in the
+        CiviCRM recurring contribution `trxn_id` and `processor_id` fields
+      - a lot of scheduled **payments**
 
 
 2. GoCardless submits the charge for a payment to the customer's bank and

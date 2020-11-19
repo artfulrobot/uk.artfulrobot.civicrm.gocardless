@@ -27,4 +27,4 @@ You'll need to come back to the GoCardless control panel later on to set up your
 
 ## Next step
 
-[Install this extension](/tutorial/install.md)
+[Install this extension](install.md)
