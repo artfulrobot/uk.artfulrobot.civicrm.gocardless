@@ -21,8 +21,10 @@ nav:
     - "Set up for memberships": howto/membership.md
 - Discussion:
     - "Membership dates": discussion/membership.md
-    - "Importing": reference/import.md
+    - "Importing": discussion/import.md
 - Reference:
+    - "Settings Page": reference/settings.md
+    - "Change Log": reference/changes.md
     - "Technical": reference/technical.md
 
 markdown_extensions:
