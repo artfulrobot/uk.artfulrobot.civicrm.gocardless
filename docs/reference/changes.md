@@ -1,12 +1,14 @@
 # Change log
 
-## 1.10.0beta
+## 1.10.0
 
 - New settings form.
 
 - Option to send receipts (previously it just didn’t) (fix [#61](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/61))
 
 - Option to prevent users from forgetting to tick the Recurring box. (fix [#72](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/72))
+
+- Stores CiviCRM contact, contribution and contribution recur IDs on subscriptions at GoCardless (fix [#79](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/79))
 
 ## 1.9.3
 
