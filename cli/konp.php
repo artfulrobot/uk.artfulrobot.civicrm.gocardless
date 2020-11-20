@@ -27,8 +27,8 @@
 
 // You may want to set a suitable limit here, especially while testing.
 // It's set low for testing, but you should increase it or set to NULL (no limit).
-const GC_SUBSCRIPTIONS_LIMIT = 10;
-//const GC_SUBSCRIPTIONS_LIMIT = NULL;
+//const GC_SUBSCRIPTIONS_LIMIT = 10;
+const GC_SUBSCRIPTIONS_LIMIT = NULL;
 
 // You can set a date here, or use NULL
 // define('GC_IMPORT_SINCE',  '2019-05-01T00:00:00Z');
@@ -37,7 +37,7 @@ define('GC_IMPORT_SINCE',  NULL);
 // Where do you want summary output file saved?
 define('GC_PRIVATE_OUTPUT_DIR',  '/tmp/');
 // Do you want the process to stop and ask whether to create a subscription that can't be found?
-define('GC_CONFIRM_BEFORE_CREATING_RECUR',  TRUE);
+define('GC_CONFIRM_BEFORE_CREATING_RECUR',  FALSE);
 
 // Import Code begins
 // ==================
@@ -52,8 +52,8 @@ class GCImport
     '£2 monthly donation'                      => ['membershipType' => '', 'financialType' => 'Donation (regular)'],
     'Group Affiliation (full)'                 => ['membershipType' => 'Group Affiliation', 'financialType' => 'Group Affiliation dues'],
     'Supporting affiliate'                     => ['membershipType' => 'Supporting Affiliate', 'financialType' => 'Supporting Affiliate dues'],
-    'Individual Membership Unwaged'            => ['membershipType' => 'Individual Member (Unwaged)', 'financialType' => 'Member dues'],
-    'Individual Membership Waged/Good pension' => ['membershipType' => 'Individual Member (Waged/Good pension)', 'financialType' => 'Member dues'],
+    'Individual Membership Unwaged'            => ['membershipType' => 'Individual Membership (Unwaged)', 'financialType' => 'Member dues'],
+    'Individual Membership Waged/Good pension' => ['membershipType' => 'Individual Membership (Waged/Good pension)', 'financialType' => 'Member dues'],
     'Regular £10 p/m donation to KONP'         => ['membershipType' => '', 'financialType' => 'Donation (regular)'],
     'Regular £2 p/m donation to KONP'          => ['membershipType' => '', 'financialType' => 'Donation (regular)'],
     'Regular £20 p/m donation to KONP'         => ['membershipType' => '', 'financialType' => 'Donation (regular)'],
@@ -153,6 +153,7 @@ class GCImport
     $this->contribStatusPending = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Pending');
     $this->contribStatusCompleted = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed');
     $this->contribStatusFailed = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Failed');
+    $this->contribStatusCancelled = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Cancelled');
     $this->contribRecurStatusPending = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_ContributionRecur', 'contribution_status_id', 'Pending');
     $this->contribRecurStatusInProgress = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_ContributionRecur', 'contribution_status_id', 'In Progress');
     $this->contribRecurStatusCompleted = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_ContributionRecur', 'contribution_status_id', 'Completed');
@@ -248,15 +249,20 @@ class GCImport
       }
 
       $_ = $this->createContribRecur($subscription, $contactID);
-      $contribRecurID = $_['contribution_recur']['id'];
-      $financialTypeID = $_['contribution_recur']['financial_type_id'];
+      $contribRecur = $_['contribution_recur'];
+      $contribRecurID = $contribRecur['id'];
+      $financialTypeID = $contribRecur['financial_type_id'];
       $membership = $_['membership'];
 
       $this->log['subscriptions'][$subscription->id]['recurID'] = $contribRecurID;
       $this->log['contactsWithAdded'][$contactID] = TRUE;
 
       if (empty($payments)) {
-        $this->createInitialPendingContrib($subscription, $contactID, $contribRecurID, $financialTypeID, $membership);
+        // There are/were no payments for this subscription.
+        // - the subscription is new: no payments made yet. Will be In Progress
+        // - the subscription is failed/cancelled
+        $createCancelledContribution = $contribRecur['contribution_status_id'] != $this->contribRecurStatusInProgress;
+        $this->createInitialPendingContrib($subscription, $contactID, $contribRecurID, $financialTypeID, $membership, $createCancelledContribution);
         return;
       }
     }
@@ -301,9 +307,11 @@ class GCImport
     $payments_to_copy = [];
     foreach ($payments as $payment) {
       if ($payment->status == 'confirmed' || $payment->status == 'paid_out') {
+        // trxn_date is necessary for membership date calcs.
         $payments_to_copy[] = [
           'trxn_id'      => $payment->id,
           'receive_date' => $payment->charge_date,
+          'trxn_date'    => $payment->charge_date,
           'total_amount' => $payment->amount/100,
           'line_items' => [
             [
@@ -337,23 +345,36 @@ class GCImport
     $customer = $this->gcAPI->customers()->get($mandate->links->customer);
     print "No recur record for subscription $subscription->id $customer->email $customer->given_name $customer->family_name (subscription created $subscription->created_at, started $subscription->start_date).\n";
 
-    // Find Contact in CiviCRM by the email. (See assumptions.)
-    $contactID = 0;
-    $email = civicrm_api3('Email', 'get', ['email' => $customer->email, 'sequential' => 1, 'return' => 'contact_id']);
-    if ($email['count'] == 0) {
-      print "Email not found in CiviCRM, creating contact now.\n";
-      $contact = civicrm_api3('Contact', 'create', [
-        'contact_type'           => 'Individual',
-        'first_name'             => $customer->given_name,
-        'last_name'              => $customer->family_name,
-        'email'                  => $customer->email,
-      ]);
-      print "Created contact $customer->given_name $customer->family_name id: $contact[id]\n";
-      $this->log['contactsAdded'][$contact['id']] = TRUE;
-      $this->log['subscriptions'][$subscription->id]['newContactID'] = $contact['id'];
+    // Find Contact in CiviCRM.
+    $clues = array_filter([
+      'email' => $customer->email,
+      'first_name' => $customer->given_name ?? NULL,
+      'last_name' => $customer->family_name ?? NULL,
+    ]);
+    $contactID = NULL;
+    if (count($clues) === 3) {
+      // Got names and emails, use Supervise rule.
+      $matches = CRM_Contact_BAO_Contact::getDuplicateContacts($clues, 'Individual', 'Supervised', [], FALSE);
+    }
+    else {
+      // We dont' have names. Just use email.
+      $matches = CRM_Contact_BAO_Contact::getDuplicateContacts($clues, 'Individual', 'Unsupervised', [], FALSE);
+    }
+    if ($matches && count($matches) > 0) {
+      // Take first contact.
+      $contactID = $matches[0];
+      print "...Found Contact $contactID.\n";
+    }
+
+    if (!$contactID) {
+      $contact = civicrm_api3('Contact', 'create', $clues + ['contact_type' => 'Individual']);
+      $contactID = (int) $contact['id'];
+      print "Created contact $customer->given_name $customer->family_name id: $contactID\n";
+      $this->log['contactsAdded'][$contactID] = TRUE;
+      $this->log['subscriptions'][$subscription->id]['newContactID'] = $contactID;
       // Create address.
-      $address = civicrm_api3('Address', 'create', [
-          'contact_id'             => $contact['id'],
+      civicrm_api3('Address', 'create', [
+          'contact_id'             => $contactID,
           'location_type_id'       => 'Main',
           'street_address'         => $customer->address_line1,
           'supplemental_address_1' => $customer->address_line2,
@@ -361,16 +382,6 @@ class GCImport
           'postal_code'            => $customer->postal_code,
           'country_id'             => $customer->country_code,
       ]);
-      $contactID = (int) $contact['id'];
-    }
-    else {
-      // Multiple emails found.
-      $contactIDs = array_unique(array_map(function ($_) { return (int) $_['contact_id'];}, $email['values']));
-      if (count($contactIDs) > 1) {
-        throw new SkipSubscriptionImportException("Email $customer->email belongs to more than one contact! NOT importing");
-      }
-      $contactID = $contactIDs[0];
-      print "...Found Contact for this $contactID.\n";
     }
 
     return $contactID;
@@ -424,9 +435,25 @@ class GCImport
 
     // Figure out what the finaicialTypeID should be
     // We also need to link in/create the membership here.
-    $structures = $this->descriptionMap[$subscription->description] ?? NULL;
+    $structures = $this->descriptionMap[$subscription->name] ?? NULL;
     if (!$structures) {
-      throw new SkipSubscriptionImportException("No description map for " . json_encode($subscription->description));
+      throw new SkipSubscriptionImportException("No description map for " . json_encode($subscription->name));
+    }
+
+    $cancelDate = NULL;
+    if ($subscription->status === 'cancelled') {
+      print "Looking up cancel date for $subscription->id\n";
+      // Look up the date it was cancelled.
+      $events = $this->gcAPI->events()->all(['params' => [
+        'subscription' => $subscription->id
+      ]]);
+      foreach ($events as $event) {
+        if ($event->action === 'cancelled') {
+          $cancelDate = $event->created_at;
+          break;
+        }
+      }
+      print "Found $cancelDate from events query\n";
     }
 
     $params = [
@@ -438,10 +465,11 @@ class GCImport
       "start_date"             => $subscription->start_date,
       "create_date"            => $subscription->start_date,
       "modified_date"          => $subscription->start_date,
+      "cancell_date"           => $cancelDate,
       "end_date"               => $subscription->end_date,
       "processor_id"           => $subscription->id,
       "trxn_id"                => $subscription->id,
-      "contribution_status_id" => $this->contribRecurStatusInProgress,
+      "contribution_status_id" => $this->getMapSubscriptionStatusToContribRecurStatus($subscription),
       "is_test"                => 0,
       "cycle_day"              => 1,
       "payment_processor_id"   => $this->processor->getID(),
@@ -459,14 +487,16 @@ class GCImport
         'membership_type_id'    => $structures['membershipType'],
         'contact_id'            => $contactID,
         'join_date'             => $subscription->created_at, //xxx
-        'start_date'            => $subscription->created_at,
+        'start_date'            => $subscription->start_date,
         'contribution_recur_id' => $recurID,
+        'skipStatusCal'         => 1,
+        'status_id'             => 'Pending',
       ]);
     }
 
     print "✔ Created ContributionRecur $recurID for subscription $subscription->id $structures[membershipType]\n";
 
-    return $structures + ['contribution_recur' => $recur, 'membership' => $membership];
+    return $structures + ['contribution_recur' => reset($recur['values']), 'membership' => $membership];
   }
   /**
    * @param GoCardlessPro\Services\SubscriptionsService $subscription
@@ -474,11 +504,13 @@ class GCImport
    * @param int $contribRecurID
    *
    */
-  public function createInitialPendingContrib($subscription, $contactID, $contribRecurID, $financialTypeID, $membership) {
+  public function createInitialPendingContrib($subscription, $contactID, $contribRecurID, $financialTypeID, $membership, $createCancelledContribution) {
 
     print "Creating initial pending contribution\n";
+    // trxn_date is necessary for membership date calcs.
     $_ = [
       'receive_date'           => $subscription->start_date,
+      'trxn_date'              => $subscription->start_date,
       'total_amount'           => $subscription->amount / 100,
       'contact_id'             => $contactID,
       "payment_instrument_id"  => $this->paymentInstrumentID,
@@ -486,7 +518,7 @@ class GCImport
       "financial_type_id"      => $financialTypeID,
       'contribution_recur_id'  => $contribRecurID,
       'is_test'                => 0,
-      'contribution_status_id' => $this->contribStatusPending,
+      'contribution_status_id' => $createCancelledContribution ? $this->contribStatusCancelled : $this->contribStatusPending,
       'is_email_receipt'       => 0,
       'line_items' => [
         [
@@ -526,6 +558,7 @@ class GCImport
    */
   public function importPayments($subscription, $payments, $contribRecurID, $contactID, $financialTypeID, $membership) {
 
+    // Initial loop checks valid (and SQL safe) IDs
     $trxn_ids = [];
     foreach ($payments as $payment) {
       if (!preg_match('/^[A-Z0-9]+$/', $payment['trxn_id'])) {
@@ -534,13 +567,14 @@ class GCImport
       $trxn_ids[] = '"' . $payment['trxn_id'] . '"';
       $this->log['subscriptions'][$subscription->id]['payments'][$payment['trxn_id']] = [];
     }
-
+    // Get a list of trxn_ids that are already in the database.
     if ($trxn_ids) {
       $trxn_ids = implode(",", $trxn_ids);
       $trxn_ids = CRM_Core_DAO::executeQuery("SELECT trxn_id FROM civicrm_contribution WHERE contribution_recur_id = $contribRecurID AND trxn_id IN ($trxn_ids)")
         ->fetchMap('trxn_id', 'trxn_id');
     }
 
+    // Main loop of payments.
     $skips = 0;
     foreach ($payments as $payment) {
       $log = & $this->log['subscriptions'][$subscription->id]['payments'][$payment['trxn_id']];
@@ -564,6 +598,22 @@ class GCImport
         'is_email_receipt'       => 0,
         'source'                 => 'GC import ' . date('Y-m-d H:i:s'),
       ];
+
+      // Doctor the line items.
+      // There is only one line item array, so get a ref to it
+      $lineItem = &$payment['line_items'][0];
+      // Copy down financial type.
+      $lineItem['line_item'][0]['financial_type_id'] = $financialTypeID;
+      if ($membership) {
+        // Add membership
+        $lineItem['params'] = [
+          'membership_id' => $membership['id'],
+          'contact_id'    => $contactID,
+          'skipStatusCal' => 1,
+          'status_id'     => 'Pending',
+        ];
+      }
+
       // print json_encode($payment, JSON_PRETTY_PRINT) . "\n";
       $orderCreateResult = civicrm_api3('Order', 'create', $payment);
       if (!$orderCreateResult['is_error']) {
@@ -573,6 +623,7 @@ class GCImport
         $log['date'] = $payment['receive_date'];
         $this->log['paymentsAdded']++;
         $this->log['paymentsAddedAmount'] += $payment['total_amount'];
+        // xxx is this done for us by the paymetn API? No.
         if ($membership) {
           // Link to membership
           civicrm_api3('MembershipPayment', 'create', [
