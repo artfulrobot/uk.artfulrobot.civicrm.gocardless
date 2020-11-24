@@ -1,9 +1,20 @@
 // This ensures that the is_recur check box is always checked if a GoCardless payment processor is selected.
+//
+// It does this by controling the is_recur checkbox input.
+//
+// - Contribution forms with just the GoCardless payment processor (PP) enabled
+//   have a hidden input with the PP ID.
+//
+// - Contribution forms with a choice of PPs use radio buttons.
+//
 document.addEventListener('DOMContentLoaded', function () {
   // This next line gets swapped out by PHP
   var goCardlessProcessorIDs = [];
 
   var isRecurInput = document.getElementById('is_recur');
+  if (!isRecurInput) {
+    return;
+  }
   var ppRadios = document.querySelectorAll('input[type="radio"][name="payment_processor_id"]');
   var goCardlessProcessorSelected;
   var selectedProcessorName;
