@@ -65,6 +65,11 @@
     var ppTable = [];
     var ppNames = {};
     var urlStub = window.location.href.replace(/^(https?:\/\/[^/]+).*$/, '$1');
+    if (CRM.url('civicrm/payment/ipn/test', null, 'front').indexOf(urlStub) === 0) {
+      // CRM.url returns the https://example.org bit. Seems on different systems it does or doesn't!
+      // e.g. WordPress reported to include it, whereas Drupal 7 does not.
+      urlStub = '';
+    }
     various.paymentProcessors.forEach(pp => {
       var k;
       if (!(pp.name in ppNames)) {
@@ -78,6 +83,7 @@
       }
 
       // Make URL.
+      ppNames[pp.name][k] = urlStub + CRM.url('civicrm/payment/ipn/' + pp.id, null, 'front');
       ppNames[pp.name][k] = urlStub + CRM.url('civicrm/payment/ipn/' + pp.id, null, 'front');
     });
     $scope.ppTable = Object.values(ppNames);
