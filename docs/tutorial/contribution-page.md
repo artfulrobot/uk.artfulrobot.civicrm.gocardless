@@ -66,7 +66,7 @@ Click the **Links** link next to your new contribution page and click
     Remember earlier we said GoCardless doesn't do one-offs? Well this is
     important here because if a user does not check the "I want to
     contribute every month" option then it will simply crash(!). You can 
-    force this option in [settings](https://docs.civicrm.org/gocardless/en/latest/reference/settings/#force-recurring).
+    force this option on the [GoCardless Settings](../reference/settings.md#force-recurring) page.
 
 You should now be on GoCardless' website, seeing one of their forms.
 
@@ -136,4 +136,3 @@ because we already know.
 If you're geeky you might like to [continue the
 tutorial](extra-marks.md) which will simulate the payment being
 made and updating CiviCRM; and cancelling the subscription.
-
