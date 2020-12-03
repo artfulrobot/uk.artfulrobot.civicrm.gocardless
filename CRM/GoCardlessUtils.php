@@ -96,6 +96,8 @@ class CRM_GoCardlessUtils {
   /**
    * Sets up a redirect flow with GoCardless.
    *
+   * @deprecated: you should use CRM_Core_Payment_GoCardless::getRedirectFlow() on a loaded object.
+   *
    * @param Array $deets has the following keys:
    * - description          string what is the person signing up to/buying?
    * - session_token        string required by GoCardless to verify that the completion happens by the same user.
