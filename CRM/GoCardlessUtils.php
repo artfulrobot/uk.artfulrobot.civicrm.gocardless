@@ -148,7 +148,7 @@ class CRM_GoCardlessUtils {
    * - amount (in GBP, e.g. 10.50)
    * - installments (optional positive integer number of payments to take)
    *
-   * The following keys are optional but useful: 'contactID', 'contributionID', 'contributionRecurID'
+   * The following keys are optional but useful: 'contactID', 'contributionRecurID'
    * they will be bundled into a 'civicrm' metadata package.
    *
    * @return array
@@ -210,7 +210,7 @@ class CRM_GoCardlessUtils {
     // "customer": "CU123",
     // "customer_bank_account": "BA123"
     // Add some of our data as metadata. Use JSON as it's fairly human-readable. See issue #79
-    $metadata = json_encode(array_intersect_key($deets, array_flip(['contactID', 'contributionID', 'contributionRecurID'])));
+    $metadata = json_encode(array_intersect_key($deets, array_flip(['contactID', 'contributionRecurID'])));
     $params = [
     // Convert amount to pennies.
       'amount'        => (int) (100 * $deets['amount']),
