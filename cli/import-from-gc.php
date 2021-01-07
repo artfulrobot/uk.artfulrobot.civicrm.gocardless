@@ -43,6 +43,9 @@ const GC_SUBSCRIPTIONS_LIMIT = 10;
 // What financial type do you want to use?
 define('GC_IMPORT_FINANCIAL_TYPE_NAME',  'Donation (regular)');
 
+// What price field do you want to use? Make sure the id exists!
+define('GC_IMPORT_PRICE_FIELD_ID', 1);
+
 // You can set a date here, or use NULL
 // define('GC_IMPORT_SINCE',  '2019-05-01T00:00:00Z');
 define('GC_IMPORT_SINCE',  NULL);
@@ -63,6 +66,9 @@ class GCImport
 {
   /** @var int financial type. */
   public $financialTypeID;
+
+  /** @var int Price Field */
+  public $priceFieldID;
 
   /** @var null|string date. */
   public $importSince;
@@ -124,7 +130,7 @@ class GCImport
    * @param String $financialTypeName
    * @param null|String $importSince (date)
    */
-  public function __construct($financialTypeName, $importSince = NULL, $confirmCreateRecur=TRUE, $logDir=NULL) {
+  public function __construct($financialTypeName, $priceFieldID, $importSince = NULL, $confirmCreateRecur=TRUE, $logDir=NULL) {
     civicrm_initialize();
 
     if ($logDir !== NULL) {
@@ -144,6 +150,8 @@ class GCImport
     if (!$this->financialTypeID) {
       throw new InvalidArgumentException("Failed to find financial type '$financialTypeName'");
     }
+
+    $this->priceFieldID = $priceFieldID;
 
     $this->confirmCreateRecur = (bool) $confirmCreateRecur;
 
@@ -328,7 +336,7 @@ class GCImport
                 'financial_type_id' => $this->financialTypeID,
                 'line_total' => $payment->amount / 100,
                 'unit_price' => $payment->amount / 100,
-                "price_field_id" => 1,
+                'price_field_id' => $this->priceFieldID,
                 'qty' => 1,
               ]]
             ]
@@ -488,7 +496,7 @@ class GCImport
           'line_item' => [[
             'line_total' => $subscription->amount / 100,
             'unit_price' => $subscription->amount / 100,
-            "price_field_id" => 1,
+            'price_field_id' => $this->priceFieldID,
             'financial_type_id' => $this->financialTypeID,
             'qty' => 1,
           ]]
@@ -622,6 +630,7 @@ class GCImport
 try {
   $importer = new GCImport(
     GC_IMPORT_FINANCIAL_TYPE_NAME,
+    GC_IMPORT_PRICE_FIELD_ID,
     GC_IMPORT_SINCE,
     GC_CONFIRM_BEFORE_CREATING_RECUR,
     GC_PRIVATE_OUTPUT_DIR
