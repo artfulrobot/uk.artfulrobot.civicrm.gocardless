@@ -579,7 +579,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
         'name'          => 'test contribution',
         'interval_unit' => 'monthly',
         'links'         => ['mandate' => 'MANDATEID'],
-        'metadata'      => ['civicrm' => json_encode(['contactID' => $contact['id'], 'contributionID' => $contrib['id'], 'contributionRecurID' => $recur['id']])],
+        'metadata'      => ['civicrm' => json_encode(['contactID' => $contact['id'], 'contributionRecurID' => $recur['id']])],
     // <-------------------------------- installments
         'count'         => 7,
       ],
