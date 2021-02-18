@@ -2,13 +2,17 @@
 
 ## 1.10.0
 
-- New settings form.
+- New settings form. **Administer » CiviContribute » GoCardless Settings**
 
 - Option to send receipts (previously it just didn’t) (fix [#61](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/61))
 
-- Option to prevent users from forgetting to tick the Recurring box. (fix [#72](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/72))
+- Option to prevent users from forgetting to tick the Recurring and Auto-renew boxes. (fix [#72](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/72))
 
 - Stores CiviCRM contact, contribution and contribution recur IDs on subscriptions at GoCardless (fix [#79](https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/79))
+
+- Various fixes related to webhook URLs.
+
+- (Developers: new import script konp.php may be useful to study and adapt for special cases including importing membership)
 
 ## 1.9.3
 
