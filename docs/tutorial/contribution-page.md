@@ -2,7 +2,7 @@
 
 Setting up a contribution page is a big topic because there are so many
 options, so this tutorial is going to cover the minimal setup required to
-start taking regular monthly donations.
+start taking regular monthly donations. See the User Guide for more details - [Creating Contribution Pages](https://docs.civicrm.org/user/en/latest/contributions/online-contributions/).
 
 Go to **Contributions » New Contribution Page**.
 
@@ -47,7 +47,7 @@ Then click **Save and Done**
     If you want to take one-offs, it's not your friend; it won't work and
     it will cause a lot of confusion/frustration.
 
-## Make a contribution.
+## Make a contribution
 
 You should now be on the list of Contribution Pages. (If not, find it
 under **Contributions » Manage Contribution Pages**)
@@ -65,7 +65,8 @@ Click the **Links** link next to your new contribution page and click
 
     Remember earlier we said GoCardless doesn't do one-offs? Well this is
     important here because if a user does not check the "I want to
-    contribute every month" option then it will simply crash(!).
+    contribute every month" option then it will simply crash(!). You can 
+    force this option on the [GoCardless Settings](../reference/settings.md#force-recurring) page.
 
 You should now be on GoCardless' website, seeing one of their forms.
 
@@ -135,4 +136,3 @@ because we already know.
 If you're geeky you might like to [continue the
 tutorial](extra-marks.md) which will simulate the payment being
 made and updating CiviCRM; and cancelling the subscription.
-
