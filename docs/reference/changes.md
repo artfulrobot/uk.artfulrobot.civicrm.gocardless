@@ -1,5 +1,12 @@
 # Change log
 
+## 1.10.1
+
+- Improvement to the force recurring/renew option (see note in 1.10.0 and
+  [Settings](settings.md)). In 1.10.0 the auto-renew box was getting un-checked
+  by CiviCRM core's code when you changed membership type. This release fixes
+  that case.
+
 ## 1.10.0
 
 - New settings form. **Administer » CiviContribute » GoCardless Settings**
