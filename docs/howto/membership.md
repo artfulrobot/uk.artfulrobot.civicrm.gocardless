@@ -5,8 +5,13 @@ handle memberships.
 
 If you use Price Sets and you have the "Auto renew option, not required"
 selected then the user will not be shown the tick-box allowing them to select
-Auto Renew, and this will break things. So better to use the straight forward
-auto renew option rather than give an option that will break things.
+Auto Renew, and this will break things. So better to use the straight
+forward *require auto renew* option rather than give an option that will
+break things.
+
+If you want to offer a choice of processors, and some of them do support
+non-recurring memberships, then please see the
+[Force Recurring setting](../reference/settings.md)
 
 Technical people might like to know that without this, CiviCRM creates a single
 contribution and a membership record, but no `contribution_recur` record. This

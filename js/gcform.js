@@ -7,22 +7,25 @@
 //
 // - Contribution forms with a choice of PPs use radio buttons.
 //
-// Bug: When only Other amount is selected or before a radio amount is chosen, there's no PP stuff until an amount is entered.
-//
 document.addEventListener('DOMContentLoaded', function () {
   // var debug = console.log;
   var debug = function() {};
   debug("GoCardless loaded");
+
   // This next line gets swapped out by PHP
   var goCardlessProcessorIDs = [];
 
   // CiviCRM uses isRecur for non-membership payments, and autoRenew for memberships.
   // Nb. autoRenew may not be there e.g. if autoRenew is not allowed, or is not optional.
   var isRecurInput = document.getElementById('is_recur');
+  // Note: the auto renew input might be a checkbox OR a hidden element.
   var autoRenewInput = document.getElementById('auto_renew');
+  // If Civi offers a choice of payment processors by radio, they'll be found like this:
   var ppRadios = document.querySelectorAll('input[type="radio"][name="payment_processor_id"]');
-  var goCardlessProcessorSelected;
-  var selectedProcessorName;
+  // Boolean: whether the currently selected payment processor is a GoCardless one.
+  var goCardlessProcessorSelected = false;
+  // The name of the selected GoCardless processor, or is empty.
+  var selectedProcessorName = null;
 
   // Note: templates/CRM/common/paymentBlock.tpl includes JS which
   // un-checks the .checked property on all payment processor radios when that
@@ -38,6 +41,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (isRecurInput) {
     isRecurInput.addEventListener('change', function(e) {
       if (!isRecurInput.checked && goCardlessProcessorSelected) {
+        // They tried to un-check it, but GoCardless is selected.
         e.preventDefault();
         e.stopPropagation();
         forceRecurring(true);
@@ -46,8 +50,8 @@ document.addEventListener('DOMContentLoaded', function () {
     debug("Added event listener to isRecurInput", isRecurInput);
   }
 
-  // Listen for when the user changes/tries to change the autoRenewInput
-  if (autoRenewInput) {
+  // Listen for when the user changes/tries to change the autoRenewInput checkbox
+  if (autoRenewInput && autoRenewInput.getAttribute('type') === 'checkbox') {
     autoRenewInput.addEventListener('change', function(e) {
       if (!autoRenewInput.checked && goCardlessProcessorSelected) {
         e.preventDefault();
@@ -90,6 +94,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // set goCardlessProcessorSelected and if found, forceRecurring
   function gcFixRecurFromRadios() {
     var ppID;
+    selectedProcessorName = null;
     [].forEach.call(ppRadios, function(r) {
       if (r.checked) {
         ppID = parseInt(r.value);
@@ -97,7 +102,7 @@ document.addEventListener('DOMContentLoaded', function () {
         selectedProcessorName = label ? label.textContent : 'Direct Debit';
       }
     });
-    goCardlessProcessorSelected = (goCardlessProcessorIDs.indexOf(ppID) > -1);
+    goCardlessProcessorSelected = (typeof ppID === 'number') && (goCardlessProcessorIDs.indexOf(ppID) > -1);
 
     if (goCardlessProcessorSelected && !gcWasPreviouslySelected) {
       forceRecurring();
@@ -116,10 +121,11 @@ document.addEventListener('DOMContentLoaded', function () {
       });
 
       gcFixRecurFromRadios();
-      // Look out for when it changes.
-      window.setInterval(gcFixRecurFromRadios, 500);
+      // Look out for when it changes in a way we can't detect.
+      window.setInterval(gcFixRecurFromRadios, 300);
     }
     else {
+      // The processor type is fixed.
       var ppInput = document.querySelectorAll('input[type="hidden"][name="payment_processor_id"]');
       if (ppInput.length === 1) {
         // We have a single payment processor involved that won't be changing.
@@ -132,6 +138,21 @@ document.addEventListener('DOMContentLoaded', function () {
       }
       // else: no idea, let's do nothing.
     }
+  }
+
+  if ('showHideAutoRenew' in window) {
+    // This function is defined in templates/CRM/Contribute/Form/Contribution/MembershipBlock.tpl
+    // and called by Civi in various places, including in onclick HTML attributes, defined in:
+    // - CRM/Contribute/Form/ContributionBase.php
+    // - CRM/Price/BAO/PriceField.php
+    // Wrap this function to ensure we still forceRecurring if GC is selected.
+    var origShowHideAutoRenew = window.showHideAutoRenew;
+    window.showHideAutoRenew = function(memTypeId) {
+      origShowHideAutoRenew(memTypeId);
+      if (goCardlessProcessorSelected) {
+        forceRecurring();
+      }
+    };
   }
 
 });

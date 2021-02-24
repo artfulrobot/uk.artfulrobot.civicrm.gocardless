@@ -8,16 +8,23 @@
 - JSON key: `forceRecurring`
 
 CiviContribute's Contribution Pages allow you to *offer* recurring
-payments. But for GoCardless we always want payments to be recurring.
+payments. And if using the Membership sections then they may give a choice
+on auto-renew. **But GoCardless requires payments to be recurring.**
 
 Enabling this setting will add Javascript to Contribution Pages that
-ensures the recurring checkbox is checked whenever a GoCardless payment
-processor is selected.
+ensures the recurring/renew checkbox is checked whenever a GoCardless
+payment processor is selected.
 
 **If you do not have another solution in place, you should enable this
 setting to prevent failed mandates and frustrated supporters.** You may
 enable it anyway, but you should test that it works with whatever other
 custom Javascript you have running on your page.
+
+!!! warning
+    If you offer GoCardless with a membership that doesn't support auto-renew
+    you’re in trouble: if you use this option then it will become
+    auto-renewing; if you don't use this option, well then it’s going to crash
+    because this GoCardless integration only offers recurring.
 
 ## Send receipts for payments set up by custom code
 
