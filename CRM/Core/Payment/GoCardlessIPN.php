@@ -244,11 +244,6 @@ class CRM_Core_Payment_GoCardlessIPN {
     // Note: the param called 'trxn_date' which is used for membership date
     // calculations. If it's not given, today's date gets used.
 
-    // Shortly we will make a call to Payment.create, but this will not correctly update
-    // several fields in the Contribution record. We'll collect the things that
-    // need correcting in and submit them using Contribution.create at the end.
-    $fixContributionParams = [];
-
     $pending_contribution_id = $this->getPendingContributionId($recur);
     if ($pending_contribution_id) {
       // There's an existing pending contribution.
@@ -278,70 +273,64 @@ class CRM_Core_Payment_GoCardlessIPN {
       // Of these params for Payment.create, only contribution_id and
       // is_send_contribution_notification are passed on to the
       // Contribution.completetranscation API.
-      //
-      // trxn_id is not updated on the Contribution record.
-      $fixContributionParams['trxn_id'] = $contribution['trxn_id'];
     }
     else {
       // This is another payment after the first.
       $contribution = $this->handleRepeatTransaction($contribution, $recur);
     }
 
-    $fixContributionParams += [
-      'id'           => $contribution['id'],
-      'receive_date' => $contribution['receive_date']
+    //
+    // For GoCardless, our policy is that the Contribution's receive_date
+    // should be the date the Payment is completed.
+    //
+    // Civi 5.27 (and probably before) does not correctly set Contribution receive_date at all.
+    // Civi 5.28 does what we want
+    // Civi 5.29-5.35 (and probably after) does not update the Contribution receive_date when a payment comes in.
+    //
+    // Calling Contribution.create to change the date has had some nasty side
+    // effects in the wild, so to be safer we do a quick and dirty SQL update.
+    // Note that the mjwshared extension does similar (but to different ends), see
+    // https://lab.civicrm.org/extensions/mjwshared/-/blob/master/api/v3/Mjwpayment.php#L436
+    //
+    $sql = 'UPDATE civicrm_contribution SET receive_date="%2" WHERE id=%1';
+    $sqlParams = [
+      1 => [$contribution['id'], 'Positive'],
+      2 => [CRM_Utils_Date::isoToMysql($payment->charge_date), 'Date']
     ];
-
-    // Finally, correct any Contribution records entries that are either not
-    // updated or set incorrectly by Payment.create. It would be more efficient
-    // if the core APIs allowed passing in this data to avoid a 2nd call
-    // (or perhaps we're not supposed to do this - but it seems important to me
-    // that the contribution receive_date is the date the payment was made, and
-    // not the date the webhook was fired - since this could be delayed, or a
-    // replay).
-    civicrm_api3('Contribution', 'create', $fixContributionParams);
+    CRM_Core_DAO::executeQuery($sql, $sqlParams);
   }
 
   /**
-   * Ensure that the recurring contribution record is set to In Progress.
-   * ...but only if it's currently Pending or Overdue.
-   * ...AND check that it has not been cancelled.
+   * Replace Overdue status with In Progress.
    *
-   * @todo
-   * There's all sorts of other fields on recur - do we need to set them?
-   * e.g. date of next expected payment, date of last update etc.
+   * CiviCRM handles marking 'Pending' contrib recurs as In Progress, but not
+   * Overdue ones (which is something we use in this extension when a payment
+   * has failed)
+   *
+   * We don't update from other statuses (namely Cancelled, or Completed or
+   * Failed).  A payment may come in on a Cancelled mandate, if your timing is
+   * unluckly, it does not mean the mandate is In Progress.  See
+   * https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/54
+   *
    *
    * @param array $recur
    * @param array $payment
    */
   public function updateContributionRecurRecord($recur, $payment) {
     $contrib_recur_statuses = CRM_Contribute_BAO_ContributionRecur::buildOptions('contribution_status_id', 'validate');
-    if (in_array($contrib_recur_statuses[$recur['contribution_status_id']], ['Pending', 'Overdue'])) {
+    if ($contrib_recur_statuses[$recur['contribution_status_id']] === 'Overdue') {
       // It would be Overdue if the last payment failed.
-      //
-      // It would be Pending if this is the first payment on a new mandate -
-      // and it was set up before v1.8 of this was in use. We now set the
-      // recurring record to In Progress as soon as the mandate and subscription
-      // are setup, so we should not encounter too many Pending contribution
-      // recur records any longer.
       //
       // In these situations, having just received a successful payment
       // (subject to any "late failures" yet to occur) then the recur record
       // should be set to "In Progress".
       //
-      // However we don't do this for other statuses (namely Cancelled, or
-      // Completed or Failed). A payment may come in on a Cancelled mandate, if your
-      // timing is unluckly, it does not mean the mandate is In Progress.
-      // See https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/54
-      //
       civicrm_api3('ContributionRecur', 'create', [
         'id'                     => $recur['id'],
         'contribution_status_id' => 'In Progress',
-      // Reset the failure count.
         'failure_count'          => 0,
       ]);
     }
-
   }
   /**
    *

@@ -1,5 +1,15 @@
 # Change log
 
+## 1.10.2
+
+- Mostly a cleanup of code around handling completed payments; strip out work
+  that is now done by core CiviCRM, and for the bits we still need to override
+  (e.g. setting Contribution `receive_date` to the date of the completed
+  payment) we do this with SQL not the Contribution.create as this sometimes
+  seems to do too much resulting in errors like `DB Error: already exists` when
+  Civi (5.31 at least) for some reason tries to add a duplicate row in the
+  activity-contact table.
+
 ## 1.10.1
 
 - Improvement to the force recurring/renew option (see note in 1.10.0 and

@@ -106,6 +106,67 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
   }
 
   /**
+   * Test quirks in Civi
+   *
+   * 5.26: Payment.create did not set trxn_id on Contrib.
+   * 5.27: Payment.create DID set trxn_id on Contrib. but receive_date is wrong.
+   * 5.28.4: Payment.create sets both receive_date and trxn_id :-)
+   * 5.29.1: Payment.create sets trxn_id on Contrib, but does not update receive_date.
+   * 5.30: ditto
+   * 5.31: ditto
+   * 5.35: ditto
+   *
+   * Payment.create did not used to set the trxn_id apparently.
+   */
+  public function testPaymentCreate() {
+    $contactID = civicrm_api3('Contact', 'create', array(
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
+    ))['id'];
+
+    // Crete a Pending contrib.
+    $contribution = [
+      'total_amount'           => '1',
+      'receive_date'           => '2021-01-01 09:09:09',
+      'financial_type_id'      => 1,
+      //'trxn_id'                => 'orig_trxn_id',
+      'contact_id'             => $contactID,
+      'contribution_status_id' => 'Pending',
+      'is_email_receipt'       => FALSE,
+    ];
+    $createdID = civicrm_api3('Contribution', 'create', $contribution)['id'];
+
+    // Record payment
+    civicrm_api3('Payment', 'create', [
+      'contribution_id'                   => $createdID,
+      'total_amount'                      => '1',
+      'is_send_contribution_notification' => FALSE,
+      // Updated date
+      'trxn_date'                         => '2021-02-02 10:10:10',
+      // Updated ID
+      'trxn_id'                           => 'my_trxn_id',
+    ]);
+
+    // A copy of the method used in CRM_Core_Payment_GoCardlessIPN::doPaymentsConfirmed
+    $sql = 'UPDATE civicrm_contribution SET receive_date="%2" WHERE id=%1';
+    $sqlParams = [
+      1 => [$createdID, 'Positive'],
+      2 => [CRM_Utils_Date::isoToMysql('2021-02-02 10:10:10'), 'Date']
+    ];
+    CRM_Core_DAO::executeQuery($sql, $sqlParams);
+
+    // Fetch the contrib.
+    $contrib = civicrm_api3('Contribution', 'get', ['id' => $createdID])['values'][$createdID];
+
+    // Test that Civi updated trxn_id - it should from 5.27, so this tests for regressions.
+    $this->assertEquals('my_trxn_id', $contrib['trxn_id'] ?? NULL);
+    // Test that the SQL updated the date correctly. Bit superfluous really.
+    $this->assertEquals('2021-02-02 10:10:10', $contrib['receive_date'], 'Payment did not change the receive_date');
+
+  }
+  /**
    * Check a transfer checkout works.
    *
    * This actually results in a redirect, but all the work that goes into that
