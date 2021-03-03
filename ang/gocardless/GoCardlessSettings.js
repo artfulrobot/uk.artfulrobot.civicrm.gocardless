@@ -52,7 +52,8 @@
     // Annoyingly this is duplicated from CRM_GoCardlessUtils::getSettings()
     const defaults = {
       forceRecurring: false,
-      sendReceiptsForCustomPayments: 'never'
+      sendReceiptsForCustomPayments: 'never',
+      daysOfMonth: ["0"]
     };
     Object.keys(defaults).forEach(k => {
       if (!(k in gcSettings)) {
@@ -60,6 +61,12 @@
       }
     });
     $scope.gcSettings = gcSettings;
+
+    const m={1:'1st', 2:'2nd', 3:'3rd', 21:'21st', 22:'22nd', 23:'23rd'};
+    const daysOfMonthOpts = [{key: '0', value: 'any day (earliest possible)'}];
+    for (var i=1;i<29;i++) daysOfMonthOpts.push({key: i.toString(), value: m[i] || (i + 'th')});
+    daysOfMonthOpts.push({key: '-1', value: 'last day of month'});
+    $scope.gcDaysOfMonth = daysOfMonthOpts;
 
     // Make pay processors accessible
     var ppTable = [];

@@ -1,6 +1,6 @@
 # Settings Page
 
-![Screnshot of settings page](../gc-settings.jpg)
+![Screnshot of settings page](../gc-settings.png)
 
 ## Force Recurring
 
@@ -60,3 +60,16 @@ in some custom code, you might not have set this `is_email_receipt` value.
   and will pass 0 or 1 into the payment APIs.
 
 - `defer` will pass in the value from the recurring contribution record.
+
+## Allowed days of the month
+
+The allowed days of the month.
+Set to "auto" for the next available date or "last" for the last day of the month.
+You can specify multiple options and it will give the user a choice when setting up the payment.
+
+This only works if "Force Recurring" is enabled and "Monthly" or "Yearly" is selected.
+
+#### Developers notes
+* The GoCardless API also supports specifying "month" for "Yearly subscriptions" but that is not currently implemented.
+* The "Force recurring" setting is required because we are sharing the `gcform.js` code and it was simpler to implement that way.
+

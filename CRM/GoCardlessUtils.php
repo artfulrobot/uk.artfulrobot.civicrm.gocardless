@@ -222,6 +222,9 @@ class CRM_GoCardlessUtils {
       'links'         => ['mandate' => $redirect_flow->links->mandate],
       'metadata'      => ['civicrm' => $metadata],
     ];
+    if ($deets['day_of_month']) {
+      $params['day_of_month'] = $deets['day_of_month'];
+    }
 
     if (isset($installments)) {
       $params['count'] = $installments;
@@ -483,9 +486,77 @@ class CRM_GoCardlessUtils {
         ->addWhere('is_test', 'IS NOT NULL')
         ->execute()
         ->column('id');
+
       $js = file_get_contents(E::path('js/gcform.js'));
-      $js = str_replace('var goCardlessProcessorIDs = [];', 'var goCardlessProcessorIDs = ' . json_encode($paymentProcessorsIDs) . ';', $js);
+      $js = str_replace([
+          'var goCardlessProcessorIDs = [];',
+          'var dayOfMonthOptions = {};'
+        ],
+        [
+          'var goCardlessProcessorIDs = ' . json_encode($paymentProcessorsIDs) . ';',
+          'var dayOfMonthOptions = ' . json_encode(self::getDayOfMonthOptions()) . ';'
+        ],
+        $js
+      );
       CRM_Core_Region::instance('page-body')->add(['markup' => "<script>$js</script>"]);
     }
   }
+
+  /**
+   * Get the formatted options for daysOfMonth eg. [1 => '1st']
+   * This is used for frontend presentation and backend settings
+   *
+   * @param bool $all
+   *
+   * @return array
+   */
+  public static function getDayOfMonthOptions($all = FALSE) {
+    if ($all) {
+      $options = [0];
+      for ($i = 1; $i <= 28; $i++) {
+        // Add days 1 to 28 (29-31 are excluded because don't exist for some months)
+        $options[] = $i;
+      }
+      $options[] = -1;
+    }
+    else {
+      $options = static::getSettings()['daysOfMonth'];
+    }
+
+    foreach ($options as $option) {
+      switch ($option) {
+        case 0:
+          $dayOfMonthOptions[$option] = 'auto';
+          break;
+
+        case -1:
+          $dayOfMonthOptions[$option] = 'last';
+          break;
+
+        default:
+          $dayOfMonthOptions[$option] = self::formatPreferredCollectionDay($option);
+      }
+    }
+    return $dayOfMonthOptions;
+  }
+
+  /**
+   * Format collection day like 1st, 2nd, 3rd, 4th etc.
+   *
+   * @param $collectionDay
+   *
+   * @return string
+   */
+  public static function formatPreferredCollectionDay($collectionDay) {
+    $ends = ['th', 'st', 'nd', 'rd', 'th', 'th', 'th', 'th', 'th', 'th'];
+    if ((($collectionDay%100) >= 11) && (($collectionDay%100) <= 13)) {
+      $abbreviation = $collectionDay . 'th';
+    }
+    else {
+      $abbreviation = $collectionDay . $ends[$collectionDay % 10];
+    }
+
+    return $abbreviation;
+  }
+
 }

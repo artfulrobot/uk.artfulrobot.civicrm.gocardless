@@ -40,6 +40,24 @@
         </div>
       </div>
 
+      <div class="crm-section">
+        <div crm-ui-field="{name: 'myForm.daysOfMonth', title: ts('Allowed days of month')}">
+          <select
+            crm-ui-id="myForm.daysOfMonth"
+            ng-model="gcSettings.daysOfMonth"
+            name="daysOfMonth"
+            class="crm-form-select"
+            multiple
+            size="15"
+          >
+            <option ng-repeat="item in gcDaysOfMonth" value="{{item.key}}">{{item.value}}</option>
+          </select>
+          <p>The allowed days of the month. Set to "auto" for the next available date or "last" for the last day of the month.
+            <br/><em>This only works if "Force Recurring" is enabled and "Monthly" or "Yearly" is selected.</em>
+          </p>
+        </div>
+      </div>
+
     </div>
 
     <div>
