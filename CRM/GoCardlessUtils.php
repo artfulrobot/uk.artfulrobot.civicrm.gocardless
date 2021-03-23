@@ -313,7 +313,13 @@ class CRM_GoCardlessUtils {
         $params['installments'] = $installments;
       }
 
-      $result = static::completeRedirectFlowWithGoCardless($deets + $params);
+      $result = [];
+      $callMain = TRUE;
+      // allow hook to amend params or override completeRedirectFlowWithGoCardless()
+      CRM_GoCardless_Hook::handleRedirectFlowWithGoCardless($deets + $params, $result, $callMain);
+      if ($callMain) {
+        $result = static::completeRedirectFlowWithGoCardless($deets + $params);
+      }
       // It's the subscription we're interested in.
       $subscription = $result['subscription'];
     }
