@@ -83,8 +83,8 @@ class CRM_Core_Payment_GoCardlessIPN {
 
     // debugging:
     $this->now = date('Y-m-d:H:i:s');
-    CRM_Core_Error::debug_log_message("Webhook $this->now body:\n" . $raw_payload, FALSE, 'GoCardless', PEAR_LOG_INFO);
-    CRM_Core_Error::debug_log_message("Webhook $this->now headers:\n" . json_encode($headers), FALSE, 'GoCardless', PEAR_LOG_INFO);
+    CRM_Core_Error::debug_log_message("Webhook $this->now received:\n"
+      . json_encode($headers) . "\n" . $raw_payload, FALSE, 'GoCardless', PEAR_LOG_INFO);
 
     try {
       $this->parseWebhookRequest($headers, $raw_payload);
@@ -194,6 +194,7 @@ class CRM_Core_Payment_GoCardlessIPN {
       try {
         $method = 'do' . ucfirst($event->resource_type) . ucfirst($event->action);
         $this->$method($event);
+        CRM_Core_Error::debug_log_message("Webhook $this->now '$method' completed without exception", FALSE, 'GoCardless', PEAR_LOG_NOTICE);
       }
       catch (CRM_GoCardless_WebhookEventIgnoredException $e) {
         CRM_Core_Error::debug_log_message("Webhook $this->now Ignored webhook event. Reason: " . $e->getMessage(), FALSE, 'GoCardless', PEAR_LOG_NOTICE);
@@ -255,12 +256,19 @@ class CRM_Core_Payment_GoCardlessIPN {
       // asking staff to change it)
       $existing_amount = civicrm_api3('Contribution', 'getvalue', ['id' => $pending_contribution_id, 'return' => 'total_amount']);
       if ($existing_amount != $contribution['total_amount']) {
+        CRM_Core_Error::debug_log_message(
+          "Webhook $this->now Found a Pending Contribution (ID $pending_contribution_id) for ContributionRecur (ID $recur[id]) but the amount is wrong ($existing_amount but expected $contribution[total_amount]). Updating that now.",
+          FALSE, 'GoCardless', PEAR_LOG_ERR);
         // Update the contribution.
         civicrm_api3('Contribution', 'create', [
           'id'           => $pending_contribution_id,
           'total_amount' => $contribution['total_amount'],
         ]);
       }
+
+      CRM_Core_Error::debug_log_message(
+        "Webhook $this->now Adding a Payment to complete Pending Contribution (ID $pending_contribution_id) for ContributionRecur (ID $recur[id])",
+        FALSE, 'GoCardless', PEAR_LOG_ERR);
 
       // Now call Payment.create. This will call Contribution.completetransaction internally
       civicrm_api3('Payment', 'create', [
@@ -276,6 +284,9 @@ class CRM_Core_Payment_GoCardlessIPN {
     }
     else {
       // This is another payment after the first.
+      CRM_Core_Error::debug_log_message(
+        "Webhook $this->now No Pending Contribution found for ContributionRecur (ID $recur[id]); will create repeat Contribution.",
+        FALSE, 'GoCardless', PEAR_LOG_ERR);
       $contribution = $this->handleRepeatTransaction($contribution, $recur);
     }
 
@@ -348,9 +359,9 @@ class CRM_Core_Payment_GoCardlessIPN {
       $contribution['original_contribution_id'] = $orig['id'];
     }
 
-    // From CiviCRM 5.19.1 (and possibly earlier) we need to specify the
-    // membership_id on the contribution, otherwise the membership does not get
-    // updated. This may/may not be related to the work on implementing Order API etc.
+    // We need to specify the membership_id on the contribution, otherwise the
+    // membership does not get updated. This may/may not be related to the work
+    // on implementing Order API etc.
     $memberships = civicrm_api3('Membership', 'get', [
       'contribution_recur_id' => $recur['id'],
       'sequential' => 1,
@@ -396,6 +407,10 @@ class CRM_Core_Payment_GoCardlessIPN {
     // repeattransaction worked.
     $contribution['id'] = $result['id'];
 
+    CRM_Core_Error::debug_log_message(
+      "Webhook $this->now new contribution has ID $contribution[id]",
+      FALSE, 'GoCardless', PEAR_LOG_ERR);
+
     // First restore/add various fields that the repeattransaction api may overwrite or ignore.
     // This is a blatant copy from:
     // https://github.com/iATSPayments/com.iatspayments.civicrm/blob/8901211fe6dba85430c92abf7bd0b45ab552a4c2/CRM/Iats/Transaction.php#L80
@@ -433,6 +448,11 @@ class CRM_Core_Payment_GoCardlessIPN {
         ], JSON_PRETTY_PRINT),
         NULL, 'GoCardless', PEAR_LOG_ERR);
       return;
+    }
+    else {
+      CRM_Core_Error::debug_log_message(
+        "Webhook $this->now successfully added payment $contribution[trxn_id] to Contribution ID $contribution[id]",
+        FALSE, 'GoCardless', PEAR_LOG_ERR);
     }
 
     return $contribution;
@@ -638,6 +658,10 @@ class CRM_Core_Payment_GoCardlessIPN {
     ]);
     if ($contribs['count'] > 0) {
       // Found one (possibly more than one, edge case - ignore and take first).
+      CRM_Core_Error::debug_log_message(
+        "Webhook $this->now Found 1+ previous completed Contributions, using first "
+        . "(ID {$contribs['values'][0]['id']}) for ContributionRecur (ID $recur[id]).",
+        FALSE, 'GoCardless', PEAR_LOG_ERR);
       return $contribs['values'][0] + ['_was' => 'found_completed'];
     }
     // We failed to find a Completed one, check for any.
@@ -648,8 +672,16 @@ class CRM_Core_Payment_GoCardlessIPN {
       'options'                => ['sort' => 'receive_date', 'limit' => 1],
     ]);
     if ($contribs['count'] > 0) {
+      CRM_Core_Error::debug_log_message(
+        "Webhook $this->now Did not find any completed Contributions but found 1+ non-completed Contributions, using first "
+        . "(ID {$contribs['values'][0]['id']}) for ContributionRecur (ID $recur[id]).",
+        FALSE, 'GoCardless', PEAR_LOG_ERR);
       return $contribs['values'][0] + ['_was' => 'found_not_completed'];
     }
+
+    CRM_Core_Error::debug_log_message(
+      "Webhook $this->now Did not find any Contributions at all for ContributionRecur (ID $recur[id]).",
+      FALSE, 'GoCardless', PEAR_LOG_ERR);
     return ['_was' => 'not_found'];
   }
 
