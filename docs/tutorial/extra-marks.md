@@ -29,13 +29,12 @@ Then go to **Developers » Simulate a Scenario**.
 1. First choose Activate Mandate, and copy in your `MD...` mandate ID and
    click **Simulate scenario**. It should give some sort of confirmation.
 
-2. Now choose **Payment Submitted**. Enter the payment ID (`PM...`) you
+2. Now choose **Payment Paid Out**. Enter the payment ID (`PM...`) you
    copied, and again click **Simulate Scenario**.
 
 Now what it *says* is that this will "immediately" simulate these things
 having happened. But it's not really immediate; you may have to wait 5-10
 mins before anything happens.
-
 
 ## Take a look at your contact in CiviCRM.
 
