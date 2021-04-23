@@ -8,7 +8,16 @@
   payment) we do this with SQL not the Contribution.create as this sometimes
   seems to do too much resulting in errors like `DB Error: already exists` when
   Civi (5.31 at least) for some reason tries to add a duplicate row in the
-  activity-contact table.
+  activity-contact table. See
+  https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/101
+
+- Adds more logging output
+
+- Now uses the standard 400 Bad Request HTTP response instead of the
+  non-standard 498 Invalid Token response. As well as it being good to
+  stick to standards, the 498 may get changed to a 200 (giving false hope
+  that the request was successful to the untrained eye that doesn't spot
+  it's supposed to be 204 for success) by the server.
 
 ## 1.10.1
 

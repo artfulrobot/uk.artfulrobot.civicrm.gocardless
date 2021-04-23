@@ -94,9 +94,9 @@ class CRM_Core_Payment_GoCardlessIPN {
     }
     catch (InvalidArgumentException $e) {
       // Log the invalid webhook call.
-      CRM_Core_Error::debug_log_message("Webhook $this->now: InvalidArgumentException: " . $e->getMessage() . "\nWill respond with 498 http status", FALSE, 'GoCardless', PEAR_LOG_WARNING);
-      // Respond with Invalid Token response code.
-      http_response_code(498);
+      CRM_Core_Error::debug_log_message("Webhook $this->now: InvalidArgumentException: " . $e->getMessage() . "\nWill respond with 400 http status", FALSE, 'GoCardless', PEAR_LOG_WARNING);
+      // Respond with Bad Request response code.
+      http_response_code(400);
     }
   }
 
