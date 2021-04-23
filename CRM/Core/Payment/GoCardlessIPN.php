@@ -63,7 +63,7 @@ class CRM_Core_Payment_GoCardlessIPN {
   }
 
   /**
-   * Handles the incomming webhook and sets a suitable response code.
+   * Handles the incoming webhook and sets a suitable response code.
    */
   public function handleRequest() {
     // We need to check the input against the test and live payment processors.
@@ -93,13 +93,15 @@ class CRM_Core_Payment_GoCardlessIPN {
       http_response_code(204);
     }
     catch (InvalidArgumentException $e) {
-      // Invalid webhook call. Respond with Invalid Token response code.
+      // Log the invalid webhook call.
+      CRM_Core_Error::debug_log_message("Webhook $this->now: InvalidArgumentException: " . $e->getMessage() . "\nWill respond with 498 http status", FALSE, 'GoCardless', PEAR_LOG_WARNING);
+      // Respond with Invalid Token response code.
       http_response_code(498);
     }
   }
 
   /**
-   * Check incomming input for validity and extract the data into properties.
+   * Check incoming input for validity and extract the data into properties.
    *
    * Alters $this->test_mode, $this->events and sets
    * $this->paymentProcessorObject unless already set.
