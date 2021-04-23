@@ -120,6 +120,9 @@ Now click **Developer** on the left side menu. At the bottom you should
 see a *Webhooks* heading with an item showing with a green dot and `204 No
 Content` and the webhook URL you supplied earlier.
 
+!!! note
+    If you see a green dot with a `200` code, something *might* be wrong.
+
 If so, you're all set, well done!
 
 ## Like technical details and want to carry on?
