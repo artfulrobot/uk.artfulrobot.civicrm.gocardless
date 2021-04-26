@@ -6,7 +6,7 @@ class CRM_GoCardless_Hook {
    * This hook allows to override gocardless subscription process or
    * parameters.
    *
-   * @param array $deets with the following keys
+   * @param array $details with the following keys
    *
    * - test_mode bool.
    * - session_token string used in creating the flow with getRedirectFlow().
@@ -21,22 +21,19 @@ class CRM_GoCardless_Hook {
    *
    * @param array $result variable to put results in when overriding
    *   completeRedirectFlowWithGoCardless()
-   * @param bool $callMain set this to false if
-   *   completeRedirectFlowWithGoCardless() should be skipped.
    *
    * @return mixed
    *   Ignored value.
    */
-  public static function handleRedirectFlowWithGoCardless($deets, &$result, &$callMain) {
+  public static function handleRedirectFlowWithGoCardless($details, &$result) {
     $null = NULL;
     return CRM_Utils_Hook::singleton()->invoke([
-      'deets',
-      'result',
-      'callMain',
+      'details',
+      'result'
     ],
-      $deets,
+      $details,
       $result,
-      $callMain,
+      $null,
       $null,
       $null,
       $null,

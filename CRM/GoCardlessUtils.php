@@ -314,10 +314,9 @@ class CRM_GoCardlessUtils {
       }
 
       $result = [];
-      $callMain = TRUE;
       // allow hook to amend params or override completeRedirectFlowWithGoCardless()
-      CRM_GoCardless_Hook::handleRedirectFlowWithGoCardless($deets + $params, $result, $callMain);
-      if ($callMain) {
+      CRM_GoCardless_Hook::handleRedirectFlowWithGoCardless($deets + $params, $result);
+      if (empty($result)) {
         $result = static::completeRedirectFlowWithGoCardless($deets + $params);
       }
       // It's the subscription we're interested in.
