@@ -30,6 +30,8 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
   /**
    * @var array Holds a map of name -> value for contribution statuses */
   protected $contribution_status_map;
+  protected $handleRedirectFlowHookTest;
+  protected $hookWasCalled = FALSE;
   /**
    * Holds test mode payment processor.
    * @var array
@@ -283,7 +285,9 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $recur['id']]);
     // check In Progress (5)
     $this->assertEquals(5, $result['contribution_status_id']);
+    // Legacy: use trxn_id, current: use processor_id for subscription ID
     $this->assertEquals('SUBSCRIPTION_ID', $result['trxn_id']);
+    $this->assertEquals('SUBSCRIPTION_ID', $result['processor_id']);
     $this->assertEquals('2016-10-08 00:00:00', $result['start_date']);
     $result = civicrm_api3('Contribution', 'getsingle', ['id' => $contrib['id']]);
     $this->assertEquals('2016-10-08 00:00:00', $result['receive_date']);
@@ -382,7 +386,9 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     // Now test the contributions were updated.
     $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $recur['id']]);
     $this->assertEquals(5, $result['contribution_status_id']);
+    // Legacy: use trxn_id, current: use processor_id for subscription ID
     $this->assertEquals('SUBSCRIPTION_ID', $result['trxn_id']);
+    $this->assertEquals('SUBSCRIPTION_ID', $result['processor_id']);
     $this->assertEquals('2016-10-08 00:00:00', $result['start_date']);
     $result = civicrm_api3('Contribution', 'getsingle', ['id' => $contrib['id']]);
     $this->assertEquals('2016-10-08 00:00:00', $result['receive_date']);
@@ -667,6 +673,90 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     // following assertion is just to avoid phpunit flagging it as a test with
     // no assertions.
     $this->assertTrue(TRUE);
+  }
+
+  /**
+   * This is similar to testTransferCheckoutCompletesWithoutInstallments except
+   * that it tests that handleRedirectFlowWithGoCardless can be overridden by a
+   * hook.
+   *
+   * This creates a contact with a contribution and a ContributionRecur in the
+   * same way that CiviCRM's core Contribution Pages form does, then, having
+   * mocked the GC API it calls
+   * CRM_GoCardlessUtils::completeRedirectFlowCiviCore()
+   * and checks that the result is updated contribution and ContributionRecur records.
+   *
+   * testing with no membership
+   */
+  public function testHookHandleRedirectFlowWithGoCardless() {
+    // We need to mimick what the contribution page does, which AFAICS does:
+    // - Creates a Recurring Contribution
+    $contact = civicrm_api3('Contact', 'create', array(
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
+    ));
+    $recur = civicrm_api3('ContributionRecur', 'create', array(
+      'sequential' => 1,
+      'contact_id' => $contact['id'],
+      'frequency_interval' => 1,
+      'amount' => 1,
+      'frequency_unit' => "month",
+      'start_date' => "2016-10-01",
+      'is_test' => 1,
+      'contribution_status_id' => "Pending",
+    ));
+    $contrib = civicrm_api3('Contribution', 'create', array(
+      'sequential' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'total_amount' => 1,
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Pending",
+      'is_test' => 1,
+    ));
+
+    // Prepare our test hook.
+    $this->handleRedirectFlowHookTest = [$this, 'hookHandleRedirectFlowWithGoCardless'];
+
+    // Params are usually assembled by the civicrm_buildForm hook.
+    $params = [
+      'test_mode' => TRUE,
+      'redirect_flow_id' => 'RE1234',
+      'session_token' => 'aabbccdd',
+      'description' => 'test contribution',
+      'contactID' => $contact['id'],
+      'contributionID' => $contrib['id'],
+      'contributionRecurID' => $recur['id'],
+      'payment_processor_id' => $this->test_mode_payment_processor['id'],
+      'entryURL' => 'http://example.com/somwhere',
+    ];
+    CRM_GoCardlessUtils::completeRedirectFlowCiviCore($params);
+
+    // Check our hook got called.
+    $this->assertTrue($this->hookWasCalled, "Expected the hook to be called, but it wasn't.");
+
+    // Now test the contributions were NOT updated.
+    $result = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $recur['id']]);
+    // check it's still Pending (4) and with original date.
+    $this->assertEquals(4, $result['contribution_status_id']);
+    $this->assertEquals('2016-10-01 00:00:00', $result['start_date']);
+    // No code should have set trxn_id or processor_id
+    $this->assertArrayNotHasKey('trxn_id', $result);
+    $this->assertArrayNotHasKey('processor_id', $result);
+
+  }
+  /**
+   * An implementation of hook_civicrm_handleRedirectFlowWithGoCardless
+   *
+   * Used by testHookHandleRedirectFlowWithGoCardless
+   */
+  public function hookHandleRedirectFlowWithGoCardless($details, &$result) {
+    $this->hookWasCalled = TRUE;
+    $this->assertInternalType('Array', $details);
+    $result['subscription'] = 'SUBSCRIPTION_ID_HOOKED';
   }
 
   /**
@@ -2000,5 +2090,19 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     if ($r) {
       return end($r);
     }
+  }
+  /**
+   * Allow a test to implement this hook.
+   *
+   * This uses HookInterface but defers to a callable method stored (by a test
+   * method) at $this->handleRedirectFlowHookTest
+   */
+  public function hook_civicrm_handleRedirectFlowWithGoCardless($details, &$result) {
+    if (!$this->handleRedirectFlowHookTest) {
+      // Do nothing.
+      return;
+    }
+    $callable = $this->handleRedirectFlowHookTest;
+    $callable($details, $result);
   }
 }

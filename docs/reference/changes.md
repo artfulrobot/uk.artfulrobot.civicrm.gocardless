@@ -10,6 +10,9 @@
   Civi (5.31 at least) for some reason tries to add a duplicate row in the
   activity-contact table.
 
+- Introduces a hook to alter or override the
+  `completeRedirectFlowWithGoCardless`. See `CRM_GoCardless_Hook`
+
 ## 1.10.1
 
 - Improvement to the force recurring/renew option (see note in 1.10.0 and
