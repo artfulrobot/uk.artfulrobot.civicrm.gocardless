@@ -256,6 +256,7 @@ class GCImport
 
       $this->log['subscriptions'][$subscription->id]['recurID'] = $contribRecurID;
       $this->log['contactsWithAdded'][$contactID] = TRUE;
+      $this->log['subscriptionsAdded']++;
 
       if (empty($payments)) {
         // There are/were no payments for this subscription.
@@ -269,6 +270,7 @@ class GCImport
     else {
       $contactID = $recurDAO->contact_id;
       $contactID = (int) $recurDAO->contact_id;
+      $financialTypeID = $recurDAO->financial_type_id;
       $this->log['contactsEncountered'][$contactID] = TRUE;
       $this->log['subscriptionsFound']++;
       $this->log['subscriptions'][$subscription->id]['contactID'] = $contactID;
