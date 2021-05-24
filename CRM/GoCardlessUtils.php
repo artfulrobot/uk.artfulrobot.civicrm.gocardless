@@ -226,6 +226,11 @@ class CRM_GoCardlessUtils {
     if (isset($installments)) {
       $params['count'] = $installments;
     }
+
+    // Allow further manipulation of the arguments via custom hooks ..
+    $deets['context'] = 'subscription_create';
+    CRM_Utils_Hook::alterPaymentProcessorParams($pp, $deets, $params);
+
     $subscription = $gc_api->subscriptions()->create(["params" => $params]);
 
     CRM_Core_Error::debug_log_message(__FUNCTION__ . ": successfully completed redirect flow "
@@ -313,7 +318,12 @@ class CRM_GoCardlessUtils {
         $params['installments'] = $installments;
       }
 
-      $result = static::completeRedirectFlowWithGoCardless($deets + $params);
+      $result = [];
+      // allow hook to amend params or override completeRedirectFlowWithGoCardless()
+      CRM_GoCardless_Hook::handleRedirectFlowWithGoCardless($deets + $params, $result);
+      if (empty($result)) {
+        $result = static::completeRedirectFlowWithGoCardless($deets + $params);
+      }
       // It's the subscription we're interested in.
       $subscription = $result['subscription'];
     }

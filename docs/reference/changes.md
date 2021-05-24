@@ -9,6 +9,11 @@
   seems to do too much resulting in errors like `DB Error: already exists` when
   Civi (5.31 at least) for some reason tries to add a duplicate row in the
   activity-contact table.
+- Added [hook_civicrm_alterPaymentProcessorParams](https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_alterPaymentProcessorParams/)
+  support to alter the params send to Go cardless for creating subscription.
+
+- Introduces a hook to alter or override the
+  `completeRedirectFlowWithGoCardless`. See `CRM_GoCardless_Hook`
 
 ## 1.10.1
 
