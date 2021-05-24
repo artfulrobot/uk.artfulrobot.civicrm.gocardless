@@ -130,7 +130,7 @@ class GCImport
       if (file_exists($this->logFile)) {
         throw new InvalidArgumentException("log file $this->logFile exists.");
       }
-      if (!file_put_contents("testing", $this->logFile)) {
+      if (!file_put_contents($this->logFile, 'testing')) {
         throw new InvalidArgumentException("failed to write to log file $this->logFile");
       }
     }
