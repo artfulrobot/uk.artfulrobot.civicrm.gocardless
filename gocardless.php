@@ -133,16 +133,16 @@ function gocardless_civicrm_alterSettingsFolders(&$metaDataFolders = NULL) {
  * Various intercepts.
  *
  */
-function gocardless_civicrm_buildForm( $formName, &$form ) {
+function gocardless_civicrm_buildForm($formName, &$form) {
 
   if ($formName === 'CRM_Contribute_Form_Contribution_ThankYou') {
     if (!empty($_GET['redirect_flow_id'])) {
       // Looks like a GoCardless thank you page. Complete redirect flow.
-      CRM_GoCardlessUtils::handleContributeFormThanks($form);
+      CRM_GoCardlessUtils::handleContributeFormThanks();
     }
   }
   elseif ($formName === 'CRM_Contribute_Form_Contribution_Main') {
-    CRM_GoCardlessUtils::handleContributeFormHacks($form);
+    CRM_GoCardlessUtils::handleContributeFormHacks();
   }
 }
 
