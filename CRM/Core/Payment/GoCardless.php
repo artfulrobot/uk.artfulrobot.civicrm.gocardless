@@ -6,6 +6,7 @@
  */
 use CRM_GoCardless_ExtensionUtil as E;
 use Civi\Payment\Exception\PaymentProcessorException;
+use Civi\Payment\PropertyBag;
 
 /**
  *
@@ -270,22 +271,35 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
   }
 
   /**
-   * The only implementation is sending people off-site using doTransferCheckout.
-   */
-  public function doDirectPayment(&$params) {
-    CRM_Core_Error::fatal(E::ts('This function is not implemented'));
-  }
-
-  /**
    * Sends user off to Gocardless.
    *
-   * Note: the guts of this function are in doTransferCheckoutWorker() so that
+   * Note: the guts of this function are in createRedirectFlow() so that
    * can be tested without issuing a redirect.
    *
    * This is called by civicrm_api3_contribution_transact calling doPayment on the payment processor.
+   *
+   * @param array|PropertyBag $params
+   * @param string $component
+   * @return void A redirect is called; this function never returns.
+   *
+   * @throws \Civi\Payment\Exception\PaymentProcessorException
    */
-  public function doTransferCheckout(&$params, $component) {
-    $url = $this->doTransferCheckoutWorker($params, $component);
+  public function doPayment(&$params, $component = 'contribute') {
+    // Not sure what the point of this next line is.
+    $this->_component = $component;
+
+    $propertyBag = PropertyBag::cast($params);
+    $statuses = CRM_Contribute_BAO_Contribution::buildOptions('contribution_status_id', 'validate');
+
+    // If we have a $0 amount, skip call to processor and set payment_status to Completed.
+    if ($propertyBag->getAmount() == 0) {
+      return [
+        'payment_status' => 'Completed',
+        'payment_status_id' => array_search('Completed', $statuses),
+      ];
+    }
+
+    $url = $this->createRedirectFlow($params, $component);
     CRM_Utils_System::redirect($url);
   }
 
@@ -305,7 +319,7 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
    * @return string
    *   URL to redirec to.
    */
-  public function doTransferCheckoutWorker(&$params, $component) {
+  public function createRedirectFlow(&$params, $component) {
 
     try {
       // Get a GoCardless redirect flow URL.
@@ -336,7 +350,7 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
     }
     catch (\Exception $e) {
       CRM_Core_Session::setStatus(E::ts('Sorry, there was an error contacting the payment processor GoCardless.'), E::ts("Error"), "error");
-      CRM_Core_Error::debug_log_message('CRM_Core_Payment_GoCardless::doTransferCheckoutWorker exception: ' . $e->getMessage() . "\n\n" . $e->getTraceAsString(), FALSE, 'GoCardless', PEAR_LOG_ERR);
+      CRM_Core_Error::debug_log_message('CRM_Core_Payment_GoCardless::createRedirectFlow exception: ' . $e->getMessage() . "\n\n" . $e->getTraceAsString(), FALSE, 'GoCardless', PEAR_LOG_ERR);
       return $params['entryURL'];
     }
   }

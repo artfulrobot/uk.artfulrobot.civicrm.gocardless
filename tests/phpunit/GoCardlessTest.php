@@ -197,7 +197,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
       'entryURL' => 'http://example.com/somwhere',
     ];
     $obj->setGoCardlessApi($api_prophecy->reveal());
-    $url = $obj->doTransferCheckoutWorker($params, 'contribute');
+    $url = $obj->createRedirectFlow($params, 'contribute');
     $this->assertInternalType('string', $url);
     $this->assertNotEmpty('string', $url);
     $this->assertEquals("https://gocardless.com/somewhere", $url);
