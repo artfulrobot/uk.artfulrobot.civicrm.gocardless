@@ -2089,6 +2089,58 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     ];
   }
   /**
+   */
+  public function testGocardlessfailabandoned() {
+    $dt = new DateTimeImmutable();
+    // Create an old contribution date.
+    $receive_date = $dt->modify("-1 day")->format("Y-m-d");
+
+    $contact = civicrm_api3('Contact', 'create', array(
+      'sequential' => 1,
+      'contact_type' => "Individual",
+      'first_name' => "Wilma",
+      'last_name' => "Flintstone",
+    ));
+
+    $recur = civicrm_api3('ContributionRecur', 'create', array(
+      'sequential' => 1,
+      'contact_id' => $contact['id'],
+    // Donation
+      'financial_type_id' => 1,
+      'frequency_interval' => 1,
+      'amount' => 50,
+      'frequency_unit' => "year",
+      'start_date' => $receive_date,
+      'is_test' => 1,
+      'contribution_status_id' => "Pending",
+      'trxn_id' => 'SUBSCRIPTION_ID',
+      'processor_id' => 'SUBSCRIPTION_ID',
+    ));
+    $contrib = civicrm_api3('Contribution', 'create', array(
+      'sequential' => 1,
+    // Donation
+      'financial_type_id' => 1,
+      'total_amount' => 1,
+      'contact_id' => $contact['id'],
+      'contribution_recur_id' => $recur['id'],
+      'contribution_status_id' => "Pending",
+      'receive_date' => $receive_date,
+      'is_test' => 1,
+    ));
+
+    $result = civicrm_api3('Job', 'Gocardlessfailabandoned', ['contribution_recur_id' => $recur['id']]);
+
+    // We expect that the contrib recur is now Failed
+    // We expect that the contrib is now Cancelled
+    $recur = civicrm_api3('ContributionRecur', 'getsingle', ['id' => $recur['id']]);
+    $status = array_flip($this->contribution_recur_status_map)[$recur['contribution_status_id']];
+    $this->assertEquals('Failed', $status, "Expected recur to be failed");
+
+    $contrib = civicrm_api3('Contribution', 'getsingle', ['id' => $contrib['id']]);
+    $status = array_flip($this->contribution_status_map)[$contrib['contribution_status_id']];
+    $this->assertEquals('Cancelled', $status, "Expected contrib to be Cancelled");
+  }
+  /**
    * Return a fake GoCardless IPN processor.
    *
    * Helper function for other tests.

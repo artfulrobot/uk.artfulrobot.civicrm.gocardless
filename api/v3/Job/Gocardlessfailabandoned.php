@@ -12,6 +12,10 @@ function _civicrm_api3_job_Gocardlessfailabandoned_spec(&$spec) {
   $spec['timeout']['description'] = 'How long (hours) before we consider '
     . 'Pending ContributionRecur records as abandoned. Default: 0.66 (c40 mins)';
   $spec['timeout']['api.default'] = 0.66;
+
+  $spec['contribution_recur_id'] = [
+    'description' => 'Provide a specific item to abandon (for testing purposes)',
+  ];
 }
 
 /**
@@ -41,11 +45,20 @@ function civicrm_api3_job_Gocardlessfailabandoned($params) {
   if ($result['count']) {
     $payment_processor_ids = array_keys($result['values']);
 
-    $old_crs = civicrm_api3('ContributionRecur', 'get', [
-      'payment_processor_id'   => ['IN' => $payment_processor_ids],
-      'contribution_status_id' => 'Pending',
-      'modified_date'          => ['<' => date('Y-m-d H:i:s', $too_old)],
-    ]);
+    if (!empty($params['contribution_recur_id'])) {
+      // Hack for phpunit because we go on modified_date which is set by a trigger, I think.
+      $old_crs = civicrm_api3('ContributionRecur', 'get', [
+        'contribution_status_id' => 'Pending',
+        'id'                     => (int) $params['contribution_recur_id'],
+      ]);
+    }
+    else {
+      $old_crs = civicrm_api3('ContributionRecur', 'get', [
+        'payment_processor_id'   => ['IN' => $payment_processor_ids],
+        'contribution_status_id' => 'Pending',
+        'modified_date'          => ['<' => date('Y-m-d H:i:s', $too_old)],
+      ]);
+    }
 
     if ($old_crs['count'] > 0) {
       foreach ($old_crs['values'] as $contribution_recur_id => $contribution_recur) {
