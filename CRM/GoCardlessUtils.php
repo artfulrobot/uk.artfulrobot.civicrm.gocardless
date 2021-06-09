@@ -488,26 +488,4 @@ class CRM_GoCardlessUtils {
       CRM_Core_Region::instance('page-body')->add(['markup' => "<script>$js</script>"]);
     }
   }
-  /**
-   * Apply receipting policy.
-   *
-   * @param array $contributionApiParams
-   * @param null|array $recur
-   *
-   * @return 0|1
-   */
-  public static function getReceiptPolicy($recur = NULL) {
-    $config = static::getSettings()['sendReceiptsForCustomPayments'];
-
-    if ($config === 'always') {
-      return 1;
-    }
-    elseif ($config === 'defer' && $recur && isset($recur['is_email_receipt'])) {
-      // Use the recur record's setting
-      return $recur['is_email_receipt'] ? 1 : 0;
-    }
-
-    // Default config is 'never'
-    return 0;
-  }
 }

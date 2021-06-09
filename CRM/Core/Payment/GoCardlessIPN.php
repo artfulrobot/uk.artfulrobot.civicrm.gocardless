@@ -239,14 +239,13 @@ class CRM_Core_Payment_GoCardlessIPN {
       'financial_type_id'      => $recur['financial_type_id'],
       'contact_id'             => $recur['contact_id'],
       'is_test'                => $this->test_mode ? 1 : 0,
-      'is_email_receipt'       => CRM_GoCardlessUtils::getReceiptPolicy($recur),
     ];
     // Note: the param called 'trxn_date' which is used for membership date
     // calculations. If it's not given, today's date gets used.
 
     $pending_contribution_id = $this->getPendingContributionId($recur);
     if ($pending_contribution_id) {
-      // There's an existing pending contribution.
+      // There's an existing pending contribution, we'll update this.
       $contribution['id'] = $pending_contribution_id;
 
       // If the amount received is different, we should update our pending contribution.
@@ -263,12 +262,23 @@ class CRM_Core_Payment_GoCardlessIPN {
       }
 
       // Now call Payment.create. This will call Contribution.completetransaction internally
+      //
+      // Handle receipt policy.
+      $receiptPolicy = CRM_GoCardlessUtils::getSettings()['sendReceiptsForCustomPayments'];
+      $sendReceipt = 0;
+      if ($receiptPolicy === 'always') {
+        // Policy is to always send receipt.
+        $sendReceipt = 1;
+      }
+      elseif ($receiptPolicy === 'defer') {
+        $sendReceipt = empty($recur['is_email_receipt']) ? 0 : 1;
+      }
       civicrm_api3('Payment', 'create', [
         'contribution_id'                   => $contribution['id'],
         'total_amount'                      => $contribution['total_amount'],
         'trxn_date'                         => $payment->charge_date,
         'trxn_id'                           => $payment->id,
-        'is_send_contribution_notification' => $contribution['is_email_receipt'],
+        'is_send_contribution_notification' => $sendReceipt,
       ]);
       // Of these params for Payment.create, only contribution_id and
       // is_send_contribution_notification are passed on to the
@@ -276,6 +286,14 @@ class CRM_Core_Payment_GoCardlessIPN {
     }
     else {
       // This is another payment after the first.
+
+      // If our policy is 'always' send a receipt, add that in now.
+    // elseif ($config === 'defer' && $recur && isset($recur['is_email_receipt'])) {
+      $config = CRM_GoCardlessUtils::getSettings()['sendReceiptsForCustomPayments'];
+      if ($config === 'always') {
+        $contribution['is_email_receipt'] = 1;
+      }
+
       $contribution = $this->handleRepeatTransaction($contribution, $recur);
     }
 
@@ -340,6 +358,16 @@ class CRM_Core_Payment_GoCardlessIPN {
    * @return Array updated $contribution
    */
   public function handleRepeatTransaction($contribution, $recur) {
+    $receiptPolicy = CRM_GoCardlessUtils::getSettings()['sendReceiptsForCustomPayments'];
+
+    // Handle receipt policy.
+    if (!empty($recur['is_email_receipt']) && $receiptPolicy === 'never') {
+      $contribution['is_email_receipt'] = 0;
+    }
+    else {
+      // Remove is_email_receipt from $contribution
+      unset($contribution['is_email_receipt']);
+    }
 
     // There is no pending contribution, find the original one.
     $orig = $this->getOriginalContribution($recur);
@@ -415,9 +443,19 @@ class CRM_Core_Payment_GoCardlessIPN {
     }
 
     // Now complete the new contribution by creating a payment for the same amount.
+
+    // Handle receipt policy.
+    // Note: If the recur is set up with is_email_receipt and we ALSO pass
+    // is_send_contribution_notification with the payment then we get duplicate
+    // emails. So default this to 0.
+    $paymentReceipt = 0;
+    if (empty($recur['is_email_receipt']) && $receiptPolicy === 'always') {
+      // The recur is NOT set up to send a receipt but our policy overrides this.
+      $paymentReceipt = 1;
+    }
     $paymentCreateParams = [
       'contribution_id'                   => $contribution['id'],
-      'is_send_contribution_notification' => (empty($contribution['is_email_receipt']) ? 0 : 1),
+      'is_send_contribution_notification' => $paymentReceipt,
       'trxn_id'                           => $contribution['trxn_id'],
       'trxn_date'                         => $contribution['receive_date'],
       'total_amount'                      => $contribution['total_amount'],

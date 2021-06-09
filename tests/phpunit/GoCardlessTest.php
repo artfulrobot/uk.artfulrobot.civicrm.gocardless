@@ -2002,18 +2002,20 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     $controller->processWebhookEvents(TRUE);
 
     $receipt_date = civicrm_api3('Contribution', 'getvalue', ['id' => $contribution['id'], 'return' => 'receipt_date']);
+    $messagesSent = count($mut->getAllMessages());
 
     if ($expected) {
       // Check that a receipt WAS sent.
       $this->assertNotEmpty($receipt_date);
+      $this->assertEquals(1, $messagesSent, "Expected 1 email to be sent when first payment completed");
       $mut->checkMailLog(['Contribution Information']);
     }
     else {
       // Check it was NOT sent.
       $this->assertEmpty($receipt_date);
+      $this->assertEquals(0, $messagesSent, "Expected no emails to be sent when first payment completed");
       $mut->checkMailLog([], ['Contribution Information']);
     }
-    $mut->stop();
 
     // Subsequent payments
     //
@@ -2054,20 +2056,21 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     $this->assertNotEquals($contribution['id'], $contribution2['id'], 'Expected for a new contribution to have been added but seems the last one is the first one we made.');
     $this->assertEquals('2016-11-02 00:00:00', $contribution2['receive_date'], 'Wrong receive_date on followup contribution');
     $receipt_date = $contribution2['receipt_date'] ?? NULL;
-    $allMessages = $mut->getAllMessages();
+    $messagesSent = count($mut->getAllMessages());
     if ($expected) {
       // Check that a receipt WAS sent.
-      $this->assertNotEmpty($receipt_date);
+      $this->assertNotEmpty($receipt_date, 'Expected a receipt_date to have been set for subsequent payment');
+      $this->assertEquals(1, $messagesSent, "Expected one email to be sent for subsequent payments");
       $mut->checkMailLog(['Contribution Information', 'PAYMENT_ID_2']);
       // We only expect one message
-      $this->assertEquals(1, count($allMessages));
+      $this->assertEquals(1, $messagesSent);
     }
     else {
       // Check it was NOT sent.
-      $this->assertEmpty($receipt_date);
+      $this->assertEmpty($receipt_date, 'Expected a receipt_date NOT to have been set for subsequent payment');
       $mut->checkMailLog([], ['Contribution Information', 'PAYMENT_ID_2']);
       // We don't expect any messages
-      $this->assertEquals(0, count($allMessages));
+      $this->assertEquals(0, $messagesSent, "Expected no emails to be sent for subsequent payments");
     }
     $mut->stop();
 
