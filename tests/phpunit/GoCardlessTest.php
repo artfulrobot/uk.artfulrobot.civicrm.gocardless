@@ -1965,6 +1965,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
       'contribution_status_id' => "In Progress",
       'trxn_id' => 'SUBSCRIPTION_ID',
       'processor_id' => 'SUBSCRIPTION_ID',
+      'payment_processor_id' => $this->test_mode_payment_processor['id'],
     ));
 
     // Create pending contrib.
@@ -1979,9 +1980,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
       'is_test' => 1,
     ));
 
-
     // Mock webhook input data.
-    $controller = new CRM_Core_Payment_GoCardlessIPN();
     $body = '{"events":[
       {"id":"EV1","resource_type":"payments","action":"confirmed","links":{"payment":"PAYMENT_ID"}}
       ]}';
@@ -2015,6 +2014,63 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
       $mut->checkMailLog([], ['Contribution Information']);
     }
     $mut->stop();
+
+    // Subsequent payments
+    //
+    // Reset mail log
+    $mut->clearMessages();
+
+    // Create 2nd contrib.
+    // Mock webhook input data.
+    $body = '{"events":[
+      {"id":"EV2","resource_type":"payments","action":"confirmed","links":{"payment":"PAYMENT_ID_2"}}
+      ]}';
+    $calculated_signature = hash_hmac("sha256", $body, 'mock_webhook_key');
+
+    // Mock API
+    $this->mockPaymentGet('{
+        "id":"PAYMENT_ID_2",
+        "status":"confirmed",
+        "charge_date": "2016-11-02",
+        "amount":5000,
+        "links":{"subscription":"SUBSCRIPTION_ID"}
+      }'
+    );
+
+    // Trigger webhook
+    $controller = new CRM_Core_Payment_GoCardlessIPN();
+    $controller->parseWebhookRequest(["Webhook-Signature" => $calculated_signature], $body);
+    $controller->processWebhookEvents(TRUE);
+
+    // Find the latest contribution.
+    $contribution2 = civicrm_api3('Contribution', 'get', [
+      'contribution_recur_id' => $recur['id'],
+      'return' => ['receipt_date', 'receive_date'],
+      'sequential' => 1,
+      'is_test' => 1,
+      'options' => ['limit' => 1, 'sort' => "id DESC"]])['values'][0] ?? NULL;
+    // Check that this is a different contrib to the other one.
+    $this->assertNotNull($contribution2, "Expected to find a contribution but got none!");
+    $this->assertNotEquals($contribution['id'], $contribution2['id'], 'Expected for a new contribution to have been added but seems the last one is the first one we made.');
+    $this->assertEquals('2016-11-02 00:00:00', $contribution2['receive_date'], 'Wrong receive_date on followup contribution');
+    $receipt_date = $contribution2['receipt_date'] ?? NULL;
+    $allMessages = $mut->getAllMessages();
+    if ($expected) {
+      // Check that a receipt WAS sent.
+      $this->assertNotEmpty($receipt_date);
+      $mut->checkMailLog(['Contribution Information', 'PAYMENT_ID_2']);
+      // We only expect one message
+      $this->assertEquals(1, count($allMessages));
+    }
+    else {
+      // Check it was NOT sent.
+      $this->assertEmpty($receipt_date);
+      $mut->checkMailLog([], ['Contribution Information', 'PAYMENT_ID_2']);
+      // We don't expect any messages
+      $this->assertEquals(0, count($allMessages));
+    }
+    $mut->stop();
+
   }
   /**
    * Data provider for testSendReceipts
