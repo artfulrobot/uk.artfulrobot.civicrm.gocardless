@@ -19,6 +19,7 @@ nav:
     - "Alternative installation": howto/alternative-installs.md
     - "Pre-fill address details": howto/prefill.md
     - "Set up for memberships": howto/membership.md
+    - "Scheduled Reminders": howto/schedule-reminders.md
 - Discussion:
     - "Membership dates": discussion/membership.md
     - "Importing": discussion/import.md
