@@ -390,7 +390,8 @@ class CRM_Core_Payment_GoCardlessIPN {
     $contribution['invoice_id'] = $contribution['trxn_id'];
 
     // We'll copy various fields from the original, needed apparently.
-    $contribution['source'] = $orig['source'] ?? '';
+    // source must be *provided* and *queried* as 'source' but the 'get' API returns it as 'contribution_source'!
+    $contribution['source'] = $orig['contribution_source'] ?? '';
 
     // Apparently we might need to correct this.
     $contribution['payment_instrument_id'] = $this->paymentProcessorObject->getPaymentInstrumentID();
@@ -431,7 +432,8 @@ class CRM_Core_Payment_GoCardlessIPN {
       'id'                    => $contribution['id'],
       'invoice_id'            => $contribution['invoice_id'],
       'receive_date'          => $contribution['receive_date'],
-      'source'                => $contribution['source'],
+      // Seems this is not needed.
+      //' source'                => $contribution['source'],
       'payment_instrument_id' => $contribution['payment_instrument_id'],
     ];
     $result = civicrm_api3('Contribution', 'create', $params);
@@ -675,7 +677,7 @@ class CRM_Core_Payment_GoCardlessIPN {
       'options'                => ['sort' => 'receive_date', 'limit' => 1],
     ]);
     if ($contribs['count'] > 0) {
-      // Found one (possibly more than one, edge case - ignore and take first).
+      // Found one (possibly more than one, edge case - ignore and take first, not sure if LIMIT affects 'count' anyway).
       return $contribs['values'][0] + ['_was' => 'found_completed'];
     }
     // We failed to find a Completed one, check for any.

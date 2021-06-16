@@ -2,7 +2,7 @@
 
 ## 1.10.2
 
-- Mostly a cleanup of code around handling completed payments; strip out work
+- Mostly a clean-up of code around handling completed payments; strip out work
   that is now done by core CiviCRM, and for the bits we still need to override
   (e.g. setting Contribution `receive_date` to the charge date of the completed
   payment) we do this with SQL not the Contribution.create as this sometimes
@@ -16,9 +16,14 @@
 - Introduces a hook to alter or override the
   `completeRedirectFlowWithGoCardless`. See `CRM_GoCardless_Hook`
 
-- Implement `doPayment` instead of the old, deprecated `doTransferPayment`. See https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/114
+- Implement `doPayment` instead of the old, deprecated `doTransferPayment`. See
+  https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/114
 
-- Fix trouble with receipt policy (duplicate receipts or none!) - see https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/107
+- Fix trouble with receipt policy (duplicate receipts or none!) - see
+  https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/107
+
+- Fix 'source' not populating in subsequent contributions. - see
+  https://github.com/artfulrobot/uk.artfulrobot.civicrm.gocardless/issues/118
 
 ## 1.10.1
 

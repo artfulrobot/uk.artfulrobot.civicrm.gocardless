@@ -998,6 +998,7 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
       'contribution_recur_id' => $recur['id'],
       'contribution_status_id' => "Completed",
       'receive_date' => $first_date_string,
+      'source' => 'SOURCE_1',
       'is_test' => 1,
       'trxn_id' => 'PAYMENT_ID',
     ));
@@ -1077,6 +1078,8 @@ class GoCardlessTest extends PHPUnit\Framework\TestCase implements HeadlessInter
     $this->assertEquals("$second_charge_date 00:00:00", $contrib['receive_date']);
     $this->assertEquals(1.23, $contrib['total_amount']);
     $this->assertEquals('PAYMENT_ID_2', $contrib['trxn_id']);
+    $this->assertArrayHasKey('contribution_source', $contrib, 'Expected to find `contribution_source` in subsequent contribution, but didn’t.');
+    $this->assertEquals('SOURCE_1', $contrib['contribution_source']);
     $this->assertEquals($this->contribution_status_map['Completed'], $contrib['contribution_status_id']);
 
     // Check membership
