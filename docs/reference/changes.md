@@ -11,7 +11,7 @@
   activity-contact table.
 
 - Added [`hook_civicrm_alterPaymentProcessorParams`](https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_alterPaymentProcessorParams/)
-  support to alter the params send to GoCardless for creating subscription.
+  support to alter the params sent to GoCardless for creating subscription.
 
 - Introduces a hook to alter or override the
   `completeRedirectFlowWithGoCardless`. See `CRM_GoCardless_Hook`
