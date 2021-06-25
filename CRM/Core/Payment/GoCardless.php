@@ -299,6 +299,12 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
       ];
     }
 
+    // Added via javascript so "removed" by quickform after submission
+    $dayOfMonth = CRM_Utils_Request::retrieveValue('day_of_month', 'Integer', NULL, FALSE, 'POST');
+    if ($dayOfMonth) {
+      $params['day_of_month'] = $dayOfMonth;
+    }
+
     $url = $this->createRedirectFlow($params, $component);
     CRM_Utils_System::redirect($url);
   }
@@ -338,7 +344,7 @@ class CRM_Core_Payment_GoCardless extends CRM_Core_Payment {
         'payment_processor_id' => $this->_paymentProcessor['id'],
         "description"          => $params['description'],
       ];
-      foreach (['contributionID', 'contributionRecurID', 'contactID', 'membershipID'] as $_) {
+      foreach (['contributionID', 'contributionRecurID', 'contactID', 'membershipID', 'day_of_month'] as $_) {
         if (!empty($params[$_])) {
           $sesh_store[$redirect_flow->id][$_] = $params[$_];
         }

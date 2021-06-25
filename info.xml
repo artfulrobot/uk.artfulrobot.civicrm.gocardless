@@ -22,6 +22,9 @@
   <compatibility>
     <ver>5.35</ver>
   </compatibility>
+  <classloader>
+    <psr4 prefix="Civi\" path="Civi"/>
+  </classloader>
   <civix>
     <namespace>CRM/GoCardless</namespace>
   </civix>
